@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ztake Order Management API — Docs</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#111834; --muted:#a9b0c3; --text:#e8ecf8; --brand:#6ea8ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+    .container{max-width:980px;margin:40px auto;padding:0 20px}
+    .card{background:var(--panel);border:1px solid #1b2347;border-radius:12px;padding:22px;margin:16px 0}
+    h1{font-size:28px;margin:0 0 8px}
+    h2{font-size:20px;margin:24px 0 10px}
+    h3{font-size:16px;margin:18px 0 8px}
+    p,li,code,pre{font-size:14px}
+    code{background:#0c1430;border:1px solid #1b2347;border-radius:6px;padding:2px 6px;color:#d6e2ff}
+    pre{background:#0c1430;border:1px solid #1b2347;border-radius:10px;padding:14px;overflow:auto}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .kv{display:grid;grid-template-columns:200px 1fr;gap:8px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #26305e;color:#cdd7ff;background:#10193b}
+    .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+    a{color:var(--brand);text-decoration:none}
+    a:hover{text-decoration:underline}
+    table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #1b2347;border-radius:10px;overflow:hidden}
+    th,td{padding:10px 12px;border-bottom:1px solid #1b2347;font-size:13px;text-align:left}
+    th{background:#0f1735;color:#cdd7ff}
+    tr:last-child td{border-bottom:none}
+  </style>
+  <meta name="robots" content="noindex" />
+  <meta name="description" content="ztake Order Management API documentation for order creation, UTR submission, status updates, and callback flow." />
+</head>
+<body>
+  <div class="container">
+    <h1>ztake Order Management API</h1>
+    <p class="muted">Create orders, capture UTRs, verify against payments, update status, and receive callbacks.</p>
+
+    <div class="card">
+      <h2>Base URL</h2>
+      <p><code>http(s)://your-domain</code> (local: <code>http://localhost:3000</code>)</p>
+      <h3>Auth Options</h3>
+      <ul>
+        <li><b>API Key</b>: <code>Authorization: Bearer pk_...</code> — preferred; links to vendor via api key.</li>
+        <li><b>Vendor JWT</b>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — also supported.</li>
+        <li><b>Request body</b>: optional <code>vendorId</code> field.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>1) Create Order</h2>
+      <div class="kv">
+        <div>Method</div><div><code>POST</code></div>
+        <div>Endpoint</div><div><code>/api/v1/orders</code></div>
+        <div>Content-Type</div><div><code>application/json</code></div>
+      </div>
+      <h3>Request body</h3>
+      <pre>{
+  "merchantOrderId": "ORD12345",
+  "amount": 250.0,
+  "currency": "INR",
+  "customerName": "John Doe",
+  "returnUrl": "https://merchant.com/payment/return",
+  "callbackUrl": "https://merchant.com/payment/callback",
+  "vendorId": 2   // optional (API key/JWT also supported)
+}</pre>
+      <h3>Response</h3>
+      <pre>{
+  "status": "success",
+  "merchantOrderId": "ORD12345",
+  "ztakeOrderId": "ztakeXXXXXX",
+  "paymentUrl": "https://your-domain/orders/ztakeXXXXXX",
+  "vendorId": 2
+}</pre>
+      <p>Open <code>paymentUrl</code> to show the payer a UTR submission screen.</p>
+    </div>
+
+    <div class="card">
+      <h2>2) Get Order</h2>
+      <div class="kv">
+        <div>Method</div><div><code>GET</code></div>
+        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}</code></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3) Submit UTR</h2>
+      <div class="kv">
+        <div>Method</div><div><code>POST</code></div>
+        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}/submit-utr</code></div>
+        <div>Body</div><div><code>{ "utr": "214587963214" }</code></div>
+      </div>
+      <p>Behavior:</p>
+      <ul>
+        <li>Persists UTR on the order.</li>
+        <li>Verifies the UTR against <code>payments</code> for the same vendor.</li>
+        <li>Always syncs the order <code>amount</code> from the payments row (if found).</li>
+        <li>If the payment has <code>payment_status = 'Succeeded'</code>, the order is marked <code>Succeeded</code> and a callback is sent.</li>
+        <li>Prevents reuse: once a payment’s UTR is checked (<code>checked_status = TRUE</code>), the same UTR cannot succeed again.</li>
+      </ul>
+      <h3>Responses</h3>
+      <table>
+        <thead><tr><th>Status</th><th>Body</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>200</td><td><code>{ success:true, verified:false, status:'Pending', code:'PAYMENT_NOT_SUCCEEDED' }</code></td><td>UTR found but payment not succeeded yet.</td></tr>
+          <tr><td>200</td><td><code>{ success:true, verified:true, status:'Succeeded', amount: 250.00 }</code></td><td>Verified and succeeded; callback sent.</td></tr>
+          <tr><td>404</td><td><code>{ success:false, code:'UTR_NOT_FOUND' }</code></td><td>No payment for this vendor/UTR.</td></tr>
+          <tr><td>409</td><td><code>{ success:false, code:'UTR_ALREADY_USED' }</code></td><td>UTR already checked once.</td></tr>
+          <tr><td>409</td><td><code>{ success:false, code:'ALREADY_SUCCEEDED' }</code></td><td>Order already succeeded.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>4) Update Status (sends callback)</h2>
+      <div class="kv">
+        <div>Method</div><div><code>POST</code></div>
+        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}/status</code></div>
+        <div>Body</div><div><code>{ "status": "SUCCESS|FAILED|PENDING", "utr": "..." }</code></div>
+      </div>
+      <p>Maps to DB statuses <code>Succeeded|Failed|Pending</code> and POSTs a callback.</p>
+    </div>
+
+    <div class="card">
+      <h2>5) Vendor Orders (UI)</h2>
+      <div class="kv">
+        <div>Page</div><div><code>/orders</code> (requires login)</div>
+      </div>
+      <p>Lists orders for the authenticated vendor. Use API key or vendor JWT when creating orders to associate them.</p>
+    </div>
+
+    <div class="card">
+      <h2>Callback</h2>
+      <p>Sent on success from submit-UTR (after verification) and from the status endpoint.</p>
+      <h3>Payload</h3>
+      <pre>{
+  "merchantOrderId": "ORD12345",
+  "ztakeOrderId": "ztakeXXXXXX",
+  "amount": 250.00,
+  "utr": "214587963214",
+  "status": "SUCCESS",
+  "paymentTime": "2025-09-22T15:20:00+05:30"
+}</pre>
+      <p class="muted">Tip: Use <a href="https://webhook.site" target="_blank" rel="noreferrer">webhook.site</a> as a test <code>callbackUrl</code>.</p>
+    </div>
+
+    <div class="card">
+      <h2>cURL Samples</h2>
+      <h3>Create Order</h3>
+      <pre>curl -X POST http://localhost:3000/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_your_api_key" \
+  -d '{
+    "merchantOrderId": "ORD12345",
+    "amount": 250.0,
+    "currency": "INR",
+    "customerName": "John Doe",
+    "returnUrl": "https://merchant.com/payment/return",
+    "callbackUrl": "https://webhook.site/your-uuid"
+  }'</pre>
+      <h3>Submit UTR</h3>
+      <pre>curl -X POST http://localhost:3000/api/v1/orders/ztakeXXXX/submit-utr \
+  -H "Content-Type: application/json" \
+  -d '{ "utr": "214587963214" }'</pre>
+      <h3>Update Status</h3>
+      <pre>curl -X POST http://localhost:3000/api/v1/orders/ztakeXXXX/status \
+  -H "Content-Type: application/json" \
+  -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
+    </div>
+
+    <p class="muted">© ztake. This page documents the Order Management additions only.</p>
+  </div>
+</body>
+</html>
+
+

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gateway Redirect Test</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px; }
+    .row { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-weight: 600; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+    button { padding: 10px 14px; border: 0; background: #111827; color: white; border-radius: 6px; cursor: pointer; }
+    button.secondary { background: #374151; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .row.inline { display: flex; gap: 12px; align-items: flex-end; }
+  </style>
+  <script>
+  function buildUrl() {
+    const base = `${window.location.origin}/public/redirect`;
+    const utr = document.getElementById('utr').value.trim();
+    const amount = document.getElementById('amount').value.trim();
+    const method = document.getElementById('method').value;
+    const poll = document.getElementById('poll_ms').value.trim();
+    const timeout = document.getElementById('timeout_ms').value.trim();
+    const resultUrl = document.getElementById('result_url').value.trim() || `${window.location.origin}/test-result.html`;
+    const origin = document.getElementById('origin').value.trim() || window.location.origin;
+    const vendorId = document.getElementById('vendor_id').value.trim();
+
+    const params = new URLSearchParams();
+    params.set('utr', utr);
+    params.set('method', method);
+    params.set('return_url', resultUrl);
+    if (amount) params.set('amount', amount);
+    if (poll) params.set('poll_ms', poll);
+    if (timeout) params.set('timeout_ms', timeout);
+    if (method === 'postmessage') params.set('origin', origin);
+    if (vendorId) params.set('vendor_id', vendorId);
+    return `${base}?${params.toString()}`;
+  }
+
+    function openRedirect() {
+      const url = buildUrl();
+      window.location.href = url;
+    }
+
+    function openPopup() {
+      const url = buildUrl();
+      const w = 520, h = 720;
+      const left = (screen.width/2)-(w/2);
+      const top = (screen.height/2)-(h/2);
+      window.open(url, 'gateway', `width=${w},height=${h},left=${left},top=${top}`);
+    }
+
+    function updatePreview() {
+      document.getElementById('preview').textContent = buildUrl();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('input,select').forEach(el => el.addEventListener('input', updatePreview));
+      document.getElementById('utr').value = '1234567890';
+      document.getElementById('amount').value = '100.50';
+      document.getElementById('poll_ms').value = '3000';
+      document.getElementById('timeout_ms').value = '180000';
+      document.getElementById('result_url').value = `${window.location.origin}/test-result.html`;
+      document.getElementById('origin').value = window.location.origin;
+      document.getElementById('vendor_id').value = '2';
+      updatePreview();
+    });
+  </script>
+</head>
+<body>
+  <h1>Gateway Redirect Test</h1>
+  <p class="muted">Use this page to trigger the new redirect flow and see the returned result.</p>
+
+  <div class="grid">
+    <div class="row">
+      <label for="utr">UTR</label>
+      <input id="utr" placeholder="e.g. 1234567890" />
+    </div>
+    <div class="row">
+      <label for="amount">Amount</label>
+      <input id="amount" placeholder="e.g. 100.50" />
+    </div>
+    <div class="row">
+      <label for="method">Method</label>
+      <select id="method">
+        <option value="redirect">redirect</option>
+        <option value="post">post</option>
+        <option value="postmessage">postmessage</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="result_url">Return URL</label>
+      <input id="result_url" placeholder="https://your-site.com/result" />
+      <div class="muted">Defaults to this site's <code>/test-result.html</code></div>
+    </div>
+    <div class="row">
+      <label for="poll_ms">Poll Interval (ms)</label>
+      <input id="poll_ms" />
+    </div>
+    <div class="row">
+      <label for="timeout_ms">Timeout (ms)</label>
+      <input id="timeout_ms" />
+    </div>
+    <div class="row">
+      <label for="origin">Origin (for postMessage)</label>
+      <input id="origin" />
+    </div>
+    <div class="row">
+      <label for="vendor_id">Vendor ID</label>
+      <input id="vendor_id" placeholder="e.g. 1" />
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px">
+    <label>Preview URL</label>
+    <pre id="preview" style="white-space: normal; background: #f3f4f6; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;"></pre>
+  </div>
+
+  <div class="row inline">
+    <button onclick="openRedirect()">Open (same tab)</button>
+    <button class="secondary" onclick="openPopup()">Open in Popup</button>
+  </div>
+
+  <div id="result-display" style="margin-top: 20px; padding: 16px; background: #f3f4f6; border-radius: 8px; display: none;">
+    <h3>Payment Result</h3>
+    <div id="result-content"></div>
+  </div>
+
+  <script>
+    // Listen for postMessage results (when using method=postmessage)
+    window.addEventListener('message', (event) => {
+      if (!event.data || event.data.type !== 'payment_result') return;
+      console.log('Received payment_result via postMessage:', event.data.payload);
+      
+      const payload = event.data.payload;
+      const resultDisplay = document.getElementById('result-display');
+      const resultContent = document.getElementById('result-content');
+      
+      // Check for specific error messages
+      const isPaymentNotFound = payload.message && payload.message.toLowerCase().includes('payment not found');
+      
+      resultContent.innerHTML = `
+        <p><strong>Status:</strong> ${payload.status}</p>
+        <p><strong>UTR:</strong> ${payload.utr}</p>
+        <p><strong>Amount:</strong> ${payload.amount || 'N/A'}</p>
+        <p><strong>Vendor ID:</strong> ${payload.vendor_id != null ? payload.vendor_id : 'N/A'}</p>
+        <p><strong>Success:</strong> ${payload.success ? 'Yes' : 'No'}</p>
+        ${payload.message ? `<p><strong>Message:</strong> ${payload.message}</p>` : ''}
+        ${isPaymentNotFound ? '<p style="color: #dc2626; font-weight: bold; margin-top: 10px;">⚠️ Payment not found, please try after sometime</p>' : ''}
+      `;
+      
+      resultDisplay.style.display = 'block';
+      if (isPaymentNotFound) {
+        resultDisplay.style.backgroundColor = '#fef3c7';
+        resultDisplay.style.color = '#92400e';
+        resultDisplay.style.border = '2px solid #f59e0b';
+      } else {
+        resultDisplay.style.backgroundColor = payload.success ? '#dcfce7' : '#fee2e2';
+        resultDisplay.style.color = payload.success ? '#166534' : '#991b1b';
+      }
+    });
+  </script>
+</body>
+</html>
+
+

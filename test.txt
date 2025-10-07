@@ -1,0 +1,4 @@
+curl -i https://sandbox.cashfree.com/payout/v2/beneficiaries \
+  -H "X-Client-Id: <TEST_PAYOUT_CLIENT_ID>" \
+  -H "X-Client-Secret: <TEST_PAYOUT_CLIENT_SECRET>" \
+  -H "Accept: application/json"

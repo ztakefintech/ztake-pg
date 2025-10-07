@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gateway Result</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #fff; }
+    .row { margin-bottom: 8px; }
+    .key { font-weight: 600; }
+    .status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+    .status.succeeded { background: #dcfce7; color: #166534; }
+    .status.failed { background: #fee2e2; color: #991b1b; }
+    .muted { color: #6b7280; font-size: 12px; }
+    pre { background: #f3f4f6; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Gateway Result</h1>
+  <p class="muted">This page displays the parameters returned by the gateway.</p>
+
+  <div class="card" id="result"></div>
+
+  <h3>Raw Query</h3>
+  <pre id="raw"></pre>
+
+  <script>
+    function render() {
+      const sp = new URLSearchParams(window.location.search);
+      const data = {
+        utr: sp.get('utr'),
+        success: sp.get('success') === 'true',
+        status: sp.get('status'),
+        amount: sp.get('amount'),
+        message: sp.get('message'),
+      };
+
+      const container = document.getElementById('result');
+      const statusClass = (data.status || '').toLowerCase() === 'succeeded' ? 'succeeded' : 'failed';
+      container.innerHTML = `
+        <div class="row"><span class="key">UTR:</span> ${data.utr || '-'} </div>
+        <div class="row"><span class="key">Success:</span> ${String(data.success)} </div>
+        <div class="row"><span class="key">Status:</span> <span class="status ${statusClass}">${data.status || '-'}</span></div>
+        <div class="row"><span class="key">Amount:</span> ${data.amount || '-'} </div>
+        <div class="row"><span class="key">Message:</span> ${data.message || '-'} </div>
+      `;
+
+      document.getElementById('raw').textContent = window.location.search || '(no query params)';
+    }
+
+    render();
+  </script>
+</body>
+</html>
+
+
