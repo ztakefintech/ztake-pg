@@ -1,26 +1,29 @@
-'use client';
+import { Header } from "@/components/header"
+import { Hero } from "@/components/hero"
+import { WhyChoose } from "@/components/why-choose"
+import { Services } from "@/components/services"
+import { BusinessSolutions } from "@/components/business-solutions"
+import { SuccessStories } from "@/components/success-stories"
+import { CTASection } from "@/components/cta-section"
+import { ContactForm } from "@/components/contact-form"
+import { Footer } from "@/components/footer"
+import { WhatsAppButton } from "@/components/whatsapp-button"
+import { ScrollToTop } from "@/components/scroll-to-top"
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/context';
-
-export default function HomePage() {
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [isAuthenticated, isLoading, router]);
-
+export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-    </div>
-  );
+    <main className="min-h-screen bg-black">
+      <Header />
+      <Hero />
+      <WhyChoose />
+      <Services />
+      <BusinessSolutions />
+      <SuccessStories />
+      <CTASection />
+      <ContactForm />
+      <Footer />
+      <WhatsAppButton />
+      <ScrollToTop />
+    </main>
+  )
 }
