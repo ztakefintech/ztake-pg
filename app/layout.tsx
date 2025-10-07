@@ -6,7 +6,7 @@ import { AuthProvider } from '@/lib/context'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NanaPay',
+  title: 'Ztake',
   description: 'A comprehensive platform for tracking vendor payments and UPI transactions',
 }
 
