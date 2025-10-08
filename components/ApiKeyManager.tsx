@@ -162,7 +162,7 @@ export default function ApiKeyManager() {
         )}
       </div>
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-8 space-y-6 hidden">
         {/* Base URL Information */}
         <div className="card bg-blue-50 border-blue-200">
           <h2 className="text-lg font-semibold text-blue-800 mb-4">Base URL Information</h2>

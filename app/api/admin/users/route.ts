@@ -18,6 +18,11 @@ export async function GET(request: NextRequest) {
         contact_name,
         phone,
         upi_id,
+        payout_balance,
+        payout_recharge_bank_name,
+        payout_recharge_account_number,
+        payout_recharge_account_holder,
+        payout_recharge_ifsc,
         created_at,
         updated_at
       FROM vendors 
@@ -31,6 +36,30 @@ export async function GET(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Failed to fetch users' },
       { status: error instanceof Error && error.message.includes('Admin authentication') ? 401 : 500 }
     );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    requireAdmin(request);
+    const body = await request.json().catch(() => ({}));
+    const { id, payout_recharge_bank_name, payout_recharge_account_number, payout_recharge_account_holder, payout_recharge_ifsc } = body || {};
+    if (!id) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+    await db.run(
+      `UPDATE vendors SET 
+         payout_recharge_bank_name = ?,
+         payout_recharge_account_number = ?,
+         payout_recharge_account_holder = ?,
+         payout_recharge_ifsc = ?,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [payout_recharge_bank_name || null, payout_recharge_account_number || null, payout_recharge_account_holder || null, payout_recharge_ifsc || null, Number(id)]
+    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update vendor' }, { status: 500 });
   }
 }
 

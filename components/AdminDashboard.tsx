@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 
 interface Stats {
@@ -39,6 +40,11 @@ interface User {
   contact_name: string;
   phone: string;
   upi_id: string;
+  payout_balance?: number;
+  payout_recharge_bank_name?: string | null;
+  payout_recharge_account_number?: string | null;
+  payout_recharge_account_holder?: string | null;
+  payout_recharge_ifsc?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -85,6 +91,13 @@ export default function AdminDashboard() {
   const [pendingVendorId, setPendingVendorId] = useState<string>('1');
   const [payoutStatusFilter, setPayoutStatusFilter] = useState<string>('created');
   const [updatingPayoutId, setUpdatingPayoutId] = useState<number | null>(null);
+  // Edit recharge details
+  const [editUserId, setEditUserId] = useState<number | null>(null);
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountHolder, setEditAccountHolder] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editIfsc, setEditIfsc] = useState('');
+  const [savingUser, setSavingUser] = useState(false);
 
   function PendingUtrList({ vendorFilter, onApprove }: { vendorFilter?: string; onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; business_name?: string; created_at: string }>>([]);
@@ -272,6 +285,45 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       alert('Failed to delete user');
+    }
+  };
+
+  const openEditRecharge = (u: User) => {
+    setEditUserId(u.id);
+    setEditBankName(u.payout_recharge_bank_name || '');
+    setEditAccountHolder(u.payout_recharge_account_holder || '');
+    setEditAccountNumber(u.payout_recharge_account_number || '');
+    setEditIfsc(u.payout_recharge_ifsc || '');
+  };
+
+  const saveRechargeDetails = async () => {
+    if (!editUserId) return;
+    setSavingUser(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editUserId,
+          payout_recharge_bank_name: editBankName || null,
+          payout_recharge_account_number: editAccountNumber || null,
+          payout_recharge_account_holder: editAccountHolder || null,
+          payout_recharge_ifsc: editIfsc || null,
+        })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error || 'Failed to save');
+      // reload users
+      const usersRes = await fetch('/api/admin/users');
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData.users);
+      }
+      setEditUserId(null);
+    } catch (e: any) {
+      alert(e.message || 'Save failed');
+    } finally {
+      setSavingUser(false);
     }
   };
 
@@ -486,6 +538,7 @@ export default function AdminDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UPI ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payout Balance</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -505,16 +558,27 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.upi_id}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ₹{Number(user.payout_balance || 0).toFixed(2)}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => deleteUser(user.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
+                        <div className="inline-flex gap-3">
+                          <button
+                            onClick={() => openEditRecharge(user)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit Recharge Details
+                          </button>
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -646,6 +710,15 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Recharge Requests */}
+            <div className="border rounded-md">
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <div className="font-medium">Recharge Requests</div>
+                <button onClick={() => loadPayouts(payoutStatusFilter)} className="text-sm text-indigo-600 hover:underline">Refresh</button>
+              </div>
+              <AdminRechargeRequests />
+            </div>
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -723,6 +796,145 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {editUserId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Recharge Bank Details</h3>
+              <button onClick={() => setEditUserId(null)} className="text-gray-500">✕</button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <input value={editBankName} onChange={(e) => setEditBankName(e.target.value)} className="w-full border rounded-md px-3 py-2" placeholder="e.g. HDFC Bank" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder</label>
+                <input value={editAccountHolder} onChange={(e) => setEditAccountHolder(e.target.value)} className="w-full border rounded-md px-3 py-2" placeholder="e.g. Jane Doe" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                <input value={editAccountNumber} onChange={(e) => setEditAccountNumber(e.target.value)} className="w-full border rounded-md px-3 py-2" placeholder="e.g. 1234567890" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">IFSC</label>
+                <input value={editIfsc} onChange={(e) => setEditIfsc(e.target.value)} className="w-full border rounded-md px-3 py-2" placeholder="e.g. HDFC0001234" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setEditUserId(null)} className="px-3 py-1.5 text-sm border rounded">Cancel</button>
+              <button onClick={saveRechargeDetails} disabled={savingUser} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">Save</button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">These details are shown to the vendor in the Recharge popup.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function AdminRechargeRequests() {
+  const [rows, setRows] = React.useState<Array<{ id:number; vendor_id:number; business_name:string; amount:number; utr?: string | null; status:string; created_at:string }>>([])
+  const [loading, setLoading] = React.useState(false)
+  const [err, setErr] = React.useState<string | null>(null)
+  const [updatingId, setUpdatingId] = React.useState<number | null>(null)
+  const [edits, setEdits] = React.useState<Record<number, { amount: string; utr: string }>>({})
+
+  const load = async () => {
+    setLoading(true)
+    setErr(null)
+    try {
+      const res = await fetch('/api/admin/recharges')
+      const j = await res.json()
+      if (!res.ok) throw new Error(j?.error || 'Failed')
+      setRows((j.data && j.data.recharges) || [])
+    } catch (e:any) {
+      setErr(e.message || 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  React.useEffect(() => { load() }, [])
+
+  const update = async (id:number, status:string) => {
+    setUpdatingId(id)
+    try {
+      const payload:any = { id, status }
+      if (edits[id]?.amount) payload.amount = Number(edits[id].amount)
+      if (edits[id]?.utr) payload.utr = edits[id].utr
+      const res = await fetch('/api/admin/recharges', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      let j:any = null; try { j = await res.json() } catch {}
+      if (!res.ok) throw new Error((j && j.error) || 'Update failed')
+      await load()
+    } catch (e:any) {
+      alert(e.message || 'Failed')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  if (loading) return <div className="p-4 text-sm text-gray-500">Loading...</div>
+  if (err) return <div className="p-4 text-sm text-red-600">{err}</div>
+  if (rows.length === 0) return <div className="p-4 text-sm text-gray-500">No recharge requests</div>
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">UTR</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+            <th className="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td className="px-4 py-2 text-sm font-mono">{r.id}</td>
+              <td className="px-4 py-2 text-sm">{r.business_name || `Vendor #${r.vendor_id}`}</td>
+              <td className="px-4 py-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">₹</span>
+                  <input
+                    value={edits[r.id]?.amount ?? String(r.amount)}
+                    onChange={(e) => setEdits((prev) => ({ ...prev, [r.id]: { ...(prev[r.id]||{ utr: r.utr || '' }), amount: e.target.value } }))}
+                    className="w-28 border rounded-md px-2 py-1"
+                  />
+                </div>
+              </td>
+              <td className="px-4 py-2 text-sm">
+                <input
+                  value={edits[r.id]?.utr ?? (r.utr || '')}
+                  onChange={(e) => setEdits((prev) => ({ ...prev, [r.id]: { ...(prev[r.id]||{ amount: String(r.amount) }), utr: e.target.value } }))}
+                  className="w-40 border rounded-md px-2 py-1 font-mono"
+                  placeholder="UTR"
+                />
+              </td>
+              <td className="px-4 py-2 text-sm">
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  r.status === 'paid' || r.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  r.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {r.status}
+                </span>
+              </td>
+              <td className="px-4 py-2 text-right">
+                <div className="inline-flex gap-2">
+                  <button onClick={() => update(r.id, 'approved')} disabled={updatingId===r.id} className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50">Approve</button>
+                  <button onClick={() => update(r.id, 'paid')} disabled={updatingId===r.id} className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50">Mark Paid</button>
+                  <button onClick={() => update(r.id, 'rejected')} disabled={updatingId===r.id} className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50">Reject</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }

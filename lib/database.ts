@@ -255,6 +255,37 @@ class Database {
         )
       `);
 
+      // Add payout balance to vendors
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS payout_balance DECIMAL(12,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS payout_recharge_bank_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS payout_recharge_account_number VARCHAR(64),
+        ADD COLUMN IF NOT EXISTS payout_recharge_account_holder VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS payout_recharge_ifsc VARCHAR(20)
+      `);
+
+      // Create payout_recharges table to track admin-approved recharges
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS payout_recharges (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER NOT NULL,
+          amount DECIMAL(12,2) NOT NULL,
+          utr VARCHAR(64),
+          status VARCHAR(20) DEFAULT 'created' CHECK (status IN ('created','approved','rejected','paid')),
+          admin_notes VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (vendor_id) REFERENCES vendors (id)
+        )
+      `);
+
+      // Ensure utr column exists on existing payout_recharges
+      await client.query(`
+        ALTER TABLE payout_recharges 
+        ADD COLUMN IF NOT EXISTS utr VARCHAR(64)
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);

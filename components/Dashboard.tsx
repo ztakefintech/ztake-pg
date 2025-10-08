@@ -31,6 +31,12 @@ export default function Dashboard() {
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalReceived, setTotalReceived] = useState<number>(0);
+  const [payoutBalance, setPayoutBalance] = useState<number>(0);
+  const [rechargeAccount, setRechargeAccount] = useState<{ bank_name?: string | null; account_number?: string | null; account_holder?: string | null; ifsc?: string | null } | null>(null);
+  const [showRecharge, setShowRecharge] = useState(false);
+  const [rechargeAmount, setRechargeAmount] = useState('');
+  const [rechargeUtr, setRechargeUtr] = useState('');
+  const [submittingRecharge, setSubmittingRecharge] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +69,7 @@ export default function Dashboard() {
       setQrError('');
       
       // Fetch payment info and recent payments in parallel
-      const [paymentInfoRes, paymentsRes, statsRes] = await Promise.all([
+      const [paymentInfoRes, paymentsRes, statsRes, balanceRes] = await Promise.all([
         fetch('/api/vendor/payment-info', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -78,6 +84,9 @@ export default function Dashboard() {
           headers: {
             'Authorization': `Bearer ${token}`
           }
+        }),
+        fetch('/api/vendor/payouts/balance', {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
 
@@ -100,6 +109,12 @@ export default function Dashboard() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setTotalReceived(Number(statsData?.data?.totalReceivedOrdersAmount || 0));
+      }
+
+      if (balanceRes.ok) {
+        const balJson = await balanceRes.json();
+        setPayoutBalance(Number(balJson?.data?.balance || 0));
+        setRechargeAccount(balJson?.data?.recharge_account || null);
       }
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -149,6 +164,37 @@ export default function Dashboard() {
 
   const handleRefresh = () => {
     fetchDashboardData(true);
+  };
+
+  const submitRecharge = async () => {
+    const amt = Number(rechargeAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      alert('Enter a valid amount');
+      return;
+    }
+    if (!rechargeUtr || rechargeUtr.trim().length < 6) {
+      alert('Enter a valid UTR');
+      return;
+    }
+    setSubmittingRecharge(true);
+    try {
+      const res = await fetch('/api/vendor/payouts/recharges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount: amt, utr: rechargeUtr.trim() })
+      });
+      let j: any = null;
+      try { j = await res.json(); } catch {}
+      if (!res.ok) throw new Error((j && j.error) || 'Failed');
+      setShowRecharge(false);
+      setRechargeAmount('');
+      setRechargeUtr('');
+      alert('Recharge request submitted');
+    } catch (e: any) {
+      alert(e.message || 'Recharge failed');
+    } finally {
+      setSubmittingRecharge(false);
+    }
   };
 
   const maskAccountNumber = (acct?: string | null) => {
@@ -299,6 +345,17 @@ export default function Dashboard() {
           <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
           <p className="text-xs text-gray-500 mt-1">Sum of succeeded orders</p>
         </div>
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Payout Balance</h2>
+            <FiDollarSign className="text-primary-600" />
+          </div>
+          <div className="text-2xl font-bold">{formatCurrency(payoutBalance)}</div>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-xs text-gray-500">Use for vendor payouts</span>
+            <button onClick={() => setShowRecharge(true)} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded">Recharge</button>
+          </div>
+        </div>
       </div>
 
       {/* System Status Tiles */}
@@ -412,6 +469,42 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {showRecharge && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Recharge Payout Balance</h3>
+              <button onClick={() => setShowRecharge(false)} className="text-gray-500">✕</button>
+            </div>
+            {rechargeAccount ? (
+              <div className="bg-gray-50 border border-gray-200 rounded p-4 space-y-1 mb-4">
+                <div className="text-sm text-gray-600">Transfer to:</div>
+                {rechargeAccount.bank_name && <div className="text-sm"><span className="text-gray-600">Bank:</span> <span className="font-medium">{rechargeAccount.bank_name}</span></div>}
+                {rechargeAccount.account_holder && <div className="text-sm"><span className="text-gray-600">Account Holder:</span> <span className="font-medium">{rechargeAccount.account_holder}</span></div>}
+                {rechargeAccount.account_number && <div className="text-sm font-mono"><span className="text-gray-600 not-italic font-sans">Account Number:</span> {rechargeAccount.account_number}</div>}
+                {rechargeAccount.ifsc && <div className="text-sm"><span className="text-gray-600">IFSC:</span> <span className="font-medium">{rechargeAccount.ifsc}</span></div>}
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 text-sm text-yellow-800 mb-4">Recharge account details not configured. Please contact support.</div>
+            )}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Amount</label>
+              <input value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="e.g. 5000" />
+            </div>
+            <div className="space-y-2 mt-3">
+              <label className="block text-sm font-medium text-gray-700">UTR</label>
+              <input value={rechargeUtr} onChange={(e) => setRechargeUtr(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="e.g. 214587963214" />
+              <p className="text-xs text-gray-500">Provide UTR after transferring to help admin validate quickly.</p>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowRecharge(false)} className="px-3 py-1.5 text-sm border rounded">Cancel</button>
+              <button onClick={submitRecharge} disabled={submittingRecharge} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">Submit</button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">Your request will appear in admin dashboard. Admin will manually credit and approve; balance updates after approval.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
