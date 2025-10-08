@@ -5,9 +5,8 @@ import { requireAdmin } from '@/lib/admin-middleware'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export async function GET(req: NextRequest) {
+export const GET = requireAdmin(async (req: NextRequest) => {
   try {
-    requireAdmin(req)
     const rows = await db.all(`
       SELECT r.id, r.vendor_id, v.business_name, r.amount, r.utr, r.status, r.admin_notes, r.created_at
       FROM payout_recharges r
@@ -19,11 +18,10 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ success: false, error: 'Failed to fetch' }, { status: 500 })
   }
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = requireAdmin(async (req: NextRequest) => {
   try {
-    requireAdmin(req)
     const body = await req.json().catch(() => ({}))
     const { id, status, admin_notes, amount, utr } = body || {}
     if (!id || !status) {
@@ -45,6 +43,6 @@ export async function PATCH(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ success: false, error: 'Failed to update' }, { status: 500 })
   }
-}
+});
 
 

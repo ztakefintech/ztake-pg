@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiRefreshCw, FiCopy, FiMaximize2, FiShield, FiInfo, FiCpu, FiAlertTriangle } from 'react-icons/fi';
+import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiRefreshCw, FiCopy, FiMaximize2, FiShield, FiInfo, FiCpu, FiAlertTriangle, FiArchive } from 'react-icons/fi';
 
 interface Payment {
   id: number;
@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [rechargeUtr, setRechargeUtr] = useState('');
   const [submittingRecharge, setSubmittingRecharge] = useState(false);
+  const [submittingSettlement, setSubmittingSettlement] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +70,7 @@ export default function Dashboard() {
       setQrError('');
       
       // Fetch payment info and recent payments in parallel
-      const [paymentInfoRes, paymentsRes, statsRes, balanceRes] = await Promise.all([
+      const [paymentInfoRes, paymentsRes, statsRes, balanceRes, settlementsRes] = await Promise.all([
         fetch('/api/vendor/payment-info', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -86,6 +87,9 @@ export default function Dashboard() {
           }
         }),
         fetch('/api/vendor/payouts/balance', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/vendor/settlements', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -108,7 +112,18 @@ export default function Dashboard() {
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setTotalReceived(Number(statsData?.data?.totalReceivedOrdersAmount || 0));
+        let totalReceivedAmount = Number(statsData?.data?.totalReceivedOrdersAmount || 0);
+        
+        // Subtract pending settlements from total received
+        if (settlementsRes.ok) {
+          const settlementsData = await settlementsRes.json();
+          const pendingSettlements = settlementsData.settlements?.filter((s: any) => s.status === 'pending') || [];
+          const pendingAmount = pendingSettlements.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+          totalReceivedAmount -= pendingAmount;
+        }
+        
+        // Ensure total never goes negative
+        setTotalReceived(Math.max(0, totalReceivedAmount));
       }
 
       if (balanceRes.ok) {
@@ -194,6 +209,38 @@ export default function Dashboard() {
       alert(e.message || 'Recharge failed');
     } finally {
       setSubmittingRecharge(false);
+    }
+  };
+
+  const processSettlement = async () => {
+    if (totalReceived <= 0) {
+      alert('No amount available for settlement');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to process settlement for ${formatCurrency(totalReceived)}? This will send the request to admin for approval.`)) {
+      return;
+    }
+
+    setSubmittingSettlement(true);
+    try {
+      const res = await fetch('/api/vendor/settlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amount: totalReceived })
+      });
+      
+      let j: any = null;
+      try { j = await res.json(); } catch {}
+      if (!res.ok) throw new Error((j && j.error) || 'Failed');
+      
+      alert('Settlement request submitted successfully! Admin will review and approve.');
+      // Refresh dashboard data to update totals
+      fetchDashboardData();
+    } catch (e: any) {
+      alert(e.message || 'Settlement request failed');
+    } finally {
+      setSubmittingSettlement(false);
     }
   };
 
@@ -289,42 +336,7 @@ export default function Dashboard() {
             </div>
 
             {/* Bank Details */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Bank Details</h3>
-              {paymentInfo.bank_name || paymentInfo.bank_account_holder || paymentInfo.bank_account_number || paymentInfo.bank_ifsc ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
-                  {paymentInfo.bank_name && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Bank</span>
-                      <span className="text-sm font-medium text-gray-900">{paymentInfo.bank_name}</span>
-                    </div>
-                  )}
-                  {paymentInfo.bank_account_holder && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Account Holder</span>
-                      <span className="text-sm font-medium text-gray-900">{paymentInfo.bank_account_holder}</span>
-                    </div>
-                  )}
-                  {paymentInfo.bank_account_number && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Account Number</span>
-                      <span className="text-sm font-medium text-gray-900 font-mono">{maskAccountNumber(paymentInfo.bank_account_number)}</span>
-                    </div>
-                  )}
-                  {paymentInfo.bank_ifsc && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">IFSC</span>
-                      <span className="text-sm font-medium text-gray-900">{paymentInfo.bank_ifsc}</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 flex items-center mt-1"><FiInfo className="mr-1" />Sensitive details are masked.</p>
-                </div>
-              ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800 text-sm">No bank details provided yet. Add them in profile settings.</p>
-                </div>
-              )}
-            </div>
+        
           </div>
         ) : (
           <div className="text-center py-8">
@@ -343,7 +355,23 @@ export default function Dashboard() {
             <FiDollarSign className="text-primary-600" />
           </div>
           <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
-          <p className="text-xs text-gray-500 mt-1">Sum of succeeded orders</p>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-xs text-gray-500">Sum of succeeded orders</span>
+            <div className="flex items-center gap-2">
+              <a href="/settlement" className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700" title="View History">
+                <FiArchive className="h-4 w-4" />
+              </a>
+              {totalReceived > 0 && (
+                <button 
+                  onClick={processSettlement}
+                  disabled={submittingSettlement}
+                  className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                >
+                  {submittingSettlement ? 'Processing...' : 'Settle'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         <div className="card">
           <div className="flex items-center justify-between mb-4">
@@ -353,13 +381,18 @@ export default function Dashboard() {
           <div className="text-2xl font-bold">{formatCurrency(payoutBalance)}</div>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-gray-500">Use for vendor payouts</span>
-            <button onClick={() => setShowRecharge(true)} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded">Recharge</button>
+            <div className="flex items-center gap-2">
+              <a href="/settlement" className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700" title="View History">
+                <FiArchive className="h-4 w-4" />
+              </a>
+              <button onClick={() => setShowRecharge(true)} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded">Recharge</button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* System Status Tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className=" grid-cols-1 md:grid-cols-3 gap-6 hidden">
         {/* Bot Status */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
@@ -495,13 +528,13 @@ export default function Dashboard() {
             <div className="space-y-2 mt-3">
               <label className="block text-sm font-medium text-gray-700">UTR</label>
               <input value={rechargeUtr} onChange={(e) => setRechargeUtr(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="e.g. 214587963214" />
-              <p className="text-xs text-gray-500">Provide UTR after transferring to help admin validate quickly.</p>
+              {/* <p className="text-xs text-gray-500">Provide UTR after transferring to help admin validate quickly.</p> */}
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setShowRecharge(false)} className="px-3 py-1.5 text-sm border rounded">Cancel</button>
               <button onClick={submitRecharge} disabled={submittingRecharge} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">Submit</button>
             </div>
-            <p className="text-xs text-gray-500 mt-3">Your request will appear in admin dashboard. Admin will manually credit and approve; balance updates after approval.</p>
+            {/* <p className="text-xs text-gray-500 mt-3">Your request will appear in admin dashboard. Admin will manually credit and approve; balance updates after approval.</p> */}
           </div>
         </div>
       )}

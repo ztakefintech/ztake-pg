@@ -291,6 +291,20 @@ class Database {
         ADD COLUMN IF NOT EXISTS utr VARCHAR(64)
       `);
 
+      // Create settlements table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS settlements (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER NOT NULL,
+          amount DECIMAL(12,2) NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+          admin_notes VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (vendor_id) REFERENCES vendors (id)
+        )
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);

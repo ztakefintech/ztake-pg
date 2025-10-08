@@ -6,9 +6,8 @@ import { requireAdmin } from '@/lib/admin-middleware';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(request: NextRequest) {
+export const GET = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
 
     // Get total users
     const totalUsers = await db.get('SELECT COUNT(*) as count FROM vendors');
@@ -91,4 +90,4 @@ export async function GET(request: NextRequest) {
       { status: error instanceof Error && error.message.includes('Admin authentication') ? 401 : 500 }
     );
   }
-}
+});

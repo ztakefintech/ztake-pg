@@ -3,9 +3,8 @@ import { requireAdmin } from '@/lib/admin-middleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
+export const POST = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
 
     const body = await request.json();
     const { utr, amount, vendor_id, payment_status } = body || {};
@@ -35,6 +34,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to submit UTR' }, { status: 500 });
   }
-}
+});
 
 

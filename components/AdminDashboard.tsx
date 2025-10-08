@@ -85,6 +85,15 @@ export default function AdminDashboard() {
     cashfree_payout_id?: string | null;
     created_at: string;
   }>>([]);
+  const [settlements, setSettlements] = useState<Array<{
+    id: number;
+    vendor_id: number;
+    business_name?: string;
+    amount: number;
+    status: string;
+    admin_notes?: string | null;
+    created_at: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // UTR approvals
@@ -228,6 +237,8 @@ export default function AdminDashboard() {
       }
       // Also load payouts with default filter
       await loadPayouts(payoutStatusFilter);
+      // Load settlements
+      await loadSettlements();
     } catch (error) {
       setError('Failed to load data');
     } finally {
@@ -248,6 +259,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadSettlements = async () => {
+    try {
+      const res = await fetch('/api/admin/settlements');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch settlements');
+      setSettlements(json.settlements || []);
+    } catch (e) {
+      // best-effort error surface via alert in UI controls
+    }
+  };
+
   const updatePayoutStatus = async (id: number, status: string) => {
     setUpdatingPayoutId(id);
     try {
@@ -263,6 +285,22 @@ export default function AdminDashboard() {
       alert(e.message || 'Failed to update payout');
     } finally {
       setUpdatingPayoutId(null);
+    }
+  };
+
+  const updateSettlementStatus = async (id: number, status: string, adminNotes?: string) => {
+    try {
+      const res = await fetch('/api/admin/settlements', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status, admin_notes: adminNotes })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Update failed');
+      await loadSettlements();
+      alert(`Settlement ${status} successfully`);
+    } catch (e: any) {
+      alert(e.message || 'Failed to update settlement');
     }
   };
 
@@ -359,7 +397,8 @@ export default function AdminDashboard() {
             { id: 'users', name: 'Users' },
             { id: 'payments', name: 'Payments' },
             { id: 'utrSubmit', name: 'UTR Submit' },
-            { id: 'payouts', name: 'Payouts' }
+            { id: 'payouts', name: 'Payouts' },
+            { id: 'settlements', name: 'Settlements' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -791,6 +830,102 @@ export default function AdminDashboard() {
               </table>
               {payouts.length === 0 && (
                 <div className="p-6 text-center text-sm text-gray-500">No payouts found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settlements Tab */}
+      {activeTab === 'settlements' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Settlement Requests</h3>
+                <p className="text-sm text-gray-500">Review and approve vendor settlement requests.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => loadSettlements()} className="px-3 py-1.5 text-sm bg-gray-100 rounded-md">Refresh</button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Admin Notes</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {settlements.map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-4 py-2 text-sm font-mono">{s.id}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <div>
+                          <div className="font-medium">{s.business_name}</div>
+                          <div className="text-gray-500">ID: {s.vendor_id}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm font-medium">₹{Number(s.amount).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          s.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          s.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">{new Date(s.created_at).toLocaleString()}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <input
+                          type="text"
+                          placeholder="Add notes..."
+                          className="w-full border rounded px-2 py-1 text-xs"
+                          defaultValue={s.admin_notes || ''}
+                          onChange={(e) => {
+                            // Update local state for admin notes
+                            setSettlements(prev => prev.map(settlement => 
+                              settlement.id === s.id ? { ...settlement, admin_notes: e.target.value } : settlement
+                            ));
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <div className="inline-flex gap-2">
+                          {s.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
+                                  updateSettlementStatus(s.id, 'approved', notes);
+                                }}
+                                className="px-3 py-1 bg-green-600 text-white rounded text-xs"
+                              >Approve</button>
+                              <button
+                                onClick={() => {
+                                  const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
+                                  updateSettlementStatus(s.id, 'rejected', notes);
+                                }}
+                                className="px-3 py-1 bg-red-600 text-white rounded text-xs"
+                              >Reject</button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {settlements.length === 0 && (
+                <div className="p-6 text-center text-sm text-gray-500">No settlement requests found.</div>
               )}
             </div>
           </div>

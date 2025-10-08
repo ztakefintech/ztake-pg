@@ -6,9 +6,8 @@ import { requireAdmin } from '@/lib/admin-middleware';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(request: NextRequest) {
+export const GET = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -81,4 +80,4 @@ export async function GET(request: NextRequest) {
       { status: error instanceof Error && error.message.includes('Admin authentication') ? 401 : 500 }
     );
   }
-}
+});

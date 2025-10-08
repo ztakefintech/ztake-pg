@@ -84,7 +84,7 @@ export default function Layout({ children }: LayoutProps) {
                 className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
                 <FiList />
-                <span>Transactions</span>
+                <span>Payin Transactions</span>
               </Link>
 
               <div className="space-y-1">
@@ -104,11 +104,11 @@ export default function Layout({ children }: LayoutProps) {
               </div>
               
               <Link
-                href="/demo"
+                href="/instant-payout"
                 className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
               >
                 <FiMonitor />
-                <span>Demo</span>
+                <span>Instant Payout</span>
               </Link>
             </div>
           </nav>

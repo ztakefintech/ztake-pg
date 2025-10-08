@@ -6,9 +6,8 @@ import { requireAdmin } from '@/lib/admin-middleware';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(request: NextRequest) {
+export const GET = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
 
     const users = await db.all(`
       SELECT 
@@ -37,11 +36,10 @@ export async function GET(request: NextRequest) {
       { status: error instanceof Error && error.message.includes('Admin authentication') ? 401 : 500 }
     );
   }
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
     const body = await request.json().catch(() => ({}));
     const { id, payout_recharge_bank_name, payout_recharge_account_number, payout_recharge_account_holder, payout_recharge_ifsc } = body || {};
     if (!id) {
@@ -61,11 +59,10 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update vendor' }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = requireAdmin(async (request: NextRequest) => {
   try {
-    requireAdmin(request);
     
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('id');
@@ -98,4 +95,4 @@ export async function DELETE(request: NextRequest) {
       { status: error instanceof Error && error.message.includes('Admin authentication') ? 401 : 500 }
     );
   }
-}
+});

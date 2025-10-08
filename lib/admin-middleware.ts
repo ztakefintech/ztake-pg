@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from './auth';
 
 export function verifyAdminToken(request: NextRequest) {
@@ -11,12 +11,25 @@ export function verifyAdminToken(request: NextRequest) {
   return AuthService.verifyAdminToken(token);
 }
 
-export function requireAdmin(request: NextRequest) {
-  const admin = verifyAdminToken(request);
-  
-  if (!admin) {
-    throw new Error('Admin authentication required');
-  }
-  
-  return admin;
+export function requireAdmin(handler: (req: NextRequest) => Promise<NextResponse>) {
+  return async (req: NextRequest): Promise<NextResponse> => {
+    try {
+      const admin = verifyAdminToken(req);
+      
+      if (!admin) {
+        return NextResponse.json(
+          { error: 'Admin authentication required' },
+          { status: 401 }
+        );
+      }
+
+      return handler(req);
+    } catch (error) {
+      console.error('Admin auth middleware error:', error);
+      return NextResponse.json(
+        { error: 'Admin authentication failed' },
+        { status: 401 }
+      );
+    }
+  };
 }
