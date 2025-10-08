@@ -68,6 +68,24 @@ export const adminLoginSchema = Joi.object({
   password: Joi.string().min(6).required()
 });
 
+// Admin user creation validation
+export const createAdminSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8).required(),
+  name: Joi.string().min(2).max(100).required(),
+  role: Joi.string().valid('superuser', 'view_only', 'manage_users', 'manage_payin', 'manage_payout', 'manage_settlements', 'custom').required(),
+  permissions: Joi.object().optional()
+});
+
+// Admin user update validation
+export const updateAdminSchema = Joi.object({
+  id: Joi.number().integer().positive().required(),
+  name: Joi.string().min(2).max(100).optional(),
+  role: Joi.string().valid('superuser', 'view_only', 'manage_users', 'manage_payin', 'manage_payout', 'manage_settlements', 'custom').optional(),
+  permissions: Joi.object().optional(),
+  is_active: Joi.boolean().optional()
+});
+
 export function validateRequest(schema: Joi.ObjectSchema, data: any) {
   const { error, value } = schema.validate(data);
   if (error) {

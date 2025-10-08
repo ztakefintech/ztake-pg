@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requirePermission } from '@/lib/admin-middleware';
 
 // Ensure this route is always dynamic since it reads cookies for admin auth
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export const GET = requireAdmin(async (request: NextRequest) => {
+export const GET = requirePermission('view_payments')(async (request: NextRequest) => {
   try {
 
     const { searchParams } = new URL(request.url);

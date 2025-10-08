@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requirePermission } from '@/lib/admin-middleware';
 import { db } from '@/lib/database';
 
-export const GET = requireAdmin(async (req: NextRequest) => {
+export const GET = requirePermission('view_settlements')(async (req: NextRequest) => {
   try {
     const result = await db.all(`
       SELECT s.*, v.business_name, v.email
@@ -21,7 +21,7 @@ export const GET = requireAdmin(async (req: NextRequest) => {
   }
 });
 
-export const PATCH = requireAdmin(async (req: NextRequest) => {
+export const PATCH = requirePermission('manage_settlements')(async (req: NextRequest) => {
   try {
     const { id, status, admin_notes } = await req.json();
 

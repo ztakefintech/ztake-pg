@@ -305,6 +305,35 @@ class Database {
         )
       `);
 
+      // Create admin_users table for admin role management
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id SERIAL PRIMARY KEY,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'custom' CHECK (role IN ('superuser', 'view_only', 'manage_users', 'manage_payin', 'manage_payout', 'manage_settlements', 'custom')),
+          permissions JSONB DEFAULT '{}',
+          is_active BOOLEAN DEFAULT true,
+          created_by INTEGER,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (created_by) REFERENCES admin_users (id)
+        )
+      `);
+
+      // Create admin_sessions table for admin authentication
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+          id SERIAL PRIMARY KEY,
+          admin_id INTEGER NOT NULL,
+          token_hash VARCHAR(255) UNIQUE NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (admin_id) REFERENCES admin_users (id) ON DELETE CASCADE
+        )
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);

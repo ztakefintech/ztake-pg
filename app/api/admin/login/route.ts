@@ -7,23 +7,42 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { username, password } = validateRequest(adminLoginSchema, body);
 
-    const isValid = await AuthService.verifyAdminCredentials(username, password);
+    // Try new admin system first (username can be email)
+    let admin = await AuthService.verifyAdminCredentials(username, password);
     
-    if (!isValid) {
+    // Fallback to legacy admin credentials
+    if (!admin) {
+      const isValidLegacy = await AuthService.verifyLegacyAdminCredentials(username, password);
+      if (isValidLegacy) {
+        // Create a legacy admin payload
+        admin = {
+          id: 0,
+          email: username,
+          name: 'Legacy Admin',
+          role: 'superuser',
+          permissions: AuthService.getDefaultPermissions('superuser')
+        };
+      }
+    }
+    
+    if (!admin) {
       return NextResponse.json(
         { error: 'Invalid admin credentials' },
         { status: 401 }
       );
     }
 
-    const token = AuthService.generateAdminToken({
-      username,
-      role: 'admin'
-    });
+    const token = AuthService.generateAdminToken(admin);
 
     const response = NextResponse.json({
       message: 'Admin login successful',
-      token
+      token,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role
+      }
     });
 
     // Set HTTP-only cookie

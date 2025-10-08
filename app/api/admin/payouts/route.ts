@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
-import { requireAdmin } from '@/lib/admin-middleware'
+import { requirePermission } from '@/lib/admin-middleware'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export const GET = requireAdmin(async (req: NextRequest) => {
+export const GET = requirePermission('view_payouts')(async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
@@ -50,7 +50,7 @@ export const GET = requireAdmin(async (req: NextRequest) => {
   }
 });
 
-export const PATCH = requireAdmin(async (req: NextRequest) => {
+export const PATCH = requirePermission('manage_payout')(async (req: NextRequest) => {
   try {
     const body = await req.json().catch(() => ({}))
     const { id, status } = body || {}

@@ -382,9 +382,9 @@ export default function Dashboard() {
           <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-gray-500">Use for vendor payouts</span>
             <div className="flex items-center gap-2">
-              <a href="/settlement" className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700" title="View History">
+              {/* <a href="/settlement" className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700" title="View History">
                 <FiArchive className="h-4 w-4" />
-              </a>
+              </a> */}
               <button onClick={() => setShowRecharge(true)} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded">Recharge</button>
             </div>
           </div>

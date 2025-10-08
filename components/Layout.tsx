@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage, FiDollarSign, FiTrendingUp } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -87,7 +87,7 @@ export default function Layout({ children }: LayoutProps) {
                 <span>Payin Transactions</span>
               </Link>
 
-              <div className="space-y-1">
+              
                 <Link
                   href="/orders"
                   className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
@@ -97,11 +97,19 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
                 <Link
                   href="/payouts"
-                  className="ml-10 block px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
-                  Payouts
+                  <FiDollarSign />
+                  <span>Payouts</span>
                 </Link>
-              </div>
+                <Link
+                  href="/settlement"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  <FiTrendingUp />
+                  <span>Settlement</span>
+                </Link>
+               
               
               <Link
                 href="/instant-payout"

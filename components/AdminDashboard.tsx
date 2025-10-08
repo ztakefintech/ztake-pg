@@ -49,6 +49,23 @@ interface User {
   updated_at: string;
 }
 
+interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  permissions: Record<string, boolean>;
+  is_active: boolean;
+  created_at: string;
+  created_by?: number;
+}
+
+interface Permission {
+  name: string;
+  description: string;
+  category: string;
+}
+
 interface Payment {
   id: number;
   utr: string;
@@ -94,6 +111,9 @@ export default function AdminDashboard() {
     admin_notes?: string | null;
     created_at: string;
   }>>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [availablePermissions, setAvailablePermissions] = useState<Record<string, Permission>>({});
+  const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // UTR approvals
@@ -107,6 +127,17 @@ export default function AdminDashboard() {
   const [editAccountNumber, setEditAccountNumber] = useState('');
   const [editIfsc, setEditIfsc] = useState('');
   const [savingUser, setSavingUser] = useState(false);
+  // Admin management
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminRole, setNewAdminRole] = useState('view_only');
+  const [newAdminPermissions, setNewAdminPermissions] = useState<Record<string, boolean>>({});
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  // Permission management
+  const [editingPermissions, setEditingPermissions] = useState<number | null>(null);
+  const [tempPermissions, setTempPermissions] = useState<Record<string, boolean>>({});
 
   function PendingUtrList({ vendorFilter, onApprove }: { vendorFilter?: string; onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; business_name?: string; created_at: string }>>([]);
@@ -210,15 +241,34 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadData();
+    loadCurrentAdmin();
   }, []);
+
+  const loadCurrentAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/me');
+      if (res.ok) {
+        const adminData = await res.json();
+        setCurrentAdmin(adminData.admin);
+      }
+    } catch (error) {
+      console.error('Failed to load current admin:', error);
+    }
+  };
+
+  const refreshCurrentAdmin = async () => {
+    await loadCurrentAdmin();
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsRes, usersRes, paymentsRes] = await Promise.all([
+      const [statsRes, usersRes, paymentsRes, adminUsersRes, permissionsRes] = await Promise.all([
         fetch('/api/admin/stats'),
         fetch('/api/admin/users'),
-        fetch('/api/admin/payments')
+        fetch('/api/admin/payments'),
+        fetch('/api/admin/admins'),
+        fetch('/api/admin/permissions')
       ]);
 
       if (statsRes.ok) {
@@ -235,6 +285,17 @@ export default function AdminDashboard() {
         const paymentsData = await paymentsRes.json();
         setPayments(paymentsData.payments);
       }
+
+      if (adminUsersRes.ok) {
+        const adminUsersData = await adminUsersRes.json();
+        setAdminUsers(adminUsersData.admins);
+      }
+
+      if (permissionsRes.ok) {
+        const permissionsData = await permissionsRes.json();
+        setAvailablePermissions(permissionsData.permissions);
+      }
+
       // Also load payouts with default filter
       await loadPayouts(payoutStatusFilter);
       // Load settlements
@@ -365,6 +426,216 @@ export default function AdminDashboard() {
     }
   };
 
+  const createAdminUser = async () => {
+    if (!newAdminEmail || !newAdminPassword || !newAdminName) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    setCreatingAdmin(true);
+    try {
+      const res = await fetch('/api/admin/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newAdminEmail,
+          password: newAdminPassword,
+          name: newAdminName,
+          role: newAdminRole,
+          permissions: newAdminRole === 'custom' ? newAdminPermissions : undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create admin');
+
+      // Reset form
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setNewAdminName('');
+      setNewAdminRole('view_only');
+      setNewAdminPermissions({});
+      setShowCreateAdmin(false);
+
+      // Reload admin users
+      const adminUsersRes = await fetch('/api/admin/admins');
+      if (adminUsersRes.ok) {
+        const adminUsersData = await adminUsersRes.json();
+        setAdminUsers(adminUsersData.admins);
+      }
+
+      alert('Admin user created successfully');
+    } catch (e: any) {
+      alert(e.message || 'Failed to create admin');
+    } finally {
+      setCreatingAdmin(false);
+    }
+  };
+
+  const updateAdminUser = async (id: number, updates: Partial<AdminUser>) => {
+    try {
+      const res = await fetch('/api/admin/admins', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update admin');
+
+      // Reload admin users
+      const adminUsersRes = await fetch('/api/admin/admins');
+      if (adminUsersRes.ok) {
+        const adminUsersData = await adminUsersRes.json();
+        setAdminUsers(adminUsersData.admins);
+        
+        // If we're updating the current admin, update currentAdmin state too
+        if (currentAdmin && currentAdmin.id === id) {
+          const updatedAdmin = adminUsersData.admins.find((admin: AdminUser) => admin.id === id);
+          if (updatedAdmin) {
+            setCurrentAdmin(updatedAdmin);
+          }
+        }
+      }
+
+      alert('Admin user updated successfully');
+    } catch (e: any) {
+      alert(e.message || 'Failed to update admin');
+    }
+  };
+
+  const deleteAdminUser = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this admin user?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/admins?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete admin');
+
+      // Reload admin users
+      const adminUsersRes = await fetch('/api/admin/admins');
+      if (adminUsersRes.ok) {
+        const adminUsersData = await adminUsersRes.json();
+        setAdminUsers(adminUsersData.admins);
+      }
+
+      alert('Admin user deleted successfully');
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete admin');
+    }
+  };
+
+  const openPermissionEditor = (admin: AdminUser) => {
+    setEditingPermissions(admin.id);
+    
+    // Wait for availablePermissions to be loaded if not already
+    if (Object.keys(availablePermissions).length === 0) {
+      // If permissions not loaded yet, load them first
+      loadData().then(() => {
+        // Retry opening the editor after permissions are loaded
+        setTimeout(() => openPermissionEditor(admin), 100);
+      });
+      return;
+    }
+    
+    // Ensure admin has permissions property, default to empty object if undefined
+    const adminPermissions = admin.permissions || {};
+    
+    // For superuser, show all permissions as checked
+    if (admin.role === 'superuser') {
+      const allPermissions: Record<string, boolean> = {};
+      Object.keys(availablePermissions).forEach(perm => {
+        allPermissions[perm] = true;
+      });
+      setTempPermissions(allPermissions);
+    } else {
+      // Ensure we have all available permissions, with admin's current permissions as defaults
+      const permissions: Record<string, boolean> = {};
+      Object.keys(availablePermissions).forEach(perm => {
+        permissions[perm] = adminPermissions[perm] === true;
+      });
+      setTempPermissions(permissions);
+    }
+  };
+
+  const savePermissions = async () => {
+    if (editingPermissions === null) return;
+
+    try {
+      await updateAdminUser(editingPermissions, { permissions: tempPermissions });
+      
+      // If we updated the current admin's permissions, refresh the current admin data
+      if (currentAdmin && currentAdmin.id === editingPermissions) {
+        await refreshCurrentAdmin();
+      }
+      
+      setEditingPermissions(null);
+      setTempPermissions({});
+    } catch (e: any) {
+      alert(e.message || 'Failed to update permissions');
+    }
+  };
+
+  const togglePermission = (permission: string) => {
+    setTempPermissions(prev => ({
+      ...prev,
+      [permission]: !prev[permission]
+    }));
+  };
+
+  const getPermissionGroups = () => {
+    const groups: Record<string, string[]> = {};
+    Object.entries(availablePermissions).forEach(([key, perm]) => {
+      if (!groups[perm.category]) {
+        groups[perm.category] = [];
+      }
+      groups[perm.category].push(key);
+    });
+    return groups;
+  };
+
+  // Helper function to check if current admin has permission
+  const hasPermission = (permission: string): boolean => {
+    if (!currentAdmin) return false;
+    if (currentAdmin.role === 'superuser') return true;
+    return currentAdmin.permissions[permission] === true;
+  };
+
+  // Get available tabs based on permissions
+  const getAvailableTabs = () => {
+    return [
+      ...(hasPermission('view_overview') ? [{ id: 'overview', name: 'Overview' }] : []),
+      ...(hasPermission('view_users') ? [{ id: 'users', name: 'Users' }] : []),
+      ...(hasPermission('view_payments') ? [{ id: 'payments', name: 'Payments' }] : []),
+      ...(hasPermission('manage_payin') ? [{ id: 'utrSubmit', name: 'UTR Submit' }] : []),
+      ...(hasPermission('view_payouts') ? [{ id: 'payouts', name: 'Payouts' }] : []),
+      ...(hasPermission('view_settlements') ? [{ id: 'settlements', name: 'Settlements' }] : []),
+      ...(hasPermission('manage_admins') ? [{ id: 'admins', name: 'Admin Users' }] : [])
+    ];
+  };
+
+  // Redirect to first available tab if current tab is not accessible
+  useEffect(() => {
+    if (currentAdmin) {
+      const availableTabs = getAvailableTabs();
+      if (availableTabs.length > 0 && !availableTabs.some(tab => tab.id === activeTab)) {
+        setActiveTab(availableTabs[0].id);
+      }
+    }
+  }, [currentAdmin, activeTab]);
+
+  // Check if user has any permissions
+  const hasAnyPermissions = () => {
+    if (!currentAdmin) return false;
+    if (currentAdmin.role === 'superuser') return true;
+    return Object.values(currentAdmin.permissions || {}).some(perm => perm === true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -387,19 +658,94 @@ export default function AdminDashboard() {
     );
   }
 
+  // Check if user has no permissions at all
+  if (currentAdmin && !hasAnyPermissions()) {
+    return (
+      <div className="space-y-6">
+        {/* Current Admin Info */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-medium text-sm">
+                  {currentAdmin.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">
+                  Welcome, {currentAdmin.name}
+                </h3>
+                <p className="text-xs text-indigo-600">
+                  Role: {currentAdmin.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-indigo-600">
+                0 permissions active
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* No Permissions Message */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6 text-center">
+            <div className="text-gray-500 mb-4">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Access Permissions</h3>
+            <p className="text-gray-500 mb-4">
+              You don't have any permissions assigned. Please contact your administrator to get access.
+            </p>
+            <p className="text-sm text-gray-400">
+              Current permissions: {Object.entries(currentAdmin.permissions || {}).filter(([_, v]) => v).length} active
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Current Admin Info */}
+      {currentAdmin && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-medium text-sm">
+                  {currentAdmin.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-indigo-900">
+                  Welcome, {currentAdmin.name}
+                </h3>
+                <p className="text-xs text-indigo-600">
+                  Role: {currentAdmin.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-indigo-600">
+                {Object.values(currentAdmin.permissions || {}).filter(p => p).length} permissions active
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Active: {Object.entries(currentAdmin.permissions || {}).filter(([_, v]) => v).map(([k, _]) => k).join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {[
-            { id: 'overview', name: 'Overview' },
-            { id: 'users', name: 'Users' },
-            { id: 'payments', name: 'Payments' },
-            { id: 'utrSubmit', name: 'UTR Submit' },
-            { id: 'payouts', name: 'Payouts' },
-            { id: 'settlements', name: 'Settlements' }
-          ].map((tab) => (
+          {getAvailableTabs().map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -604,20 +950,24 @@ export default function AdminDashboard() {
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="inline-flex gap-3">
-                          <button
-                            onClick={() => openEditRecharge(user)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            Edit Recharge Details
-                          </button>
-                          <button
-                            onClick={() => deleteUser(user.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        {hasPermission('manage_users') ? (
+                          <div className="inline-flex gap-3">
+                            <button
+                              onClick={() => openEditRecharge(user)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                            >
+                              Edit Recharge Details
+                            </button>
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -687,38 +1037,52 @@ export default function AdminDashboard() {
           <div className="px-4 py-5 sm:p-6 space-y-4">
             <h3 className="text-lg leading-6 font-medium text-gray-900">Pending UTR Approvals</h3>
 
-            {/* Pending UTR list */}
-            <div className="mt-8">
-              {/* <h4 className="text-md font-semibold text-gray-900 mb-3">Pending UTR Submissions</h4> */}
-              <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor ID (filter)</label>
-                  <input
-                    value={pendingVendorId}
-                    onChange={(e) => setPendingVendorId(e.target.value)}
-                    className="w-full border rounded-md px-3 py-2"
-                    placeholder="e.g. 1"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Defaults to 1. Change to view another vendor's pending UTRs.</p>
+            {!hasPermission('manage_payin') ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 mb-2">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
                 </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
+                <p className="text-gray-500">You don't have permission to manage UTR approvals.</p>
               </div>
-              <PendingUtrList
-                vendorFilter={pendingVendorId}
-                onApprove={async (p) => {
-                  const res = await fetch(`/api/admin/submit-utr`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ utr: p.utr, amount: p.amount, vendor_id: p.vendor_id })
-                  });
-                  if (!res.ok) {
-                    const j = await res.json().catch(() => ({}));
-                    throw new Error(j?.error || 'Approve failed');
-                  }
-                }}
-              />
-            </div>
+            ) : (
+              <>
+                {/* Pending UTR list */}
+                <div className="mt-8">
+                  {/* <h4 className="text-md font-semibold text-gray-900 mb-3">Pending UTR Submissions</h4> */}
+                  <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor ID (filter)</label>
+                      <input
+                        value={pendingVendorId}
+                        onChange={(e) => setPendingVendorId(e.target.value)}
+                        className="w-full border rounded-md px-3 py-2"
+                        placeholder="e.g. 1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Defaults to 1. Change to view another vendor's pending UTRs.</p>
+                    </div>
+                  </div>
+                  <PendingUtrList
+                    vendorFilter={pendingVendorId}
+                    onApprove={async (p) => {
+                      const res = await fetch(`/api/admin/submit-utr`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ utr: p.utr, amount: p.amount, vendor_id: p.vendor_id })
+                      });
+                      if (!res.ok) {
+                        const j = await res.json().catch(() => ({}));
+                        throw new Error(j?.error || 'Approve failed');
+                      }
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -730,7 +1094,12 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
               <div>
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Payout Requests</h3>
-                <p className="text-sm text-gray-500">Review beneficiary bank/UPI details, manually pay, then approve or reject.</p>
+                <p className="text-sm text-gray-500">
+                  {hasPermission('manage_payout') 
+                    ? 'Review beneficiary bank/UPI details, manually pay, then approve or reject.'
+                    : 'View payout requests and their status.'
+                  }
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -806,23 +1175,27 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <div className="inline-flex gap-2">
-                          <button
-                            onClick={() => updatePayoutStatus(p.id, 'approved')}
-                            disabled={updatingPayoutId === p.id}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
-                          >Approve</button>
-                          <button
-                            onClick={() => updatePayoutStatus(p.id, 'paid')}
-                            disabled={updatingPayoutId === p.id}
-                            className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
-                          >Mark Paid</button>
-                          <button
-                            onClick={() => updatePayoutStatus(p.id, 'rejected')}
-                            disabled={updatingPayoutId === p.id}
-                            className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
-                          >Reject</button>
-                        </div>
+                        {hasPermission('manage_payout') ? (
+                          <div className="inline-flex gap-2">
+                            <button
+                              onClick={() => updatePayoutStatus(p.id, 'approved')}
+                              disabled={updatingPayoutId === p.id}
+                              className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                            >Approve</button>
+                            <button
+                              onClick={() => updatePayoutStatus(p.id, 'paid')}
+                              disabled={updatingPayoutId === p.id}
+                              className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
+                            >Mark Paid</button>
+                            <button
+                              onClick={() => updatePayoutStatus(p.id, 'rejected')}
+                              disabled={updatingPayoutId === p.id}
+                              className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
+                            >Reject</button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -843,7 +1216,12 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
               <div>
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Settlement Requests</h3>
-                <p className="text-sm text-gray-500">Review and approve vendor settlement requests.</p>
+                <p className="text-sm text-gray-500">
+                  {hasPermission('manage_settlements') 
+                    ? 'Review and approve vendor settlement requests.'
+                    : 'View settlement requests and their status.'
+                  }
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => loadSettlements()} className="px-3 py-1.5 text-sm bg-gray-100 rounded-md">Refresh</button>
@@ -899,26 +1277,30 @@ export default function AdminDashboard() {
                         />
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <div className="inline-flex gap-2">
-                          {s.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
-                                  updateSettlementStatus(s.id, 'approved', notes);
-                                }}
-                                className="px-3 py-1 bg-green-600 text-white rounded text-xs"
-                              >Approve</button>
-                              <button
-                                onClick={() => {
-                                  const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
-                                  updateSettlementStatus(s.id, 'rejected', notes);
-                                }}
-                                className="px-3 py-1 bg-red-600 text-white rounded text-xs"
-                              >Reject</button>
-                            </>
-                          )}
-                        </div>
+                        {hasPermission('manage_settlements') ? (
+                          <div className="inline-flex gap-2">
+                            {s.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
+                                    updateSettlementStatus(s.id, 'approved', notes);
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-xs"
+                                >Approve</button>
+                                <button
+                                  onClick={() => {
+                                    const notes = settlements.find(settlement => settlement.id === s.id)?.admin_notes || '';
+                                    updateSettlementStatus(s.id, 'rejected', notes);
+                                  }}
+                                  className="px-3 py-1 bg-red-600 text-white rounded text-xs"
+                                >Reject</button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -926,6 +1308,123 @@ export default function AdminDashboard() {
               </table>
               {settlements.length === 0 && (
                 <div className="p-6 text-center text-sm text-gray-500">No settlement requests found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Users Tab */}
+      {activeTab === 'admins' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Admin Users</h3>
+              {hasPermission('manage_admins') && (
+                <button
+                  onClick={() => setShowCreateAdmin(true)}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                >
+                  Create Admin
+                </button>
+              )}
+            </div>
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {adminUsers.map((admin) => (
+                    <tr key={admin.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {admin.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {admin.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          admin.role === 'superuser' ? 'bg-purple-100 text-purple-800' :
+                          admin.role === 'view_only' ? 'bg-gray-100 text-gray-800' :
+                          admin.role === 'manage_users' ? 'bg-blue-100 text-blue-800' :
+                          admin.role === 'manage_payin' ? 'bg-green-100 text-green-800' :
+                          admin.role === 'manage_payout' ? 'bg-yellow-100 text-yellow-800' :
+                          admin.role === 'manage_settlements' ? 'bg-orange-100 text-orange-800' :
+                          admin.role === 'custom' ? 'bg-indigo-100 text-indigo-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {admin.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(admin.permissions || {}).map(([perm, enabled]) => 
+                            enabled ? (
+                              <span key={perm} className="inline-flex px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                {availablePermissions[perm]?.name || perm}
+                              </span>
+                            ) : null
+                          )}
+                          {Object.values(admin.permissions || {}).every(p => !p) && (
+                            <span className="text-gray-400 text-xs">No permissions</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          admin.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {admin.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(admin.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        {hasPermission('manage_admins') ? (
+                          <div className="inline-flex gap-2">
+                            <button
+                              onClick={() => openPermissionEditor(admin)}
+                              className="text-sm px-3 py-1 rounded text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100"
+                            >
+                              Permissions
+                            </button>
+                            <button
+                              onClick={() => updateAdminUser(admin.id, { is_active: !admin.is_active })}
+                              className={`text-sm px-3 py-1 rounded ${
+                                admin.is_active 
+                                  ? 'text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100' 
+                                  : 'text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100'
+                              }`}
+                            >
+                              {admin.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => deleteAdminUser(admin.id)}
+                              className="text-red-600 hover:text-red-900 text-sm px-3 py-1 rounded bg-red-50 hover:bg-red-100"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">View Only</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {adminUsers.length === 0 && (
+                <div className="p-6 text-center text-sm text-gray-500">No admin users found.</div>
               )}
             </div>
           </div>
@@ -962,6 +1461,211 @@ export default function AdminDashboard() {
               <button onClick={saveRechargeDetails} disabled={savingUser} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">Save</button>
             </div>
             <p className="text-xs text-gray-500 mt-3">These details are shown to the vendor in the Recharge popup.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Create Admin Modal */}
+      {showCreateAdmin && hasPermission('manage_admins') && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-lg p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Create Admin User</h3>
+              <button onClick={() => setShowCreateAdmin(false)} className="text-gray-500">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  value={newAdminName}
+                  onChange={(e) => setNewAdminName(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Enter admin name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Enter admin email"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2"
+                  placeholder="Enter admin password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={newAdminRole}
+                  onChange={(e) => {
+                    setNewAdminRole(e.target.value);
+                    if (e.target.value !== 'custom') {
+                      // Reset custom permissions when changing to predefined role
+                      setNewAdminPermissions({});
+                    }
+                  }}
+                  className="w-full border rounded-md px-3 py-2"
+                >
+                  <option value="view_only">View Only</option>
+                  <option value="manage_users">Manage Users</option>
+                  <option value="manage_payin">Manage Payin</option>
+                  <option value="manage_payout">Manage Payout</option>
+                  <option value="manage_settlements">Manage Settlements</option>
+                  <option value="custom">Custom</option>
+                  <option value="superuser">Superuser</option>
+                </select>
+              </div>
+              {newAdminRole === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Custom Permissions</label>
+                  <div className="space-y-3 max-h-48 overflow-y-auto border rounded-md p-3">
+                    {Object.entries(getPermissionGroups()).map(([category, permissions]) => (
+                      <div key={category}>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">{category} Permissions</h4>
+                        <div className="space-y-2">
+                          {permissions.map(perm => (
+                            <label key={perm} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={newAdminPermissions[perm] || false}
+                                onChange={(e) => setNewAdminPermissions(prev => ({
+                                  ...prev,
+                                  [perm]: e.target.checked
+                                }))}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {availablePermissions[perm]?.name || perm}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {availablePermissions[perm]?.description || ''}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setShowCreateAdmin(false)}
+                className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createAdminUser}
+                disabled={creatingAdmin}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {creatingAdmin ? 'Creating...' : 'Create Admin'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Editor Modal */}
+      {editingPermissions !== null && hasPermission('manage_admins') && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Edit Permissions
+                {adminUsers.find(a => a.id === editingPermissions)?.role === 'superuser' && (
+                  <span className="ml-2 text-sm text-purple-600 font-normal">
+                    (Superuser - All permissions enabled)
+                  </span>
+                )}
+              </h3>
+              <button 
+                onClick={() => {
+                  setEditingPermissions(null);
+                  setTempPermissions({});
+                }} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              {Object.entries(getPermissionGroups()).map(([category, permissions]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 border-b pb-1">{category} Permissions</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {permissions.map(perm => {
+                      const isSuperuser = adminUsers.find(a => a.id === editingPermissions)?.role === 'superuser';
+                      const isChecked = tempPermissions[perm] || false;
+                      return (
+                        <label key={perm} className={`flex items-start space-x-3 p-3 border rounded-lg ${isSuperuser ? 'bg-purple-50' : 'hover:bg-gray-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => togglePermission(perm)}
+                            disabled={isSuperuser}
+                            className={`mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ${isSuperuser ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {availablePermissions[perm]?.name || perm}
+                              {isSuperuser && <span className="ml-2 text-xs text-purple-600">(Superuser)</span>}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {availablePermissions[perm]?.description || ''}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setEditingPermissions(null);
+                  setTempPermissions({});
+                }}
+                className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              {adminUsers.find(a => a.id === editingPermissions)?.role !== 'superuser' && (
+                <button
+                  onClick={savePermissions}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                >
+                  Save Permissions
+                </button>
+              )}
+              {adminUsers.find(a => a.id === editingPermissions)?.role === 'superuser' && (
+                <button
+                  onClick={() => {
+                    setEditingPermissions(null);
+                    setTempPermissions({});
+                  }}
+                  className="px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                >
+                  Close
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requirePermission } from '@/lib/admin-middleware';
 
 // Ensure dynamic rendering due to cookie-based admin auth
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export const GET = requireAdmin(async (request: NextRequest) => {
+export const GET = requirePermission('view_users')(async (request: NextRequest) => {
   try {
 
     const users = await db.all(`
@@ -38,7 +38,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
   }
 });
 
-export const PATCH = requireAdmin(async (request: NextRequest) => {
+export const PATCH = requirePermission('manage_users')(async (request: NextRequest) => {
   try {
     const body = await request.json().catch(() => ({}));
     const { id, payout_recharge_bank_name, payout_recharge_account_number, payout_recharge_account_holder, payout_recharge_ifsc } = body || {};
@@ -61,7 +61,7 @@ export const PATCH = requireAdmin(async (request: NextRequest) => {
   }
 });
 
-export const DELETE = requireAdmin(async (request: NextRequest) => {
+export const DELETE = requirePermission('manage_users')(async (request: NextRequest) => {
   try {
     
     const { searchParams } = new URL(request.url);

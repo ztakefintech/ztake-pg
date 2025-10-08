@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
 import { useRouter } from 'next/navigation';
+import Layout from '@/components/Layout';
 
 export default function PayoutDemoPage() {
   const { isAuthenticated, isLoading: authLoading, token } = useAuth();
@@ -91,12 +92,14 @@ export default function PayoutDemoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm border p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Payout Demo</h1>
+    <Layout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Payout Demo</h1>
           <p className="text-gray-600">Create a test payout via the Payouts API</p>
         </div>
+        
+        <div className="bg-white rounded-lg shadow-sm border p-6">
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -225,8 +228,9 @@ export default function PayoutDemoPage() {
             </pre>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 }
 

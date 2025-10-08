@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requirePermission } from '@/lib/admin-middleware';
 
 // Ensure dynamic rendering due to cookie-based admin auth
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export const GET = requireAdmin(async (request: NextRequest) => {
+export const GET = requirePermission('view_overview')(async (request: NextRequest) => {
   try {
 
     // Get total users
