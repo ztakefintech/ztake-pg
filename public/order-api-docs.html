@@ -130,6 +130,70 @@
     </div>
 
     <div class="card">
+      <h2>6) Vendor Payouts API</h2>
+      <p class="muted">Create payout requests (UPI or Bank) and list your payout history. Requires vendor auth: <code>Authorization: Bearer pk_... | &lt;jwt&gt;</code>.</p>
+
+      <h3>Create Payout</h3>
+      <div class="kv">
+        <div>Method</div><div><code>POST</code></div>
+        <div>Endpoint</div><div><code>/api/vendor/payouts</code></div>
+        <div>Content-Type</div><div><code>application/json</code></div>
+      </div>
+      <h4>Request body</h4>
+      <pre>{
+  "amount": 1500.00,
+  "currency": "INR",
+  "beneficiary_name": "Jane Doe",
+  // Option A: Bank transfer
+  "beneficiary_account": "1234567890",
+  "beneficiary_ifsc": "HDFC0001234",
+  // Option B: UPI transfer (use either bank OR UPI)
+  // "beneficiary_upi": "jane@upi",
+  "reference_id": "REF-2025-0001",
+  "remarks": "Vendor settlement"
+}</pre>
+      <h4>Response</h4>
+      <pre>{
+  "success": true,
+  "data": {
+    "message": "Payout request created",
+    "payout": {
+      "id": 42,
+      "amount": 1500,
+      "currency": "INR",
+      "beneficiary_name": "Jane Doe",
+      "beneficiary_account": "1234567890",
+      "beneficiary_ifsc": "HDFC0001234",
+      "beneficiary_upi": null,
+      "reference_id": "REF-2025-0001",
+      "remarks": "Vendor settlement",
+      "status": "created",
+      "created_at": "2025-10-08T10:10:00Z"
+    }
+  }
+}</pre>
+
+      <h3>List Payouts</h3>
+      <div class="kv">
+        <div>Method</div><div><code>GET</code></div>
+        <div>Endpoint</div><div><code>/api/vendor/payouts</code></div>
+        <div>Query</div><div><code>?status=created|approved|paid|failed|rejected</code> (optional)</div>
+      </div>
+      <h4>Response</h4>
+      <pre>{
+  "success": true,
+  "data": {
+    "payouts": [
+      { "id": 42, "amount": 1500.00, "currency": "INR", "status": "created", "reference_id": "REF-2025-0001", "created_at": "..." },
+      { "id": 41, "amount": 990.00, "currency": "INR", "status": "paid", "reference_id": "REF-2025-0000", "created_at": "..." }
+    ]
+  }
+}</pre>
+
+      <p class="muted">Admin reviews payout requests in the Admin Panel Payouts tab, pays manually to the provided bank/UPI, and updates status to Approved/Paid/Rejected.</p>
+    </div>
+
+    <div class="card">
       <h2>Callback</h2>
       <p>Sent on success from submit-UTR (after verification) and from the status endpoint.</p>
       <h3>Payload</h3>
@@ -166,6 +230,22 @@
       <pre>curl -X POST http://localhost:3000/api/v1/orders/ztakeXXXX/status \
   -H "Content-Type: application/json" \
   -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
+      <h3>Create Payout</h3>
+      <pre>curl -X POST http://localhost:3000/api/vendor/payouts \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_your_api_key" \
+  -d '{
+    "amount": 1500,
+    "currency": "INR",
+    "beneficiary_name": "Jane Doe",
+    "beneficiary_account": "1234567890",
+    "beneficiary_ifsc": "HDFC0001234",
+    "reference_id": "REF-2025-0001",
+    "remarks": "Vendor settlement"
+  }'</pre>
+      <h3>List Payouts</h3>
+      <pre>curl -X GET 'http://localhost:3000/api/vendor/payouts?status=created' \
+  -H "Authorization: Bearer pk_your_api_key"</pre>
     </div>
 
     <p class="muted">© ztake. This page documents the Order Management additions only.</p>
