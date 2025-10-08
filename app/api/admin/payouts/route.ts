@@ -60,10 +60,27 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'id and status are required' }, { status: 400 })
     }
 
+    // Fetch existing payout to detect status transition and get amount/vendor
+    const existing = await db.get(
+      `SELECT id, vendor_id, amount, status FROM payouts WHERE id = ?`,
+      [Number(id)]
+    )
+
     await db.run(
       `UPDATE payouts SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [String(status), Number(id)]
     )
+
+    // If transitioning into approved/paid from a non-approved state, subtract amount from vendor balance
+    const newStatus = String(status)
+    const wasFinalized = existing?.status === 'approved' || existing?.status === 'paid'
+    const isFinalizing = newStatus === 'approved' || newStatus === 'paid'
+    if (!wasFinalized && isFinalizing && existing?.vendor_id && existing?.amount != null) {
+      await db.run(
+        `UPDATE vendors SET payout_balance = GREATEST(COALESCE(payout_balance, 0) - ?, 0) WHERE id = ?`,
+        [Number(existing.amount), Number(existing.vendor_id)]
+      )
+    }
 
     const payout = await db.get(
       `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, created_at, updated_at FROM payouts WHERE id = ?`,
