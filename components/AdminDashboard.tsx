@@ -63,10 +63,28 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [payouts, setPayouts] = useState<Array<{
+    id: number;
+    vendor_id: number;
+    business_name?: string;
+    amount: number;
+    currency: string;
+    beneficiary_name?: string | null;
+    beneficiary_account?: string | null;
+    beneficiary_ifsc?: string | null;
+    beneficiary_upi?: string | null;
+    reference_id?: string | null;
+    remarks?: string | null;
+    status: string;
+    cashfree_payout_id?: string | null;
+    created_at: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // UTR approvals
   const [pendingVendorId, setPendingVendorId] = useState<string>('1');
+  const [payoutStatusFilter, setPayoutStatusFilter] = useState<string>('created');
+  const [updatingPayoutId, setUpdatingPayoutId] = useState<number | null>(null);
 
   function PendingUtrList({ vendorFilter, onApprove }: { vendorFilter?: string; onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; business_name?: string; created_at: string }>>([]);
@@ -195,10 +213,43 @@ export default function AdminDashboard() {
         const paymentsData = await paymentsRes.json();
         setPayments(paymentsData.payments);
       }
+      // Also load payouts with default filter
+      await loadPayouts(payoutStatusFilter);
     } catch (error) {
       setError('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPayouts = async (status?: string) => {
+    try {
+      const query = new URLSearchParams();
+      if (status && status.trim()) query.set('status', status.trim());
+      const res = await fetch(`/api/admin/payouts?${query.toString()}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch payouts');
+      setPayouts((json.data && json.data.payouts) || []);
+    } catch (e) {
+      // best-effort error surface via alert in UI controls
+    }
+  };
+
+  const updatePayoutStatus = async (id: number, status: string) => {
+    setUpdatingPayoutId(id);
+    try {
+      const res = await fetch('/api/admin/payouts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Update failed');
+      await loadPayouts(payoutStatusFilter);
+    } catch (e: any) {
+      alert(e.message || 'Failed to update payout');
+    } finally {
+      setUpdatingPayoutId(null);
     }
   };
 
@@ -255,7 +306,8 @@ export default function AdminDashboard() {
             { id: 'overview', name: 'Overview' },
             { id: 'users', name: 'Users' },
             { id: 'payments', name: 'Payments' },
-            { id: 'utrSubmit', name: 'UTR Submit' }
+            { id: 'utrSubmit', name: 'UTR Submit' },
+            { id: 'payouts', name: 'Payouts' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -563,6 +615,110 @@ export default function AdminDashboard() {
                   }
                 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payouts Tab */}
+      {activeTab === 'payouts' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Payout Requests</h3>
+                <p className="text-sm text-gray-500">Review beneficiary bank/UPI details, manually pay, then approve or reject.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={payoutStatusFilter}
+                  onChange={async (e) => { setPayoutStatusFilter(e.target.value); await loadPayouts(e.target.value); }}
+                  className="border rounded-md px-2 py-1 text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="created">Created</option>
+                  <option value="approved">Approved</option>
+                  <option value="paid">Paid</option>
+                  <option value="failed">Failed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button onClick={() => loadPayouts(payoutStatusFilter)} className="px-3 py-1.5 text-sm bg-gray-100 rounded-md">Refresh</button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beneficiary</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bank / UPI</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {payouts.map((p) => (
+                    <tr key={p.id}>
+                      <td className="px-4 py-2 text-sm font-mono">{p.id}</td>
+                      <td className="px-4 py-2 text-sm">{p.business_name || `Vendor #${p.vendor_id}`}</td>
+                      <td className="px-4 py-2 text-sm">{p.currency} {Number(p.amount).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <div className="space-y-0.5">
+                          <div className="font-medium">{p.beneficiary_name || '-'}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {p.beneficiary_account && p.beneficiary_ifsc ? (
+                          <div className="space-y-0.5">
+                            <div className="font-mono">A/C: {p.beneficiary_account}</div>
+                            <div className="font-mono">IFSC: {p.beneficiary_ifsc}</div>
+                          </div>
+                        ) : p.beneficiary_upi ? (
+                          <div className="font-mono">UPI: {p.beneficiary_upi}</div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm">{p.reference_id || '-'}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          p.status === 'paid' || p.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          p.status === 'rejected' || p.status === 'failed' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() => updatePayoutStatus(p.id, 'approved')}
+                            disabled={updatingPayoutId === p.id}
+                            className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                          >Approve</button>
+                          <button
+                            onClick={() => updatePayoutStatus(p.id, 'paid')}
+                            disabled={updatingPayoutId === p.id}
+                            className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
+                          >Mark Paid</button>
+                          <button
+                            onClick={() => updatePayoutStatus(p.id, 'rejected')}
+                            disabled={updatingPayoutId === p.id}
+                            className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
+                          >Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {payouts.length === 0 && (
+                <div className="p-6 text-center text-sm text-gray-500">No payouts found.</div>
+              )}
             </div>
           </div>
         </div>
