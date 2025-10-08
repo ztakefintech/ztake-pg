@@ -1,8 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-
+import { useRouter } from "next/navigation" 
 export function CTASection() {
+  const router = useRouter()
   const scrollToContact = () => {
     document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })
   }
@@ -15,7 +16,9 @@ export function CTASection() {
           Join thousands of businesses already using Ztake to process their payments securely and efficiently.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium rounded-md transition-all hover:shadow-xl hover:shadow-blue-600/50 w-full sm:w-auto">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium rounded-md transition-all hover:shadow-xl hover:shadow-blue-600/50 w-full sm:w-auto" 
+          onClick={() => router.push("/dashboard")}
+          >
             Start Free Trial
           </Button>
           <Button

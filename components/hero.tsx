@@ -2,10 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 export function Hero() {
   const [mounted, setMounted] = useState(false)
-
+  const router = useRouter()
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -46,6 +47,7 @@ export function Hero() {
           <Button
             size="lg"
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium rounded-md transition-all hover:shadow-xl hover:shadow-blue-600/50 hover:scale-105 w-full sm:w-auto"
+            onClick={() => router.push("/dashboard")}
           >
             Get Started
           </Button>
