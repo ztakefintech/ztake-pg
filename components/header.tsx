@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { LogIn } from "lucide-react"
 import Image from "next/image"
-
+import { useRouter } from "next/navigation"
 export function Header() {
   const [scrolled, setScrolled] = useState(false)
-
+  const router = useRouter()
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
@@ -43,7 +43,9 @@ export function Header() {
 
           {/* Login Button - Hidden on mobile to match screenshot */}
           <div className="hidden md:block ml-auto">
-            <Button className="hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg hover:shadow-blue-600/50 flex items-center gap-2 bg-[rgba(0,38,119,1)]">
+            <Button 
+            onClick={() => router.push("/login")}
+            className="hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg hover:shadow-blue-600/50 flex items-center gap-2 bg-[rgba(0,38,119,1)]">
               <LogIn className="w-4 h-4" />
               Login
             </Button>

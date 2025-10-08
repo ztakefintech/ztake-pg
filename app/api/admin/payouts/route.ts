@@ -74,12 +74,19 @@ export async function PATCH(req: NextRequest) {
     // If transitioning into approved/paid from a non-approved state, subtract amount from vendor balance
     const newStatus = String(status)
     const wasFinalized = existing?.status === 'approved' || existing?.status === 'paid'
-    const isFinalizing = newStatus === 'approved' || newStatus === 'paid'
-    if (!wasFinalized && isFinalizing && existing?.vendor_id && existing?.amount != null) {
-      await db.run(
-        `UPDATE vendors SET payout_balance = GREATEST(COALESCE(payout_balance, 0) - ?, 0) WHERE id = ?`,
-        [Number(existing.amount), Number(existing.vendor_id)]
-      )
+    const isApproved = newStatus === 'approved' || newStatus === 'paid'
+    const isRejected = newStatus === 'rejected'
+
+    // Held funds logic: on approval, do nothing (already held on creation). On rejection, add back held amount.
+    if (!wasFinalized && existing?.vendor_id && existing?.amount != null) {
+      if (isApproved) {
+        // no-op: amount already deducted at creation time
+      } else if (isRejected) {
+        await db.run(
+          `UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?`,
+          [Number(existing.amount), Number(existing.vendor_id)]
+        )
+      }
     }
 
     const payout = await db.get(

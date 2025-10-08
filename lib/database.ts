@@ -247,12 +247,17 @@ class Database {
           remarks VARCHAR(255),
           status VARCHAR(32) DEFAULT 'created',
           cashfree_payout_id VARCHAR(64),
+          held_amount DECIMAL(12,2),
           raw_request JSONB,
           raw_response JSONB,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (vendor_id) REFERENCES vendors (id)
         )
+      `);
+      await client.query(`
+        ALTER TABLE payouts 
+        ADD COLUMN IF NOT EXISTS held_amount DECIMAL(12,2)
       `);
 
       // Add payout balance to vendors

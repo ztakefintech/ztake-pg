@@ -51,10 +51,21 @@ async function createPayout(req: AuthenticatedRequest) {
       return createErrorResponse('Invalid amount', 400);
     }
 
+    // Check vendor balance
+    const vendor = await db.get(`SELECT payout_balance FROM vendors WHERE id = ?`, [req.vendor!.id]);
+    const balance = Number(vendor?.payout_balance || 0);
+    const amt = Number(amount);
+    if (balance < amt) {
+      return createErrorResponse('Insufficient payout balance', 400);
+    }
+
+    // Hold funds immediately by subtracting from balance and storing held_amount
+    await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) - ? WHERE id = ?`, [amt, req.vendor!.id]);
+
     const result = await db.run(
-      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created')`,
-      [req.vendor!.id, amount, currency, beneficiary_name || null, beneficiary_account || null, beneficiary_ifsc || null, beneficiary_upi || null, reference_id || null, remarks || null]
+      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?)`,
+      [req.vendor!.id, amt, currency, beneficiary_name || null, beneficiary_account || null, beneficiary_ifsc || null, beneficiary_upi || null, reference_id || null, remarks || null, amt]
     );
 
     const payout = await db.get(
