@@ -23,12 +23,12 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
               <div>
-                <Image src={'/logo.png'} alt="logo" width={40} height={40} />
+                <Image src={'/logo.png'} alt="logo" width={45} height={45} />
               </div>
-              <Link href="/dashboard" className="text-xl font-bold text-primary-600">
-                Ztake
+              <Link href="/dashboard" className="text-2xl font-bold text-gray-700">
+                ZTAKE
               </Link>
             </div>
             
