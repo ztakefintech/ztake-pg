@@ -1,70 +1,57 @@
-'use client';
+"use client"
 
-import { FiShield, FiZap, FiGlobe, FiHeadphones, FiTrendingUp, FiLock } from 'react-icons/fi';
+import { Shield, Zap, Globe, Clock } from "lucide-react"
+
+const features = [
+  {
+    icon: Shield,
+    title: "Secure Payments",
+    description: "Bank-grade security with end-to-end encryption for all transactions",
+  },
+  {
+    icon: Zap,
+    title: "Lightning Fast",
+    description: "Process payments in milliseconds with our optimized infrastructure",
+  },
+  {
+    icon: Globe,
+    title: "Global Reach",
+    description: "Accept payments from customers worldwide with multi-currency support",
+  },
+  {
+    icon: Clock,
+    title: "24/7 Support",
+    description: "Round-the-clock customer support to help you succeed",
+  },
+]
 
 export function WhyChoose() {
-  const features = [
-    {
-      icon: <FiShield className="w-8 h-8" />,
-      title: "Bank-Grade Security",
-      description: "Advanced encryption and fraud protection to keep your transactions secure."
-    },
-    {
-      icon: <FiZap className="w-8 h-8" />,
-      title: "Lightning Fast",
-      description: "Process payments in milliseconds with our optimized infrastructure."
-    },
-    {
-      icon: <FiGlobe className="w-8 h-8" />,
-      title: "Global Reach",
-      description: "Accept payments from customers worldwide with multi-currency support."
-    },
-    {
-      icon: <FiHeadphones className="w-8 h-8" />,
-      title: "24/7 Support",
-      description: "Round-the-clock customer support to help you succeed."
-    },
-    {
-      icon: <FiTrendingUp className="w-8 h-8" />,
-      title: "Scalable Growth",
-      description: "Grow your business with our flexible and scalable payment solutions."
-    },
-    {
-      icon: <FiLock className="w-8 h-8" />,
-      title: "Compliance Ready",
-      description: "PCI DSS compliant with industry-leading security standards."
-    }
-  ];
-
   return (
-    <section id="about" className="py-20 bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-20 px-6 bg-black relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-600/5 via-transparent to-transparent pointer-events-none" />
+
+      <div className="container mx-auto max-w-7xl relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Why Choose Ztake?
-          </h2>
-          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            We provide the tools and infrastructure you need to accept payments, 
-            manage transactions, and grow your business with confidence.
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Why Choose Ztake</h2>
+          <p className="text-gray-400 text-lg max-w-3xl mx-auto">
+            Experience the future of digital payments with our innovative solutions designed for modern businesses
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
-            <div key={index} className="bg-gray-800 p-6 rounded-lg hover:bg-gray-700 transition-colors">
-              <div className="text-blue-400 mb-4">
-                {feature.icon}
+            <div key={index} className="glass-card glass-hover p-8 rounded-2xl group">
+              <div className="mb-6">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600/20 to-blue-600/5 flex items-center justify-center group-hover:from-blue-600/30 group-hover:to-blue-600/10 transition-all duration-300 backdrop-blur-sm border border-blue-600/20">
+                  <feature.icon className="w-7 h-7 text-blue-400" />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold mb-3">
-                {feature.title}
-              </h3>
-              <p className="text-gray-400">
-                {feature.description}
-              </p>
+              <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
+              <p className="text-gray-400 leading-relaxed">{feature.description}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
-  );
+  )
 }

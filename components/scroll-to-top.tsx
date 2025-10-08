@@ -1,48 +1,34 @@
-'use client';
+"use client"
 
-import { useState, useEffect } from 'react';
-import { FiChevronUp } from 'react-icons/fi';
+import { ChevronUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react"
 
 export function ScrollToTop() {
-  const [isVisible, setIsVisible] = useState(false);
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const toggleVisibility = () => {
-      if (window.pageYOffset > 300) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener('scroll', toggleVisibility);
-    return () => window.removeEventListener('scroll', toggleVisibility);
-  }, []);
+    const handleScroll = () => {
+      setVisible(window.scrollY > 300)
+    }
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
-
-  if (!isVisible) {
-    return null;
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
-    <button
+    <Button
+      size="icon"
       onClick={scrollToTop}
-      className="fixed bottom-6 left-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 group"
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-10 h-10 rounded-full bg-transparent border border-gray-700 hover:bg-gray-900 hover:border-gray-600 text-white transition-all ${
+        visible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}
       aria-label="Scroll to top"
     >
-      <FiChevronUp className="w-5 h-5" />
-      
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-        Scroll to top
-        <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-      </div>
-    </button>
-  );
+      <ChevronUp className="w-5 h-5" />
+    </Button>
+  )
 }

@@ -1,75 +1,76 @@
-'use client';
+"use client"
 
-import { FiCreditCard, FiSmartphone, FiGlobe, FiTrendingUp, FiShield, FiSettings } from 'react-icons/fi';
+import { CreditCard, Smartphone, BarChart3, Lock, Code, Headphones } from "lucide-react"
+
+const services = [
+  {
+    icon: CreditCard,
+    title: "Payment Gateway",
+    description:
+      "Seamless payment processing with support for all major payment methods including cards, UPI, and digital wallets.",
+    features: ["Multi-currency support", "Real-time processing", "Advanced fraud protection"],
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile Solutions",
+    description:
+      "Native mobile payment solutions optimized for iOS and Android platforms with superior user experience.",
+    features: ["Native app integration", "Biometric authentication", "Offline payment capability"],
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics Dashboard",
+    description:
+      "Comprehensive analytics and reporting tools to track your business performance and customer insights.",
+    features: ["Real-time analytics", "Custom reports", "Business intelligence"],
+  },
+  {
+    icon: Lock,
+    title: "Security Solutions",
+    description: "Enterprise-grade security with PCI DSS compliance and advanced threat detection systems.",
+    features: ["PCI DSS compliant", "Threat detection", "Data encryption"],
+  },
+  {
+    icon: Code,
+    title: "API Integration",
+    description: "Developer-friendly APIs with comprehensive documentation for seamless integration.",
+    features: ["RESTful APIs", "SDK support", "Webhook notifications"],
+  },
+  {
+    icon: Headphones,
+    title: "Merchant Support",
+    description: "24/7 dedicated support team to help you with technical issues and business growth.",
+    features: ["24/7 support", "Technical assistance", "Business consultation"],
+  },
+]
 
 export function Services() {
-  const services = [
-    {
-      icon: <FiCreditCard className="w-12 h-12" />,
-      title: "Payment Processing",
-      description: "Accept credit cards, debit cards, and digital wallets with our secure payment gateway.",
-      features: ["Multiple payment methods", "Real-time processing", "Fraud protection", "PCI compliance"]
-    },
-    {
-      icon: <FiSmartphone className="w-12 h-12" />,
-      title: "Mobile Payments",
-      description: "Enable seamless mobile payments with our mobile-optimized solutions.",
-      features: ["Mobile SDK", "QR code payments", "In-app payments", "Push notifications"]
-    },
-    {
-      icon: <FiGlobe className="w-12 h-12" />,
-      title: "International Payments",
-      description: "Expand globally with multi-currency support and international payment methods.",
-      features: ["150+ currencies", "Local payment methods", "Cross-border transfers", "Currency conversion"]
-    },
-    {
-      icon: <FiTrendingUp className="w-12 h-12" />,
-      title: "Analytics & Reporting",
-      description: "Gain insights into your business with comprehensive analytics and reporting tools.",
-      features: ["Real-time dashboards", "Custom reports", "Revenue tracking", "Performance metrics"]
-    },
-    {
-      icon: <FiShield className="w-12 h-12" />,
-      title: "Security & Compliance",
-      description: "Bank-grade security with industry-leading compliance and fraud protection.",
-      features: ["End-to-end encryption", "3D Secure", "Risk management", "Compliance monitoring"]
-    },
-    {
-      icon: <FiSettings className="w-12 h-12" />,
-      title: "API Integration",
-      description: "Easy integration with our developer-friendly APIs and comprehensive documentation.",
-      features: ["RESTful APIs", "Webhooks", "SDKs", "Developer tools"]
-    }
-  ];
-
   return (
-    <section id="services" className="py-20 bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="services" className="py-20 px-6 bg-black relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/3 to-transparent pointer-events-none" />
+
+      <div className="container mx-auto max-w-7xl relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Our Services
-          </h2>
-          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Comprehensive payment solutions designed to meet the needs of businesses of all sizes.
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Our Services</h2>
+          <p className="text-gray-400 text-lg max-w-3xl mx-auto">
+            Comprehensive payment solutions tailored to meet your business needs
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, index) => (
-            <div key={index} className="bg-gray-900 p-8 rounded-lg hover:bg-gray-800 transition-colors">
-              <div className="text-blue-400 mb-6">
-                {service.icon}
+            <div key={index} className="glass-card glass-hover p-8 rounded-2xl group">
+              <div className="mb-6">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600/20 to-blue-600/5 flex items-center justify-center group-hover:from-blue-600/30 group-hover:to-blue-600/10 transition-all duration-300 backdrop-blur-sm border border-blue-600/20">
+                  <service.icon className="w-7 h-7 text-blue-400" />
+                </div>
               </div>
-              <h3 className="text-2xl font-semibold mb-4">
-                {service.title}
-              </h3>
-              <p className="text-gray-400 mb-6">
-                {service.description}
-              </p>
+              <h3 className="text-2xl font-semibold text-white mb-3">{service.title}</h3>
+              <p className="text-gray-400 leading-relaxed mb-6">{service.description}</p>
               <ul className="space-y-2">
-                {service.features.map((feature, featureIndex) => (
-                  <li key={featureIndex} className="text-gray-300 flex items-center">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
+                {service.features.map((feature, idx) => (
+                  <li key={idx} className="flex items-center text-gray-400 text-sm">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-3 shadow-lg shadow-blue-500/50" />
                     {feature}
                   </li>
                 ))}
@@ -79,5 +80,5 @@ export function Services() {
         </div>
       </div>
     </section>
-  );
+  )
 }

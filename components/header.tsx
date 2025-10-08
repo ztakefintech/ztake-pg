@@ -1,122 +1,55 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { FiMenu, FiX } from 'react-icons/fi';
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { LogIn } from "lucide-react"
+import Image from "next/image"
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   return (
-    <header className="bg-black text-white fixed w-full top-0 z-50 border-b border-gray-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 text-transparent bg-transparent border-none ${
+        scrolled ? "bg-black/95 backdrop-blur-md border-b border-gray-800" : "bg-transparent"
+      }`}
+    >
+      <div className="container mx-auto py-4 px-0">
+        <nav className="flex justify-between items-center border-0 text-justify gap-0 mx-[-79px]">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-bold text-white">
-              Ztake
-            </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-8">
-              <Link href="#services" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium">
-                Services
-              </Link>
-              <Link href="#solutions" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium">
-                Solutions
-              </Link>
-              <Link href="#about" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium">
-                About
-              </Link>
-              <Link href="#contact" className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium">
-                Contact
-              </Link>
+          <Link href="/" className="flex group px-0 my-0 items-center justify-center gap-[9px] mx-[-13px]">
+            <div className="w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-110">
+              <Image
+                src="/ztake-logo.svg"
+                alt="Ztake Logo"
+                width={40}
+                height={40}
+                className="w-full h-full object-contain"
+              />
             </div>
-          </nav>
+            <span className="tracking-[0.06em] font-semibold text-base my-[-2px] mx-[-6px] text-zinc-300">{"ZTAKE"}</span>
+          </Link>
 
-          {/* CTA Buttons */}
-          <div className="hidden md:block">
-            <div className="ml-4 flex items-center space-x-4">
-              <Link
-                href="/login"
-                className="text-gray-300 hover:text-white px-3 py-2 text-sm font-medium"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
+          {/* Navigation Links */}
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-300 hover:text-white p-2"
-            >
-              {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-            </button>
+          {/* Login Button - Hidden on mobile to match screenshot */}
+          <div className="hidden md:block ml-auto">
+            <Button className="hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition-all hover:shadow-lg hover:shadow-blue-600/50 flex items-center gap-2 bg-[rgba(0,38,119,1)]">
+              <LogIn className="w-4 h-4" />
+              Login
+            </Button>
           </div>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-black border-t border-gray-800">
-              <Link
-                href="#services"
-                className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
-              <Link
-                href="#solutions"
-                className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Solutions
-              </Link>
-              <Link
-                href="#about"
-                className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                About
-              </Link>
-              <Link
-                href="#contact"
-                className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
-              <div className="pt-4 pb-3 border-t border-gray-800">
-                <Link
-                  href="/login"
-                  className="text-gray-300 hover:text-white block px-3 py-2 text-base font-medium"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="bg-blue-600 hover:bg-blue-700 text-white block px-3 py-2 rounded-md text-base font-medium mt-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Get Started
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
+        </nav>
       </div>
     </header>
-  );
+  )
 }
