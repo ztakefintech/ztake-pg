@@ -13,11 +13,21 @@ interface SettlementRecord {
   created_at: string;
 }
 
+interface RechargeRecord {
+  id: number;
+  amount: number;
+  utr?: string | null;
+  status: string;
+  created_at: string;
+}
+
 export default function SettlementPage() {
   const { vendor, token } = useAuth();
   const [records, setRecords] = useState<SettlementRecord[]>([]);
+  const [recharges, setRecharges] = useState<RechargeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'settlements' | 'recharges'>('settlements');
 
   useEffect(() => {
     if (vendor && token) {
@@ -30,10 +40,11 @@ export default function SettlementPage() {
       setLoading(true);
       setError('');
       
-      // Fetch only settlement history
-      const settlementRes = await fetch('/api/vendor/settlements', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      // Fetch settlement history and recharge history in parallel
+      const [settlementRes, rechargeRes] = await Promise.all([
+        fetch('/api/vendor/settlements', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/vendor/payouts/recharges', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
 
       if (settlementRes.ok) {
         const settlementData = await settlementRes.json();
@@ -50,6 +61,19 @@ export default function SettlementPage() {
         setRecords(settlementRecords);
       } else {
         setError('Failed to load settlement history');
+      }
+
+      if (rechargeRes.ok) {
+        const rechargeData = await rechargeRes.json();
+        const rechargeRecords = (rechargeData?.data?.recharges || []).map((r: any) => ({
+          id: r.id,
+          amount: Number(r.amount),
+          utr: r.utr,
+          status: r.status,
+          created_at: r.created_at
+        }));
+        rechargeRecords.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setRecharges(rechargeRecords);
       }
 
     } catch (err) {
@@ -118,7 +142,7 @@ export default function SettlementPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Settlement History</h1>
-            <p className="text-gray-600">Track your settlement requests and their status</p>
+            <p className="text-gray-600">Track settlements and payout recharges</p>
           </div>
           <button
             onClick={loadSettlementHistory}
@@ -129,12 +153,35 @@ export default function SettlementPage() {
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { id: 'settlements', name: 'Settlement Requests' },
+              { id: 'recharges', name: 'Recharge Requests' }
+            ].map((tab:any) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-600">{error}</p>
           </div>
         )}
 
+        {activeTab === 'settlements' && (
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Settlement Requests</h3>
@@ -188,6 +235,53 @@ export default function SettlementPage() {
             )}
           </div>
         </div>
+        )}
+
+        {/* Recharge History */}
+        {activeTab === 'recharges' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recharge Requests</h3>
+
+            {recharges.length === 0 ? (
+              <div className="text-center py-8">
+                <FiDollarSign className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No recharge requests yet</h3>
+                <p className="mt-1 text-sm text-gray-500">Your recharge history will appear here.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UTR</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {recharges.map((r) => (
+                      <tr key={r.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{r.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(r.amount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">{r.utr || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(r.status)}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(r.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+        )}
       </div>
     </Layout>
   );
