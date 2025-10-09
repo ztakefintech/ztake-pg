@@ -333,6 +333,22 @@ export default function AdminDashboard() {
 
   const updatePayoutStatus = async (id: number, status: string) => {
     setUpdatingPayoutId(id);
+    // Guard against invalid transitions based on current local status
+    setPayouts(prev => {
+      const current = prev.find(p => p.id === id);
+      if (current) {
+        const canApprove = current.status === 'created';
+        const canReject = current.status === 'created';
+        const canMarkPaid = current.status === 'approved' || current.status === 'created';
+        if ((status === 'approved' && !canApprove) ||
+            (status === 'rejected' && !canReject) ||
+            (status === 'paid' && !canMarkPaid)) {
+          return prev; // ignore invalid click
+        }
+      }
+      // Optimistically update UI to immediately disable buttons for this row
+      return prev.map(p => (p.id === id ? { ...p, status } : p));
+    });
     try {
       const res = await fetch('/api/admin/payouts', {
         method: 'PATCH',
@@ -341,9 +357,16 @@ export default function AdminDashboard() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Update failed');
+      // Sync local row with server response if present
+      if (json?.data?.payout) {
+        const srv = json.data.payout;
+        setPayouts(prev => prev.map(p => (p.id === srv.id ? { ...p, status: srv.status } : p)));
+      }
       await loadPayouts(payoutStatusFilter);
     } catch (e: any) {
       alert(e.message || 'Failed to update payout');
+      // Revert optimistic change on error
+      await loadPayouts(payoutStatusFilter);
     } finally {
       setUpdatingPayoutId(null);
     }
@@ -1176,23 +1199,27 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-2 text-right">
                         {hasPermission('manage_payout') ? (
-                          <div className="inline-flex gap-2">
-                            <button
-                              onClick={() => updatePayoutStatus(p.id, 'approved')}
-                              disabled={updatingPayoutId === p.id}
-                              className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
-                            >Approve</button>
-                            <button
-                              onClick={() => updatePayoutStatus(p.id, 'paid')}
-                              disabled={updatingPayoutId === p.id}
-                              className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
-                            >Mark Paid</button>
-                            <button
-                              onClick={() => updatePayoutStatus(p.id, 'rejected')}
-                              disabled={updatingPayoutId === p.id}
-                              className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
-                            >Reject</button>
-                          </div>
+                          p.status === 'created' ? (
+                            <div className="inline-flex gap-2">
+                              <button
+                                onClick={() => updatePayoutStatus(p.id, 'approved')}
+                                disabled={updatingPayoutId === p.id}
+                                className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+                              >Approve</button>
+                              <button
+                                onClick={() => updatePayoutStatus(p.id, 'paid')}
+                                disabled={updatingPayoutId === p.id}
+                                className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
+                              >Mark Paid</button>
+                              <button
+                                onClick={() => updatePayoutStatus(p.id, 'rejected')}
+                                disabled={updatingPayoutId === p.id}
+                                className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
+                              >Reject</button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">No actions for {p.status}</span>
+                          )
                         ) : (
                           <span className="text-sm text-gray-400">View Only</span>
                         )}
