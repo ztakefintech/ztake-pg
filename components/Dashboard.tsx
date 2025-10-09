@@ -114,12 +114,13 @@ export default function Dashboard() {
         const statsData = await statsRes.json();
         let totalReceivedAmount = Number(statsData?.data?.totalReceivedOrdersAmount || 0);
         
-        // Subtract pending settlements from total received
+        // Subtract settlements that are already requested or completed (pending/approved/paid)
         if (settlementsRes.ok) {
           const settlementsData = await settlementsRes.json();
-          const pendingSettlements = settlementsData.settlements?.filter((s: any) => s.status === 'pending') || [];
-          const pendingAmount = pendingSettlements.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
-          totalReceivedAmount -= pendingAmount;
+          const deductedStatuses = new Set(['pending', 'approved', 'paid']);
+          const deductedSettlements = (settlementsData.settlements || []).filter((s: any) => deductedStatuses.has(String(s.status)));
+          const deductedAmount = deductedSettlements.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+          totalReceivedAmount -= deductedAmount;
         }
         
         // Ensure total never goes negative

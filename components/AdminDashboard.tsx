@@ -1791,11 +1791,15 @@ function AdminRechargeRequests() {
                 </span>
               </td>
               <td className="px-4 py-2 text-right">
-                <div className="inline-flex gap-2">
-                  <button onClick={() => update(r.id, 'approved')} disabled={updatingId===r.id} className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50">Approve</button>
-                  <button onClick={() => update(r.id, 'paid')} disabled={updatingId===r.id} className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50">Mark Paid</button>
-                  <button onClick={() => update(r.id, 'rejected')} disabled={updatingId===r.id} className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50">Reject</button>
-                </div>
+                {r.status === 'created' ? (
+                  <div className="inline-flex gap-2">
+                    <button onClick={() => update(r.id, 'approved')} disabled={updatingId===r.id} className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50">Approve</button>
+                    <button onClick={() => update(r.id, 'paid')} disabled={updatingId===r.id} className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50">Mark Paid</button>
+                    <button onClick={() => update(r.id, 'rejected')} disabled={updatingId===r.id} className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50">Reject</button>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-400">No actions for {r.status}</span>
+                )}
               </td>
             </tr>
           ))}
