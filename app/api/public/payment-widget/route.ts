@@ -12,7 +12,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Validation schema for the request
 const widgetSchema = Joi.object({
-  vendor_id: Joi.number().integer().positive().required(),
+  vendor_code: Joi.string().pattern(/^[A-Z]{2}[0-9]{4}$/).required(),
   format: Joi.string().valid('json', 'html', 'widget').default('json'),
   theme: Joi.string().valid('light', 'dark', 'auto').default('light'),
   size: Joi.string().valid('small', 'medium', 'large').default('medium'),
@@ -21,14 +21,14 @@ const widgetSchema = Joi.object({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const vendorId = searchParams.get('vendor_id');
+    const vendorCode = searchParams.get('vendor_code');
     const format = searchParams.get('format') || 'json';
     const theme = searchParams.get('theme') || 'light';
     const size = searchParams.get('size') || 'medium';
 
     // Validate input
     const { error, value } = widgetSchema.validate({ 
-      vendor_id: vendorId ? parseInt(vendorId) : undefined,
+      vendor_code: vendorCode,
       format,
       theme,
       size
@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch vendor details
     const vendor = await db.get(
-      'SELECT id, business_name, upi_id, created_at FROM vendors WHERE id = ?',
-      [value.vendor_id]
+      'SELECT id, vendor_code, business_name, upi_id, created_at FROM vendors WHERE vendor_code = ?',
+      [value.vendor_code]
     );
 
     if (!vendor) {
@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
 
     const paymentData = {
       vendor_id: vendor.id,
+      vendor_code: vendor.vendor_code,
       business_name: vendor.business_name,
       upi_id: vendor.upi_id,
       qr_code: qrCodeData,
@@ -204,7 +205,7 @@ function generateWidgetScript(data: any, theme: string, size: string) {
             <div class="mb-4">
               <img src="data:image/png;base64,\${widgetData.qr_code}" 
                    alt="UPI QR Code" 
-                   class="max-w-full h-auto mx-auto w-64 h-64">
+                   class="max-w-full mx-auto w-64 h-64">
             </div>
           \` : ''}
           \${widgetData.upi_id ? \`

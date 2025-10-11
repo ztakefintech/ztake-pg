@@ -7,10 +7,10 @@ export const POST = requireAdmin(async (request: NextRequest) => {
   try {
 
     const body = await request.json();
-    const { utr, amount, vendor_id, payment_status } = body || {};
+    const { utr, amount, vendor_code, payment_status } = body || {};
 
-    if (!utr || !amount || !vendor_id) {
-      return NextResponse.json({ error: 'utr, amount, vendor_id are required' }, { status: 400 });
+    if (!utr || !amount || !vendor_code) {
+      return NextResponse.json({ error: 'utr, amount, vendor_code are required' }, { status: 400 });
     }
 
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || request.nextUrl.origin;
@@ -26,7 +26,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`
       },
-      body: JSON.stringify({ utr, amount, vendor_id, ...(payment_status ? { payment_status } : {}) })
+      body: JSON.stringify({ utr, amount, vendor_code, ...(payment_status ? { payment_status } : {}) })
     });
 
     const json = await res.json().catch(() => ({}));

@@ -71,3 +71,27 @@ export function requirePermission(permission: string) {
     };
   };
 }
+
+// Helper function to get vendor filter SQL for admin queries
+export async function getVendorFilterForAdmin(adminId: number): Promise<{ sql: string; params: any[] }> {
+  const admin = await AuthService.getAdminUserById(adminId);
+  
+  // Superusers can see all vendors
+  if (admin?.role === 'superuser') {
+    return { sql: '', params: [] };
+  }
+  
+  // Get assigned vendors for this admin
+  const assignedVendors = await AuthService.getAssignedVendors(adminId);
+  
+  if (assignedVendors.length === 0) {
+    // No vendors assigned, return empty params (will be handled in individual queries)
+    return { sql: '', params: [] };
+  }
+  
+  // Return the vendor IDs for IN clause
+  return { 
+    sql: '', 
+    params: assignedVendors 
+  };
+}

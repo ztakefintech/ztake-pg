@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface Vendor {
   id: number;
+  vendor_code?: string;
   email: string;
   business_name: string;
   contact_name: string;

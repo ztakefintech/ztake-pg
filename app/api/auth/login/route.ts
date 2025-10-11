@@ -16,7 +16,7 @@ async function handler(req: NextRequest) {
 
     // Find vendor by email
     const vendor = await db.get(
-      'SELECT id, email, password_hash, business_name, contact_name, phone, upi_id FROM vendors WHERE email = ?',
+      'SELECT id, vendor_code, email, password_hash, business_name, contact_name, phone, upi_id FROM vendors WHERE email = ?',
       [validatedData.email]
     );
 
@@ -46,6 +46,7 @@ async function handler(req: NextRequest) {
       token,
       vendor: {
         id: vendor.id,
+        vendor_code: vendor.vendor_code,
         email: vendor.email,
         business_name: vendor.business_name,
         contact_name: vendor.contact_name,

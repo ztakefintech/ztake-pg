@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/database';
 import { withAuth, createApiResponse, createErrorResponse, AuthenticatedRequest } from '@/lib/middleware';
+import { generatePayoutId } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -59,13 +60,35 @@ async function createPayout(req: AuthenticatedRequest) {
       return createErrorResponse('Insufficient payout balance', 400);
     }
 
+    // Generate unique payout ID if not provided
+    let payoutReferenceId = reference_id;
+    if (!payoutReferenceId) {
+      let isUnique = false;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      do {
+        payoutReferenceId = generatePayoutId();
+        const existingPayout = await db.get(
+          'SELECT id FROM payouts WHERE reference_id = ?',
+          [payoutReferenceId]
+        );
+        isUnique = !existingPayout;
+        attempts++;
+      } while (!isUnique && attempts < maxAttempts);
+
+      if (!isUnique) {
+        return createErrorResponse('Failed to generate unique payout ID', 500);
+      }
+    }
+
     // Hold funds immediately by subtracting from balance and storing held_amount
     await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) - ? WHERE id = ?`, [amt, req.vendor!.id]);
 
     const result = await db.run(
       `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?)`,
-      [req.vendor!.id, amt, currency, beneficiary_name || null, beneficiary_account || null, beneficiary_ifsc || null, beneficiary_upi || null, reference_id || null, remarks || null, amt]
+      [req.vendor!.id, amt, currency, beneficiary_name || null, beneficiary_account || null, beneficiary_ifsc || null, beneficiary_upi || null, payoutReferenceId, remarks || null, amt]
     );
 
     const payout = await db.get(

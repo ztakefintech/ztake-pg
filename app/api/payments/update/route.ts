@@ -18,8 +18,8 @@ async function handler(req: AuthenticatedRequest) {
 
     // Check if vendor exists
     const vendor = await db.get(
-      'SELECT id, business_name FROM vendors WHERE id = ?',
-      [validatedData.vendor_id]
+      'SELECT id, vendor_code, business_name FROM vendors WHERE vendor_code = ?',
+      [validatedData.vendor_code]
     );
 
     if (!vendor) {
@@ -41,7 +41,7 @@ async function handler(req: AuthenticatedRequest) {
     const result = await db.run(
       `INSERT INTO payments (order_id, utr, amount, vendor_id, status, payment_status) 
        VALUES (?, ?, ?, ?, 'completed', ?)`,
-      [validatedData.order_id || null, validatedData.utr, validatedData.amount, validatedData.vendor_id, paymentStatus]
+      [validatedData.order_id || null, validatedData.utr, validatedData.amount, vendor.id, paymentStatus]
     );
 
     // If the new payment is pending, mark related order pending by UTR (if attached later)

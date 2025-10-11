@@ -22,6 +22,7 @@ async function handler(req: AuthenticatedRequest) {
       upi_id: qrData.upiId,
       upi_url: qrData.upiUrl,
       vendor_id: vendor.id,
+      vendor_code: vendor.vendor_code,
       // Bank details
       bank_name: vendor.bank_name || null,
       bank_account_holder: vendor.bank_account_holder || null,

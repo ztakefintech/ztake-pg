@@ -21,6 +21,7 @@ class Database {
       await client.query(`
         CREATE TABLE IF NOT EXISTS vendors (
           id SERIAL PRIMARY KEY,
+          vendor_code VARCHAR(6) UNIQUE NOT NULL,
           email VARCHAR(255) UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           business_name VARCHAR(255) NOT NULL,
@@ -38,6 +39,8 @@ class Database {
           bank_ifsc VARCHAR(20),
           bot_token VARCHAR(255),
           chat_id VARCHAR(64),
+          is_approved BOOLEAN DEFAULT FALSE,
+          google_id VARCHAR(255) UNIQUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -81,6 +84,56 @@ class Database {
         )
       `);
 
+      // Add vendor_code to vendors table if not exists
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS vendor_code VARCHAR(6)
+      `);
+      
+      // Add approval status and Google ID columns if not exists
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE
+      `);
+      
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE
+      `);
+      
+      // Generate vendor codes for existing vendors that don't have them
+      await client.query(`
+        DO $$
+        DECLARE
+          vendor_record RECORD;
+          new_code VARCHAR(6);
+          code_exists BOOLEAN;
+        BEGIN
+          FOR vendor_record IN 
+            SELECT id FROM vendors WHERE vendor_code IS NULL OR vendor_code = ''
+          LOOP
+            LOOP
+              -- Generate a random vendor code (2 letters + 4 numbers)
+              new_code := chr(65 + floor(random() * 26)::int) || 
+                         chr(65 + floor(random() * 26)::int) ||
+                         floor(random() * 10)::text ||
+                         floor(random() * 10)::text ||
+                         floor(random() * 10)::text ||
+                         floor(random() * 10)::text;
+              
+              -- Check if code already exists
+              SELECT EXISTS(SELECT 1 FROM vendors WHERE vendor_code = new_code) INTO code_exists;
+              
+              -- Exit loop if code is unique
+              EXIT WHEN NOT code_exists;
+            END LOOP;
+            
+            -- Update vendor with new code
+            UPDATE vendors SET vendor_code = new_code WHERE id = vendor_record.id;
+          END LOOP;
+        END $$;
+      `);
+      
       // Add vendor_id to orders if not exists and add FK
       await client.query(`
         ALTER TABLE orders 
@@ -331,6 +384,19 @@ class Database {
           expires_at TIMESTAMP NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (admin_id) REFERENCES admin_users (id) ON DELETE CASCADE
+        )
+      `);
+
+      // Create admin_vendor_assignments table for vendor assignments
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS admin_vendor_assignments (
+          id SERIAL PRIMARY KEY,
+          admin_id INTEGER NOT NULL,
+          vendor_id INTEGER NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (admin_id) REFERENCES admin_users (id) ON DELETE CASCADE,
+          FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE,
+          UNIQUE(admin_id, vendor_id)
         )
       `);
 

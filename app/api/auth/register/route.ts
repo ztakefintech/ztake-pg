@@ -4,6 +4,7 @@ import { AuthService } from '@/lib/auth';
 import { vendorRegistrationSchema, validateRequest } from '@/lib/validation';
 import { withRateLimit, createApiResponse, createErrorResponse } from '@/lib/middleware';
 import { authRateLimit } from '@/lib/rate-limit';
+import { generateVendorId } from '@/lib/utils';
 
 async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
@@ -27,11 +28,32 @@ async function handler(req: NextRequest) {
     // Hash password
     const passwordHash = await AuthService.hashPassword(validatedData.password);
 
+    // Generate unique vendor code
+    let vendorCode: string;
+    let isUnique = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+      vendorCode = generateVendorId();
+      const existingCode = await db.get(
+        'SELECT id FROM vendors WHERE vendor_code = ?',
+        [vendorCode]
+      );
+      isUnique = !existingCode;
+      attempts++;
+    } while (!isUnique && attempts < maxAttempts);
+
+    if (!isUnique) {
+      return createErrorResponse('Failed to generate unique vendor code', 500);
+    }
+
     // Create vendor
     const result = await db.run(
-      `INSERT INTO vendors (email, password_hash, business_name, contact_name, phone, upi_id) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO vendors (vendor_code, email, password_hash, business_name, contact_name, phone, upi_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
+        vendorCode,
         validatedData.email,
         passwordHash,
         validatedData.business_name,
@@ -53,6 +75,7 @@ async function handler(req: NextRequest) {
       token,
       vendor: {
         id: result.lastID,
+        vendor_code: vendorCode,
         email: validatedData.email,
         business_name: validatedData.business_name,
         contact_name: validatedData.contact_name,

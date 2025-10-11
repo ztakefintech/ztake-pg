@@ -1,15 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission } from '@/lib/admin-middleware';
+import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware';
 import { db } from '@/lib/database';
 
 export const GET = requirePermission('view_settlements')(async (req: NextRequest) => {
   try {
-    const result = await db.all(`
-      SELECT s.*, v.business_name, v.email
-      FROM settlements s
-      JOIN vendors v ON s.vendor_id = v.id
-      ORDER BY s.created_at DESC
-    `);
+    // Get admin info from headers
+    const adminData = req.headers.get('x-admin-id');
+    const admin = adminData ? JSON.parse(adminData) : null;
+    
+    if (!admin) {
+      return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
+    }
+
+    // Get vendor filter for this admin
+    const vendorFilter = await getVendorFilterForAdmin(admin.id);
+
+    const result = vendorFilter.params.length > 0
+      ? await db.all(`
+          SELECT s.*, v.business_name, v.email
+          FROM settlements s
+          JOIN vendors v ON s.vendor_id = v.id
+          WHERE s.vendor_id IN (${vendorFilter.params.map((_, i) => `$${i + 1}`).join(', ')})
+          ORDER BY s.created_at DESC
+        `, vendorFilter.params)
+      : await db.all(`
+          SELECT s.*, v.business_name, v.email
+          FROM settlements s
+          JOIN vendors v ON s.vendor_id = v.id
+          ORDER BY s.created_at DESC
+        `);
 
     return NextResponse.json({
       settlements: result

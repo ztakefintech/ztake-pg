@@ -20,6 +20,7 @@ async function initializeDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS vendors (
         id SERIAL PRIMARY KEY,
+        vendor_code VARCHAR(6) UNIQUE NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         business_name VARCHAR(255) NOT NULL,

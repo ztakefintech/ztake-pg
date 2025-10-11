@@ -14,14 +14,14 @@ async function handler(req: NextRequest) {
     const body = await req.json();
     const validatedData = validateRequest(checkPaymentSchema, body);
 
-    // Find payment by UTR and vendor_id only (order_id may not exist yet)
+    // Find payment by UTR and vendor_code only (order_id may not exist yet)
     const payment = await db.get(
       `SELECT p.id, p.order_id, p.utr, p.amount, p.status, p.payment_status, p.checked_status, p.checked_at, p.created_at, p.updated_at,
-              v.id as vendor_id, v.business_name, v.contact_name, v.upi_id
+              v.id as vendor_id, v.vendor_code, v.business_name, v.contact_name, v.upi_id
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
-       WHERE p.utr = ? AND p.vendor_id = ?`,
-      [validatedData.utr, validatedData.vendor_id]
+       WHERE p.utr = ? AND v.vendor_code = ?`,
+      [validatedData.utr, validatedData.vendor_code]
     );
 
     if (!payment) {

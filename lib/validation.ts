@@ -20,7 +20,7 @@ export const vendorLoginSchema = Joi.object({
 export const updatePaymentSchema = Joi.object({
   utr: Joi.string().pattern(/^[0-9]+$/).min(10).max(20).required(),
   amount: Joi.number().positive().precision(2).required(),
-  vendor_id: Joi.number().integer().positive().required(),
+  vendor_code: Joi.string().pattern(/^[A-Z]{2}[0-9]{4}$/).required(),
   order_id: Joi.string().min(3).max(255).optional(),
   payment_status: Joi.string().valid('Pending', 'Succeeded', 'Failed').optional()
 });
@@ -28,7 +28,7 @@ export const updatePaymentSchema = Joi.object({
 // Check payment status validation
 export const checkPaymentSchema = Joi.object({
   utr: Joi.string().pattern(/^[0-9]+$/).min(10).max(20).required(),
-  vendor_id: Joi.number().integer().positive().required(),
+  vendor_code: Joi.string().pattern(/^[A-Z]{2}[0-9]{4}$/).required(),
   order_id: Joi.string().min(3).max(255).required()
 });
 

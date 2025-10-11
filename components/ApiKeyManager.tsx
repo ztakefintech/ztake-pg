@@ -182,6 +182,9 @@ export default function ApiKeyManager() {
             <div className="text-sm text-blue-700">
               <p><strong>Note:</strong> Replace <code>your-domain.com</code> with your actual production domain.</p>
               <p><strong>Your Vendor ID:</strong> <code className="bg-blue-200 px-2 py-1 rounded font-mono">{vendor?.id || 'N/A'}</code> - Use this in all vendor-specific endpoints</p>
+              {vendor?.vendor_code && (
+                <p><strong>Your Vendor Code:</strong> <code className="bg-blue-200 px-2 py-1 rounded font-mono">{vendor.vendor_code}</code> - Human-readable vendor identifier</p>
+              )}
             </div>
           </div>
         </div>
@@ -200,7 +203,7 @@ export default function ApiKeyManager() {
 {`{
   "utr": "690518190930",
   "amount": 100.00,
-  "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'},
+  "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}",
   "order_id": "ord_12345",
   "payment_status": "Succeeded"
 }`}
@@ -209,7 +212,7 @@ export default function ApiKeyManager() {
               <ul className="text-gray-600 ml-4 space-y-1">
                 <li>• <code className="bg-gray-100 px-1 rounded">utr</code> (string) - Unique Transaction Reference number from payment gateway (numeric only)</li>
                 <li>• <code className="bg-gray-100 px-1 rounded">amount</code> (number) - Payment amount in decimal format</li>
-                <li>• <code className="bg-gray-100 px-1 rounded">vendor_id</code> (number) - Vendor ID who received the payment</li>
+                <li>• <code className="bg-gray-100 px-1 rounded">vendor_code</code> (string) - Vendor Code who received the payment</li>
               </ul>
               <p className="text-gray-600 mb-2">Optional Fields:</p>
               <ul className="text-gray-600 ml-4 space-y-1">
@@ -226,7 +229,7 @@ export default function ApiKeyManager() {
     "utr": "690518190930",
     "amount": 100.00,
     "status": "completed",
-    "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'},
+    "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}",
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
   }
@@ -275,14 +278,14 @@ export default function ApiKeyManager() {
               <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {`{
   "utr": "690518190930",
-  "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'},
+  "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}",
   "order_id": "ord_12345"
 }`}
               </pre>
               <p className="text-gray-600 mb-2">Required Fields:</p>
               <ul className="text-gray-600 ml-4 space-y-1">
                 <li>• <code className="bg-gray-100 px-1 rounded">utr</code> (string) - Unique Transaction Reference number to check (numeric only)</li>
-                <li>• <code className="bg-gray-100 px-1 rounded">vendor_id</code> (number) - Vendor ID who received the payment</li>
+                <li>• <code className="bg-gray-100 px-1 rounded">vendor_code</code> (string) - Vendor Code who received the payment</li>
                 <li>• <code className="bg-gray-100 px-1 rounded">order_id</code> (string) - Unique order identifier from your frontend</li>
               </ul>
               <p className="text-gray-600 mt-2">Success Response (Payment Checked):</p>
@@ -359,13 +362,13 @@ export default function ApiKeyManager() {
 
             <div>
               <h3 className="font-medium text-gray-900 mb-2">Get Vendor Payment Details</h3>
-              <p className="text-gray-600 mb-2">Endpoint: <code className="bg-gray-100 px-2 py-1 rounded">GET /api/vendor/payment-details?vendor_id={vendor?.id || 'YOUR_VENDOR_ID'}</code></p>
+              <p className="text-gray-600 mb-2">Endpoint: <code className="bg-gray-100 px-2 py-1 rounded">GET /api/vendor/payment-details?vendor_code={vendor?.vendor_code || 'YOUR_VENDOR_CODE'}</code></p>
               <p className="text-gray-600 mt-2">Response:</p>
               <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {`{
   "success": true,
   "data": {
-    "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'},
+    "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}",
     "business_name": "${vendor?.business_name || 'Your Store'}",
     "upi_id": "${vendor?.upi_id || 'yourstore@paytm'}",
     "qr_code": "base64_image_data",
@@ -377,17 +380,17 @@ export default function ApiKeyManager() {
 
             <div>
               <h3 className="font-medium text-gray-900 mb-2">Payment Widget API</h3>
-              <p className="text-gray-600 mb-2">Endpoint: <code className="bg-gray-100 px-2 py-1 rounded">GET /api/public/payment-widget?vendor_id={vendor?.id || 'YOUR_VENDOR_ID'}&format=json&theme=light&size=medium</code></p>
+              <p className="text-gray-600 mb-2">Endpoint: <code className="bg-gray-100 px-2 py-1 rounded">GET /api/public/payment-widget?vendor_code={vendor?.vendor_code || 'YOUR_VENDOR_CODE'}&format=json&theme=light&size=medium</code></p>
               <p className="text-gray-600 mb-2">Parameters:</p>
               <ul className="text-gray-600 ml-4 space-y-1">
-                <li>• <code className="bg-gray-100 px-1 rounded">vendor_id</code> (required) - Vendor ID</li>
+                <li>• <code className="bg-gray-100 px-1 rounded">vendor_code</code> (required) - Vendor Code</li>
                 <li>• <code className="bg-gray-100 px-1 rounded">format</code> - json, html, or widget</li>
                 <li>• <code className="bg-gray-100 px-1 rounded">theme</code> - light, dark, or auto</li>
                 <li>• <code className="bg-gray-100 px-1 rounded">size</code> - small, medium, or large</li>
               </ul>
               <p className="text-gray-600 mt-2">Example HTML Embed:</p>
               <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
-{`<iframe src="/api/public/payment-widget?vendor_id=${vendor?.id || 'YOUR_VENDOR_ID'}&format=html" 
+{`<iframe src="/api/public/payment-widget?vendor_code=${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}&format=html" 
         width="400" height="500" frameborder="0">
 </iframe>`}
               </pre>
@@ -526,7 +529,7 @@ Authorization: Bearer YOUR_API_KEY
 {
   "utr": "690518190930",
   "amount": 100.00,
-  "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'}
+  "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}"
 }`}
                   </pre>
                 </div>
@@ -560,7 +563,7 @@ Authorization: Bearer YOUR_API_KEY
   -d '{
     "utr": "690518190930",
     "amount": 100.00,
-    "vendor_id": ${vendor?.id || 'YOUR_VENDOR_ID'}
+    "vendor_code": "${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}"
   }'`}
                   </pre>
                 </div>
@@ -577,7 +580,7 @@ Authorization: Bearer YOUR_API_KEY
                 <div>
                   <h4 className="font-medium text-gray-800 mb-1">Get Vendor Details:</h4>
                   <pre className="bg-gray-100 p-2 rounded text-xs overflow-x-auto">
-{`curl "http://localhost:3000/api/vendor/payment-details?vendor_id=${vendor?.id || 'YOUR_VENDOR_ID'}"`}
+{`curl "http://localhost:3000/api/vendor/payment-details?vendor_code=${vendor?.vendor_code || 'YOUR_VENDOR_CODE'}"`}
                   </pre>
                 </div>
               </div>

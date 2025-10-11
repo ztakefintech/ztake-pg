@@ -15,8 +15,8 @@ async function handler(req: AuthenticatedRequest) {
       WHERE vendor_id = ?
       UNION ALL
       SELECT 
-        CONCAT('PAYOUT-', id) as ztake_order_id,
-        COALESCE(reference_id, CONCAT('PAYOUT-', id)) as merchant_order_id,
+        COALESCE(reference_id, CONCAT('PYT', LPAD(id::text, 8, '0'))) as ztake_order_id,
+        COALESCE(reference_id, CONCAT('PYT', LPAD(id::text, 8, '0'))) as merchant_order_id,
         amount,
         currency,
         COALESCE(beneficiary_name, 'Payout') as customer_name,

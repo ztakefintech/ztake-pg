@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { requirePermission } from '@/lib/admin-middleware';
+import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware';
 
 // Ensure dynamic rendering due to cookie-based admin auth
 export const dynamic = 'force-dynamic';
@@ -8,25 +8,59 @@ export const revalidate = 0;
 
 export const GET = requirePermission('view_users')(async (request: NextRequest) => {
   try {
+    // Get admin info from headers
+    const adminData = request.headers.get('x-admin-id');
+    const admin = adminData ? JSON.parse(adminData) : null;
+    
+    if (!admin) {
+      return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
+    }
 
-    const users = await db.all(`
-      SELECT 
-        id,
-        email,
-        business_name,
-        contact_name,
-        phone,
-        upi_id,
-        payout_balance,
-        payout_recharge_bank_name,
-        payout_recharge_account_number,
-        payout_recharge_account_holder,
-        payout_recharge_ifsc,
-        created_at,
-        updated_at
-      FROM vendors 
-      ORDER BY created_at DESC
-    `);
+    // Get vendor filter for this admin
+    const vendorFilter = await getVendorFilterForAdmin(admin.id);
+
+    const users = vendorFilter.params.length > 0
+      ? await db.all(`
+          SELECT 
+            id,
+            email,
+            business_name,
+            contact_name,
+            phone,
+            upi_id,
+            payout_balance,
+            payout_recharge_bank_name,
+            payout_recharge_account_number,
+            payout_recharge_account_holder,
+            payout_recharge_ifsc,
+            is_approved,
+            google_id,
+            created_at,
+            updated_at
+          FROM vendors 
+          WHERE id IN (${vendorFilter.params.map((_, i) => `$${i + 1}`).join(', ')})
+          ORDER BY created_at DESC
+        `, vendorFilter.params)
+      : await db.all(`
+          SELECT 
+            id,
+            email,
+            business_name,
+            contact_name,
+            phone,
+            upi_id,
+            payout_balance,
+            payout_recharge_bank_name,
+            payout_recharge_account_number,
+            payout_recharge_account_holder,
+            payout_recharge_ifsc,
+            is_approved,
+            google_id,
+            created_at,
+            updated_at
+          FROM vendors 
+          ORDER BY created_at DESC
+        `);
 
     return NextResponse.json({ users });
   } catch (error) {
@@ -41,22 +75,63 @@ export const GET = requirePermission('view_users')(async (request: NextRequest) 
 export const PATCH = requirePermission('manage_users')(async (request: NextRequest) => {
   try {
     const body = await request.json().catch(() => ({}));
-    const { id, payout_recharge_bank_name, payout_recharge_account_number, payout_recharge_account_holder, payout_recharge_ifsc } = body || {};
+    const { 
+      id, 
+      payout_recharge_bank_name, 
+      payout_recharge_account_number, 
+      payout_recharge_account_holder, 
+      payout_recharge_ifsc,
+      is_approved 
+    } = body || {};
+    
     if (!id) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
+
+    // Build dynamic update query based on provided fields
+    const updates = [];
+    const values = [];
+    
+    if (payout_recharge_bank_name !== undefined) {
+      updates.push('payout_recharge_bank_name = ?');
+      values.push(payout_recharge_bank_name || null);
+    }
+    
+    if (payout_recharge_account_number !== undefined) {
+      updates.push('payout_recharge_account_number = ?');
+      values.push(payout_recharge_account_number || null);
+    }
+    
+    if (payout_recharge_account_holder !== undefined) {
+      updates.push('payout_recharge_account_holder = ?');
+      values.push(payout_recharge_account_holder || null);
+    }
+    
+    if (payout_recharge_ifsc !== undefined) {
+      updates.push('payout_recharge_ifsc = ?');
+      values.push(payout_recharge_ifsc || null);
+    }
+    
+    if (is_approved !== undefined) {
+      updates.push('is_approved = ?');
+      values.push(is_approved);
+    }
+    
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+    
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(Number(id));
+    
     await db.run(
-      `UPDATE vendors SET 
-         payout_recharge_bank_name = ?,
-         payout_recharge_account_number = ?,
-         payout_recharge_account_holder = ?,
-         payout_recharge_ifsc = ?,
-         updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [payout_recharge_bank_name || null, payout_recharge_account_number || null, payout_recharge_account_holder || null, payout_recharge_ifsc || null, Number(id)]
+      `UPDATE vendors SET ${updates.join(', ')} WHERE id = ?`,
+      values
     );
+    
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Update user error:', error);
     return NextResponse.json({ error: 'Failed to update vendor' }, { status: 500 });
   }
 });

@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
+import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export const GET = requirePermission('view_payments')(async (req: NextRequest) => {
   try {
+    // Get admin info from headers
+    const adminData = req.headers.get('x-admin-id');
+    const admin = adminData ? JSON.parse(adminData) : null;
+    
+    if (!admin) {
+      return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const vendorId = searchParams.get('vendor_id');
@@ -12,15 +21,21 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '200', 10), 500);
     const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0);
 
-    const params: any[] = [];
-    let where = 'WHERE 1=1';
-    if (status) { where += ' AND status = ?'; params.push(status); }
-    if (vendorId) { where += ' AND vendor_id = ?'; params.push(Number(vendorId)); }
+    // Get vendor filter for this admin
+    const vendorFilter = await getVendorFilterForAdmin(admin.id);
+
+    const params: any[] = [...vendorFilter.params];
+    let paramIndex = vendorFilter.params.length + 1;
+    let where = vendorFilter.params.length > 0 
+      ? `WHERE vendor_id IN (${vendorFilter.params.map((_, i) => `$${i + 1}`).join(', ')})`
+      : 'WHERE 1=1';
+    if (status) { where += ` AND status = $${paramIndex}`; params.push(status); paramIndex++; }
+    if (vendorId) { where += ` AND vendor_id = $${paramIndex}`; params.push(Number(vendorId)); paramIndex++; }
     if (withUtr === '1' || withUtr === 'true') { where += ' AND utr IS NOT NULL AND LENGTH(utr) > 0'; }
 
     const orders = await db.all(
       `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, utr, vendor_id, created_at
-       FROM orders ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+       FROM orders ${where} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
     return NextResponse.json({ success: true, data: { orders } });
@@ -28,6 +43,6 @@ export async function GET(req: NextRequest) {
     console.error('Admin orders list error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });
   }
-}
+});
 
 

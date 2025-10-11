@@ -45,6 +45,8 @@ interface User {
   payout_recharge_account_number?: string | null;
   payout_recharge_account_holder?: string | null;
   payout_recharge_ifsc?: string | null;
+  is_approved?: boolean;
+  google_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -117,7 +119,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // UTR approvals
-  const [pendingVendorId, setPendingVendorId] = useState<string>('1');
   const [payoutStatusFilter, setPayoutStatusFilter] = useState<string>('created');
   const [updatingPayoutId, setUpdatingPayoutId] = useState<number | null>(null);
   // Edit recharge details
@@ -138,8 +139,13 @@ export default function AdminDashboard() {
   // Permission management
   const [editingPermissions, setEditingPermissions] = useState<number | null>(null);
   const [tempPermissions, setTempPermissions] = useState<Record<string, boolean>>({});
+  // Vendor assignment management
+  const [editingVendorAssignments, setEditingVendorAssignments] = useState<number | null>(null);
+  const [allVendors, setAllVendors] = useState<Array<{id: number; business_name: string; contact_name: string; email: string}>>([]);
+  const [assignedVendors, setAssignedVendors] = useState<number[]>([]);
+  const [loadingVendorAssignments, setLoadingVendorAssignments] = useState(false);
 
-  function PendingUtrList({ vendorFilter, onApprove }: { vendorFilter?: string; onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
+  function PendingUtrList({ onApprove }: { onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; business_name?: string; created_at: string }>>([]);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string | null>(null);
@@ -149,14 +155,13 @@ export default function AdminDashboard() {
       setErr(null);
       try {
         const query = new URLSearchParams({ status: 'Pending', limit: '50', with_utr: '1' });
-        if (vendorFilter && vendorFilter.trim()) query.set('vendor_id', vendorFilter.trim());
         const res = await fetch(`/api/admin/orders?${query.toString()}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Failed');
         const mapped = ((json.data && json.data.orders) || []).map((o: any) => ({
           utr: o.utr,
           amount: Number(o.amount),
-          vendor_id: Number(o.vendor_id || vendorFilter || 0),
+          vendor_id: Number(o.vendor_id || 0),
           business_name: o.customer_name,
           created_at: o.created_at
         })).filter((r: any) => r.utr);
@@ -168,7 +173,7 @@ export default function AdminDashboard() {
       }
     };
 
-    useEffect(() => { load(); }, [vendorFilter]);
+    useEffect(() => { load(); }, []);
 
     return (
       <div className="border rounded-md">
@@ -212,7 +217,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-sm">{r.vendor_id}</td>
+                    <td className="px-4 py-2 text-sm font-mono">{r.vendor_id}</td>
                     <td className="px-4 py-2 text-right">
                       <button
                         onClick={async () => {
@@ -407,6 +412,52 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       alert('Failed to delete user');
+    }
+  };
+
+  const approveUser = async (userId: number) => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, is_approved: true })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, is_approved: true } : user
+        ));
+        alert('User approved successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to approve user');
+      }
+    } catch (error) {
+      alert('Failed to approve user');
+    }
+  };
+
+  const rejectUser = async (userId: number) => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, is_approved: false })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, is_approved: false } : user
+        ));
+        alert('User rejected successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to reject user');
+      }
+    } catch (error) {
+      alert('Failed to reject user');
     }
   };
 
@@ -620,6 +671,61 @@ export default function AdminDashboard() {
       groups[perm.category].push(key);
     });
     return groups;
+  };
+
+  // Vendor assignment functions
+  const openVendorAssignmentEditor = async (admin: AdminUser) => {
+    setEditingVendorAssignments(admin.id);
+    setLoadingVendorAssignments(true);
+    
+    try {
+      const res = await fetch(`/api/admin/vendor-assignments?admin_id=${admin.id}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        setAllVendors(data.allVendors || []);
+        setAssignedVendors(data.assignedVendors?.map((v: any) => v.vendor_id) || []);
+      } else {
+        alert(data.error || 'Failed to load vendor assignments');
+      }
+    } catch (error) {
+      alert('Failed to load vendor assignments');
+    } finally {
+      setLoadingVendorAssignments(false);
+    }
+  };
+
+  const saveVendorAssignments = async () => {
+    if (editingVendorAssignments === null) return;
+
+    try {
+      const res = await fetch('/api/admin/vendor-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          admin_id: editingVendorAssignments,
+          vendor_ids: assignedVendors
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update vendor assignments');
+
+      setEditingVendorAssignments(null);
+      setAssignedVendors([]);
+      setAllVendors([]);
+      alert('Vendor assignments updated successfully');
+    } catch (error: any) {
+      alert(error.message || 'Failed to update vendor assignments');
+    }
+  };
+
+  const toggleVendorAssignment = (vendorId: number) => {
+    setAssignedVendors(prev => 
+      prev.includes(vendorId) 
+        ? prev.filter(id => id !== vendorId)
+        : [...prev, vendorId]
+    );
   };
 
   // Helper function to check if current admin has permission
@@ -938,58 +1044,99 @@ export default function AdminDashboard() {
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">All Users</h3>
-            <div className="overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UPI ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payout Balance</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UPI ID</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((user) => (
                     <tr key={user.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {user.business_name}
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="max-w-36 truncate" title={user.business_name}>
+                          {user.business_name}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.contact_name}
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-32 truncate" title={user.contact_name}>
+                          {user.contact_name}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.email}
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-40 truncate" title={user.email}>
+                          {user.email}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.upi_id}
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-32 truncate" title={user.upi_id}>
+                          {user.upi_id}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.is_approved === true ? 'bg-green-100 text-green-800' :
+                          user.is_approved === false ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {user.is_approved === true ? 'Approved' :
+                           user.is_approved === false ? 'Rejected' :
+                           'Pending'}
+                        </span>
+                        {user.google_id && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            Google ID: {user.google_id.substring(0, 8)}...
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                         ₹{Number(user.payout_balance || 0).toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                         {hasPermission('manage_users') ? (
-                          <div className="inline-flex gap-3">
+                          <div className="flex flex-col gap-1">
+                            {user.is_approved !== true && (
+                              <button
+                                onClick={() => approveUser(user.id)}
+                                className="text-green-600 hover:text-green-900 text-xs px-1 py-0.5 bg-green-50 hover:bg-green-100 rounded"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {user.is_approved !== false && (
+                              <button
+                                onClick={() => rejectUser(user.id)}
+                                className="text-red-600 hover:text-red-900 text-xs px-1 py-0.5 bg-red-50 hover:bg-red-100 rounded"
+                              >
+                                Reject
+                              </button>
+                            )}
                             <button
                               onClick={() => openEditRecharge(user)}
-                              className="text-indigo-600 hover:text-indigo-900"
+                              className="text-indigo-600 hover:text-indigo-900 text-xs px-1 py-0.5 bg-indigo-50 hover:bg-indigo-100 rounded"
                             >
-                              Edit Recharge Details
+                              Edit
                             </button>
                             <button
                               onClick={() => deleteUser(user.id)}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-red-600 hover:text-red-900 text-xs px-1 py-0.5 bg-red-50 hover:bg-red-100 rounded"
                             >
                               Delete
                             </button>
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-400">View Only</span>
+                          <span className="text-xs text-gray-400">View Only</span>
                         )}
                       </td>
                     </tr>
@@ -1074,21 +1221,12 @@ export default function AdminDashboard() {
               <>
                 {/* Pending UTR list */}
                 <div className="mt-8">
-                  {/* <h4 className="text-md font-semibold text-gray-900 mb-3">Pending UTR Submissions</h4> */}
-                  <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor ID (filter)</label>
-                      <input
-                        value={pendingVendorId}
-                        onChange={(e) => setPendingVendorId(e.target.value)}
-                        className="w-full border rounded-md px-3 py-2"
-                        placeholder="e.g. 1"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Defaults to 1. Change to view another vendor's pending UTRs.</p>
-                    </div>
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600">
+                      Showing pending UTRs for your assigned vendors only. Superusers can see all vendors.
+                    </p>
                   </div>
                   <PendingUtrList
-                    vendorFilter={pendingVendorId}
                     onApprove={async (p) => {
                       const res = await fetch(`/api/admin/submit-utr`, {
                         method: 'POST',
@@ -1275,7 +1413,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-2 text-sm">
                         <div>
                           <div className="font-medium">{s.business_name}</div>
-                          <div className="text-gray-500">ID: {s.vendor_id}</div>
+                          <div className="text-gray-500 font-mono">ID: {s.vendor_id}</div>
                         </div>
                       </td>
                       <td className="px-4 py-2 text-sm font-medium">₹{Number(s.amount).toFixed(2)}</td>
@@ -1424,6 +1562,12 @@ export default function AdminDashboard() {
                               className="text-sm px-3 py-1 rounded text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100"
                             >
                               Permissions
+                            </button>
+                            <button
+                              onClick={() => openVendorAssignmentEditor(admin)}
+                              className="text-sm px-3 py-1 rounded text-purple-600 hover:text-purple-900 bg-purple-50 hover:bg-purple-100"
+                            >
+                              Vendors
                             </button>
                             <button
                               onClick={() => updateAdminUser(admin.id, { is_active: !admin.is_active })}
@@ -1692,6 +1836,112 @@ export default function AdminDashboard() {
                   Close
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Assignment Modal */}
+      {editingVendorAssignments !== null && hasPermission('manage_admins') && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Manage Vendor Assignments
+                <span className="ml-2 text-sm text-gray-600 font-normal">
+                  for {adminUsers.find(a => a.id === editingVendorAssignments)?.name}
+                </span>
+              </h3>
+              <button 
+                onClick={() => {
+                  setEditingVendorAssignments(null);
+                  setAssignedVendors([]);
+                  setAllVendors([]);
+                }} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {loadingVendorAssignments ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span className="ml-2 text-gray-600">Loading vendors...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Instructions</h4>
+                  <p className="text-sm text-blue-700">
+                    Select which vendors this admin can manage. Admins will only see data related to their assigned vendors.
+                    Superusers automatically have access to all vendors.
+                  </p>
+                </div>
+                
+                <div className="max-h-96 overflow-y-auto border rounded-lg">
+                  <div className="divide-y divide-gray-200">
+                    {allVendors.map((vendor) => {
+                      const isAssigned = assignedVendors.includes(vendor.id);
+                      return (
+                        <label key={vendor.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isAssigned}
+                            onChange={() => toggleVendorAssignment(vendor.id)}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {vendor.business_name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {vendor.contact_name} • {vendor.email}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            ID: {vendor.id}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>
+                    {assignedVendors.length} of {allVendors.length} vendors selected
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAssignedVendors(allVendors.map(v => v.id));
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800"
+                  >
+                    Select All
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setEditingVendorAssignments(null);
+                  setAssignedVendors([]);
+                  setAllVendors([]);
+                }}
+                className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveVendorAssignments}
+                disabled={loadingVendorAssignments}
+                className="px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+              >
+                Save Assignments
+              </button>
             </div>
           </div>
         </div>

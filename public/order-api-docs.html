@@ -1,146 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ztake Order Management API — Docs</title>
-  <style>
-    :root { --bg:#0b1020; --panel:#111834; --muted:#a9b0c3; --text:#e8ecf8; --brand:#6ea8ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
-    .container{max-width:980px;margin:40px auto;padding:0 20px}
-    .card{background:var(--panel);border:1px solid #1b2347;border-radius:12px;padding:22px;margin:16px 0}
-    h1{font-size:28px;margin:0 0 8px}
-    h2{font-size:20px;margin:24px 0 10px}
-    h3{font-size:16px;margin:18px 0 8px}
-    p,li,code,pre{font-size:14px}
-    code{background:#0c1430;border:1px solid #1b2347;border-radius:6px;padding:2px 6px;color:#d6e2ff}
-    pre{background:#0c1430;border:1px solid #1b2347;border-radius:10px;padding:14px;overflow:auto}
-    .muted{color:var(--muted)}
-    .grid{display:grid;gap:12px}
-    .kv{display:grid;grid-template-columns:200px 1fr;gap:8px}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #26305e;color:#cdd7ff;background:#10193b}
-    .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
-    a{color:var(--brand);text-decoration:none}
-    a:hover{text-decoration:underline}
-    table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #1b2347;border-radius:10px;overflow:hidden}
-    th,td{padding:10px 12px;border-bottom:1px solid #1b2347;font-size:13px;text-align:left}
-    th{background:#0f1735;color:#cdd7ff}
-    tr:last-child td{border-bottom:none}
-  </style>
-  <meta name="robots" content="noindex" />
-  <meta name="description" content="ztake Order Management API documentation for order creation, UTR submission, status updates, and callback flow." />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ztake Order Management API</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 { color: #2c3e50; }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #007bff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .method.post { background: #28a745; color: white; }
+        .method.get { background: #007bff; color: white; }
+        .highlight {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        .new-feature {
+            background: #d1ecf1;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #17a2b8;
+            margin: 15px 0;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
     <h1>ztake Order Management API</h1>
-    <p class="muted">Create orders, capture UTRs, verify against payments, update status, and receive callbacks.</p>
+    
+    <p>Create orders, capture UTRs, verify against payments, update status, and receive callbacks.</p>
 
-    <div class="card">
-      <h2>Base URL</h2>
-      <p><code>http(s)://your-domain</code> (local: <code>http://localhost:3000</code>)</p>
-      <h3>Auth Options</h3>
-      <ul>
-        <li><b>API Key</b>: <code>Authorization: Bearer pk_...</code> — preferred; links to vendor via api key.</li>
-        <li><b>Vendor JWT</b>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — also supported.</li>
-        <li><b>Request body</b>: optional <code>vendorId</code> field.</li>
-      </ul>
+    <h2>Base URL</h2>
+    <p><code>http(s)://your-domain</code> (local: <code>http://localhost:3000</code>)</p>
+
+    <h2>Authentication Options</h2>
+    <ul>
+        <li><strong>API Key</strong>: <code>Authorization: Bearer pk_...</code> — preferred; links to vendor via api key.</li>
+        <li><strong>Vendor JWT</strong>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — also supported.</li>
+        <li><strong>Request body</strong>: optional <code>vendorCode</code> field (format: AA4563).</li>
+    </ul>
+
+    <div class="new-feature">
+        <strong>🆕 New:</strong> Vendor codes now use human-readable format (AA4563, QX4012, etc.) instead of numeric IDs for better usability.
     </div>
 
-    <div class="card">
-      <h2>1) Create Order</h2>
-      <div class="kv">
-        <div>Method</div><div><code>POST</code></div>
-        <div>Endpoint</div><div><code>/api/v1/orders</code></div>
-        <div>Content-Type</div><div><code>application/json</code></div>
-      </div>
-      <h3>Request body</h3>
-      <pre>{
+    <h2>1) Create Order</h2>
+    
+    <p><span class="method post">POST</span> <code>/api/v1/orders</code></p>
+    <p><strong>Content-Type:</strong> <code>application/json</code></p>
+
+    <h3>Request body</h3>
+    <pre>{
   "merchantOrderId": "ORD12345",
   "amount": 250.0,
   "currency": "INR",
   "customerName": "John Doe",
   "returnUrl": "https://merchant.com/payment/return",
   "callbackUrl": "https://merchant.com/payment/callback",
-  "vendorId": 2   // optional (API key/JWT also supported)
+  "vendorCode": "AA4563"   // optional (API key/JWT also supported)
 }</pre>
-      <h3>Response</h3>
-      <pre>{
+
+    <h3>Response</h3>
+    <pre>{
   "status": "success",
   "merchantOrderId": "ORD12345",
-  "ztakeOrderId": "ztakeXXXXXX",
-  "paymentUrl": "https://your-domain/orders/ztakeXXXXXX",
-  "vendorId": 2
+  "ztakeOrderId": "ZTKXXXXXX",
+  "paymentUrl": "https://your-domain/orders/ZTKXXXXXX",
+  "vendorId": 2,
+  "vendorCode": "AA4563"
 }</pre>
-      <p>Open <code>paymentUrl</code> to show the payer a UTR submission screen.</p>
-    </div>
 
-    <div class="card">
-      <h2>2) Get Order</h2>
-      <div class="kv">
-        <div>Method</div><div><code>GET</code></div>
-        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}</code></div>
-      </div>
-    </div>
+    <p>Open <code>paymentUrl</code> to show the payer a UTR submission screen.</p>
 
-    <div class="card">
-      <h2>3) Submit UTR</h2>
-      <div class="kv">
-        <div>Method</div><div><code>POST</code></div>
-        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}/submit-utr</code></div>
-        <div>Body</div><div><code>{ "utr": "214587963214" }</code></div>
-      </div>
-      <p>Behavior:</p>
-      <ul>
+    <h2>2) Get Order</h2>
+    
+    <p><span class="method get">GET</span> <code>/api/v1/orders/{ztakeOrderId}</code></p>
+
+    <h2>3) Submit UTR</h2>
+    
+    <p><span class="method post">POST</span> <code>/api/v1/orders/{ztakeOrderId}/submit-utr</code></p>
+
+    <h3>Body</h3>
+    <pre>{ "utr": "214587963214" }</pre>
+
+    <h3>Behavior:</h3>
+    <ul>
         <li>Persists UTR on the order.</li>
         <li>Verifies the UTR against <code>payments</code> for the same vendor.</li>
         <li>Always syncs the order <code>amount</code> from the payments row (if found).</li>
         <li>If the payment has <code>payment_status = 'Succeeded'</code>, the order is marked <code>Succeeded</code> and a callback is sent.</li>
-        <li>Prevents reuse: once a payment’s UTR is checked (<code>checked_status = TRUE</code>), the same UTR cannot succeed again.</li>
-      </ul>
-      <h3>Responses</h3>
-      <table>
-        <thead><tr><th>Status</th><th>Body</th><th>Description</th></tr></thead>
+        <li>Prevents reuse: once a payment's UTR is checked (<code>checked_status = TRUE</code>), the same UTR cannot succeed again.</li>
+    </ul>
+
+    <h3>Responses</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Body</th>
+                <th>Description</th>
+            </tr>
+        </thead>
         <tbody>
-          <tr><td>200</td><td><code>{ success:true, verified:false, status:'Pending', code:'PAYMENT_NOT_SUCCEEDED' }</code></td><td>UTR found but payment not succeeded yet.</td></tr>
-          <tr><td>200</td><td><code>{ success:true, verified:true, status:'Succeeded', amount: 250.00 }</code></td><td>Verified and succeeded; callback sent.</td></tr>
-          <tr><td>404</td><td><code>{ success:false, code:'UTR_NOT_FOUND' }</code></td><td>No payment for this vendor/UTR.</td></tr>
-          <tr><td>409</td><td><code>{ success:false, code:'UTR_ALREADY_USED' }</code></td><td>UTR already checked once.</td></tr>
-          <tr><td>409</td><td><code>{ success:false, code:'ALREADY_SUCCEEDED' }</code></td><td>Order already succeeded.</td></tr>
+            <tr>
+                <td>200</td>
+                <td><code>{ success:true, verified:false, status:'Pending', code:'PAYMENT_NOT_SUCCEEDED' }</code></td>
+                <td>UTR found but payment not succeeded yet.</td>
+            </tr>
+            <tr>
+                <td>200</td>
+                <td><code>{ success:true, verified:true, status:'Succeeded', amount: 250.00 }</code></td>
+                <td>Verified and succeeded; callback sent.</td>
+            </tr>
+            <tr>
+                <td>404</td>
+                <td><code>{ success:false, code:'UTR_NOT_FOUND' }</code></td>
+                <td>No payment for this vendor/UTR.</td>
+            </tr>
+            <tr>
+                <td>409</td>
+                <td><code>{ success:false, code:'UTR_ALREADY_USED' }</code></td>
+                <td>UTR already checked once.</td>
+            </tr>
+            <tr>
+                <td>409</td>
+                <td><code>{ success:false, code:'ALREADY_SUCCEEDED' }</code></td>
+                <td>Order already succeeded.</td>
+            </tr>
         </tbody>
-      </table>
-    </div>
+    </table>
 
-    <div class="card">
-      <h2>4) Update Status (sends callback)</h2>
-      <div class="kv">
-        <div>Method</div><div><code>POST</code></div>
-        <div>Endpoint</div><div><code>/api/v1/orders/{ztakeOrderId}/status</code></div>
-        <div>Body</div><div><code>{ "status": "SUCCESS|FAILED|PENDING", "utr": "..." }</code></div>
-      </div>
-      <p>Maps to DB statuses <code>Succeeded|Failed|Pending</code> and POSTs a callback.</p>
-    </div>
+    <h2>4) Update Status (sends callback)</h2>
+    
+    <p><span class="method post">POST</span> <code>/api/v1/orders/{ztakeOrderId}/status</code></p>
 
-    <div class="card">
-      <h2>5) Vendor Orders (UI)</h2>
-      <div class="kv">
-        <div>Page</div><div><code>/orders</code> (requires login)</div>
-      </div>
-      <p>Lists orders for the authenticated vendor. Use API key or vendor JWT when creating orders to associate them.</p>
-    </div>
+    <h3>Body</h3>
+    <pre>{ "status": "SUCCESS|FAILED|PENDING", "utr": "..." }</pre>
 
-    <div class="card">
-      <h2>6) Vendor Payouts API</h2>
-      <p class="muted">Create payout requests (UPI or Bank) and list your payout history. Requires vendor auth: <code>Authorization: Bearer pk_... | &lt;jwt&gt;</code>.</p>
+    <p>Maps to DB statuses <code>Succeeded|Failed|Pending</code> and POSTs a callback.</p>
 
-      <h3>Create Payout</h3>
-      <div class="kv">
-        <div>Method</div><div><code>POST</code></div>
-        <div>Endpoint</div><div><code>/api/vendor/payouts</code></div>
-        <div>Content-Type</div><div><code>application/json</code></div>
-      </div>
-      <h4>Request body</h4>
-      <pre>{
+    <h2>5) Vendor Orders (UI)</h2>
+    
+    <p><strong>Page:</strong> <code>/orders</code> (requires login)</p>
+    
+    <p>Lists orders for the authenticated vendor. Use API key or vendor JWT when creating orders to associate them.</p>
+
+    <h2>6) Vendor Payouts API</h2>
+    
+    <p>Create payout requests (UPI or Bank) and list your payout history. Requires vendor auth: <code>Authorization: Bearer pk_... | &lt;jwt&gt;</code>.</p>
+
+    <h3>Create Payout</h3>
+    
+    <p><span class="method post">POST</span> <code>/api/vendor/payouts</code></p>
+    <p><strong>Content-Type:</strong> <code>application/json</code></p>
+
+    <h4>Request body</h4>
+    <pre>{
   "amount": 1500.00,
   "currency": "INR",
   "beneficiary_name": "Jane Doe",
@@ -149,11 +206,12 @@
   "beneficiary_ifsc": "HDFC0001234",
   // Option B: UPI transfer (use either bank OR UPI)
   // "beneficiary_upi": "jane@upi",
-  "reference_id": "REF-2025-0001",
+  "reference_id": "PYT13947473",
   "remarks": "Vendor settlement"
 }</pre>
-      <h4>Response</h4>
-      <pre>{
+
+    <h4>Response</h4>
+    <pre>{
   "success": true,
   "data": {
     "message": "Payout request created",
@@ -165,7 +223,7 @@
       "beneficiary_account": "1234567890",
       "beneficiary_ifsc": "HDFC0001234",
       "beneficiary_upi": null,
-      "reference_id": "REF-2025-0001",
+      "reference_id": "PYT13947473",
       "remarks": "Vendor settlement",
       "status": "created",
       "created_at": "2025-10-08T10:10:00Z"
@@ -173,45 +231,107 @@
   }
 }</pre>
 
-      <h3>List Payouts</h3>
-      <div class="kv">
-        <div>Method</div><div><code>GET</code></div>
-        <div>Endpoint</div><div><code>/api/vendor/payouts</code></div>
-        <div>Query</div><div><code>?status=created|approved|paid|failed|rejected</code> (optional)</div>
-      </div>
-      <h4>Response</h4>
-      <pre>{
+    <h3>List Payouts</h3>
+    
+    <p><span class="method get">GET</span> <code>/api/vendor/payouts</code></p>
+    
+    <p><strong>Query:</strong> <code>?status=created|approved|paid|failed|rejected</code> (optional)</p>
+
+    <h4>Response</h4>
+    <pre>{
   "success": true,
   "data": {
     "payouts": [
-      { "id": 42, "amount": 1500.00, "currency": "INR", "status": "created", "reference_id": "REF-2025-0001", "created_at": "..." },
-      { "id": 41, "amount": 990.00, "currency": "INR", "status": "paid", "reference_id": "REF-2025-0000", "created_at": "..." }
+      { "id": 42, "amount": 1500.00, "currency": "INR", "status": "created", "reference_id": "PYT13947473", "created_at": "..." },
+      { "id": 41, "amount": 990.00, "currency": "INR", "status": "paid", "reference_id": "PYT98765432", "created_at": "..." }
     ]
   }
 }</pre>
 
-      <p class="muted">Admin reviews payout requests in the Admin Panel Payouts tab, pays manually to the provided bank/UPI, and updates status to Approved/Paid/Rejected.</p>
+
+    <h2>7) Payment APIs</h2>
+    
+    <div class="new-feature">
+        <strong>🆕 Updated:</strong> All payment APIs now use vendor codes instead of numeric vendor IDs.
     </div>
 
-    <div class="card">
-      <h2>Callback</h2>
-      <p>Sent on success from submit-UTR (after verification) and from the status endpoint.</p>
-      <h3>Payload</h3>
-      <pre>{
+    <h3>Get Vendor Payment Details</h3>
+    
+    <p><span class="method get">GET</span> <code>/api/vendor/payment-details?vendor_code=AA4563</code></p>
+    
+    <h4>Response</h4>
+    <pre>{
+  "success": true,
+  "data": {
+    "vendor_id": 2,
+    "vendor_code": "AA4563",
+    "business_name": "My Store",
+    "upi_id": "mystore@paytm",
+    "bank_name": "HDFC Bank",
+    "bank_account_number": "1234567890",
+    "bank_account_holder": "My Store",
+    "bank_ifsc": "HDFC0001234",
+    "qr_code": "base64_encoded_qr_image",
+    "created_at": "2025-01-01T00:00:00Z"
+  }
+}</pre>
+
+    <h3>Public Payment Widget</h3>
+    
+    <p><span class="method get">GET</span> <code>/api/public/payment-widget?vendor_code=AA4563&format=json&theme=light&size=medium</code></p>
+    
+    <h4>Parameters</h4>
+    <ul>
+        <li><code>vendor_code</code> (required) - Vendor Code (format: AA4563)</li>
+        <li><code>format</code> - json, html, or widget</li>
+        <li><code>theme</code> - light, dark, or auto</li>
+        <li><code>size</code> - small, medium, or large</li>
+    </ul>
+
+    <h3>Update Payment Status</h3>
+    
+    <p><span class="method post">POST</span> <code>/api/payments/update</code></p>
+    
+    <h4>Request body</h4>
+    <pre>{
+  "utr": "690518190930",
+  "amount": 100.00,
+  "vendor_code": "AA4563",
+  "order_id": "ord_12345",
+  "payment_status": "Succeeded"
+}</pre>
+
+    <h3>Check Payment Status</h3>
+    
+    <p><span class="method post">POST</span> <code>/api/payments/check</code></p>
+    
+    <h4>Request body</h4>
+    <pre>{
+  "utr": "690518190930",
+  "vendor_code": "AA4563",
+  "order_id": "ord_12345"
+}</pre>
+
+    <h2>Callback</h2>
+    
+    <p>Sent on success from submit-UTR (after verification) and from the status endpoint.</p>
+
+    <h3>Payload</h3>
+    <pre>{
   "merchantOrderId": "ORD12345",
-  "ztakeOrderId": "ztakeXXXXXX",
+  "ztakeOrderId": "ZTKXXXXXX",
   "amount": 250.00,
   "utr": "214587963214",
   "status": "SUCCESS",
   "paymentTime": "2025-09-22T15:20:00+05:30"
 }</pre>
-      <p class="muted">Tip: Use <a href="https://webhook.site" target="_blank" rel="noreferrer">webhook.site</a> as a test <code>callbackUrl</code>.</p>
-    </div>
 
-    <div class="card">
-      <h2>cURL Samples</h2>
-      <h3>Create Order</h3>
-      <pre>curl -X POST http://localhost:3000/api/v1/orders \
+    <p><strong>Tip:</strong> Use webhook.site as a test <code>callbackUrl</code>.</p>
+
+    <h2>cURL Samples</h2>
+
+    <h3>Create Order</h3>
+    <pre>curl -X POST http://localhost:3000/api/v1/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer pk_your_api_key" \
   -d '{
@@ -220,18 +340,22 @@
     "currency": "INR",
     "customerName": "John Doe",
     "returnUrl": "https://merchant.com/payment/return",
-    "callbackUrl": "https://webhook.site/your-uuid"
+    "callbackUrl": "https://webhook.site/your-uuid",
+    "vendorCode": "AA4563"
   }'</pre>
-      <h3>Submit UTR</h3>
-      <pre>curl -X POST http://localhost:3000/api/v1/orders/ztakeXXXX/submit-utr \
+
+    <h3>Submit UTR</h3>
+    <pre>curl -X POST http://localhost:3000/api/v1/orders/ZTKXXXX/submit-utr \
   -H "Content-Type: application/json" \
   -d '{ "utr": "214587963214" }'</pre>
-      <h3>Update Status</h3>
-      <pre>curl -X POST http://localhost:3000/api/v1/orders/ztakeXXXX/status \
+
+    <h3>Update Status</h3>
+    <pre>curl -X POST http://localhost:3000/api/v1/orders/ZTKXXXX/status \
   -H "Content-Type: application/json" \
   -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
-      <h3>Create Payout</h3>
-      <pre>curl -X POST http://localhost:3000/api/vendor/payouts \
+
+    <h3>Create Payout</h3>
+    <pre>curl -X POST http://localhost:3000/api/vendor/payouts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer pk_your_api_key" \
   -d '{
@@ -240,17 +364,66 @@
     "beneficiary_name": "Jane Doe",
     "beneficiary_account": "1234567890",
     "beneficiary_ifsc": "HDFC0001234",
-    "reference_id": "REF-2025-0001",
+    "reference_id": "PYT13947473",
     "remarks": "Vendor settlement"
   }'</pre>
-      <h3>List Payouts</h3>
-      <pre>curl -X GET 'http://localhost:3000/api/vendor/payouts?status=created' \
+
+    <h3>List Payouts</h3>
+    <pre>curl -X GET 'http://localhost:3000/api/vendor/payouts?status=created' \
   -H "Authorization: Bearer pk_your_api_key"</pre>
+
+    <h3>Get Vendor Payment Details</h3>
+    <pre>curl -X GET 'http://localhost:3000/api/vendor/payment-details?vendor_code=AA4563'</pre>
+
+    <h3>Update Payment Status</h3>
+    <pre>curl -X POST http://localhost:3000/api/payments/update \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_your_api_key" \
+  -d '{
+    "utr": "690518190930",
+    "amount": 100.00,
+    "vendor_code": "AA4563",
+    "payment_status": "Succeeded"
+  }'</pre>
+
+    <h3>Check Payment Status</h3>
+    <pre>curl -X POST http://localhost:3000/api/payments/check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "utr": "690518190930",
+    "vendor_code": "AA4563",
+    "order_id": "ord_12345"
+  }'</pre>
+
+    <h2>Migration Guide</h2>
+    
+    <div class="highlight">
+        <strong>⚠️ Breaking Changes:</strong> If you're upgrading from the previous version, update your API calls to use <code>vendor_code</code> instead of <code>vendor_id</code>.
     </div>
 
-    <p class="muted">© ztake. This page documents the Order Management additions only.</p>
-  </div>
+    <h3>Before (Old Format)</h3>
+    <pre>{
+  "vendor_id": 123,
+  "utr": "690518190930",
+  "amount": 100.00
+}</pre>
+
+    <h3>After (New Format)</h3>
+    <pre>{
+  "vendor_code": "AA4563",
+  "utr": "690518190930",
+  "amount": 100.00
+}</pre>
+
+    <h3>Payout ID Format</h3>
+    <ul>
+        <li><strong>Format:</strong> PYT + 8 numbers (e.g., PYT13947473, PYT98765432)</li>
+        <li><strong>Examples:</strong> PYT12345678, PYT87654321, PYT11223344</li>
+        <li><strong>Auto-generation:</strong> If no reference_id is provided, a unique PYT ID is automatically generated</li>
+        <li><strong>Uniqueness:</strong> Each payout ID is guaranteed to be unique across the system</li>
+    </ul>
+
+    <hr>
+    <p><em>© ztake. This page documents the Order Management additions only.</em></p>
 </body>
 </html>
-
-

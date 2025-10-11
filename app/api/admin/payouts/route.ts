@@ -1,22 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
-import { requirePermission } from '@/lib/admin-middleware'
+import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = requirePermission('view_payouts')(async (req: NextRequest) => {
   try {
+    // Get admin info from headers
+    const adminData = req.headers.get('x-admin-id');
+    const admin = adminData ? JSON.parse(adminData) : null;
+    
+    if (!admin) {
+      return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const vendorId = searchParams.get('vendor_id')
     const limit = Math.min(parseInt(searchParams.get('limit') || '200', 10), 500)
     const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
 
-    const params: any[] = []
-    let where = 'WHERE 1=1'
-    if (status) { where += ' AND p.status = ?'; params.push(status) }
-    if (vendorId) { where += ' AND p.vendor_id = ?'; params.push(Number(vendorId)) }
+    // Get vendor filter for this admin
+    const vendorFilter = await getVendorFilterForAdmin(admin.id);
+
+    const params: any[] = [...vendorFilter.params]
+    let paramIndex = vendorFilter.params.length + 1;
+    let where = vendorFilter.params.length > 0 
+      ? `WHERE p.vendor_id IN (${vendorFilter.params.map((_, i) => `$${i + 1}`).join(', ')})`
+      : 'WHERE 1=1'
+    if (status) { where += ` AND p.status = $${paramIndex}`; params.push(status); paramIndex++; }
+    if (vendorId) { where += ` AND p.vendor_id = $${paramIndex}`; params.push(Number(vendorId)); paramIndex++; }
 
     const payouts = await db.all(
       `SELECT 
@@ -39,7 +53,7 @@ export const GET = requirePermission('view_payouts')(async (req: NextRequest) =>
        LEFT JOIN vendors v ON v.id = p.vendor_id
        ${where}
        ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     )
 

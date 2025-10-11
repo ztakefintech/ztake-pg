@@ -6,7 +6,7 @@ import { withApiKeyAuth, type AuthenticatedRequest } from '@/lib/middleware';
 function generateztakeOrderId(): string {
   const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
   const timePart = Date.now().toString().slice(-6);
-  return `ztk${timePart}${randomPart}`;
+  return `ZTK${timePart}${randomPart}`;
 }
 
 function isValidUrl(url: string): boolean {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       customerName,
       returnUrl,
       callbackUrl,
-      vendorId: vendorIdFromBody
+      vendorCode: vendorCodeFromBody
     } = body || {};
 
     if (!merchantOrderId || typeof merchantOrderId !== 'string') {
@@ -58,18 +58,12 @@ export async function POST(req: NextRequest) {
     const ztakeOrderId = generateztakeOrderId();
     const paymentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/orders/${ztakeOrderId}`;
 
-    // Optional vendor association: prefer API key mapping vendor, else vendor JWT
+    // Optional vendor association: prefer API key mapping vendor, else vendor JWT, else vendor_code
     let vendorId: number | null = null;
-    if (
-      vendorIdFromBody !== undefined &&
-      vendorIdFromBody !== null &&
-      Number.isFinite(Number(vendorIdFromBody)) &&
-      Number(vendorIdFromBody) > 0
-    ) {
-      vendorId = Number(vendorIdFromBody);
-    }
+    
+    // First try to get vendor from API key or JWT token
     const authHeader = req.headers.get('authorization');
-    if (!vendorId && authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const bearer = authHeader.substring(7);
       const apiKeyInfo = await AuthService.verifyApiKeyFromDb(bearer);
       if (apiKeyInfo && apiKeyInfo.vendorId) {
@@ -81,6 +75,17 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+    
+    // If no vendor from auth, try vendor_code from body
+    if (!vendorId && vendorCodeFromBody && typeof vendorCodeFromBody === 'string') {
+      const vendor = await db.get(
+        'SELECT id FROM vendors WHERE vendor_code = ?',
+        [vendorCodeFromBody]
+      );
+      if (vendor) {
+        vendorId = vendor.id;
+      }
+    }
 
     await db.run(
       `INSERT INTO orders (ztake_order_id, order_code, merchant_order_id, amount, currency, customer_name, return_url, callback_url, vendor_id, status)
@@ -88,12 +93,20 @@ export async function POST(req: NextRequest) {
       [ztakeOrderId, ztakeOrderId, merchantOrderId, amount, currency, customerName, returnUrl, callbackUrl, vendorId]
     );
 
+    // Get vendor code for response
+    let vendorCode: string | null = null;
+    if (vendorId) {
+      const vendor = await db.get('SELECT vendor_code FROM vendors WHERE id = ?', [vendorId]);
+      vendorCode = vendor?.vendor_code || null;
+    }
+
     return NextResponse.json({
       status: 'success',
       merchantOrderId:merchantOrderId,
       ztakeOrderId:ztakeOrderId,
       paymentUrl,
-      vendorId: vendorId
+      vendorId: vendorId,
+      vendorCode: vendorCode
     });
   } catch (error) {
     console.error('Create order error:', error);

@@ -358,4 +358,47 @@ export class AuthService {
     
     return username === adminUsername && password === adminPassword;
   }
+
+  // Vendor assignment methods
+  static async getAssignedVendors(adminId: number): Promise<number[]> {
+    const assignments = await db.all(`
+      SELECT vendor_id 
+      FROM admin_vendor_assignments 
+      WHERE admin_id = $1
+    `, [adminId]);
+    
+    return assignments.map(a => a.vendor_id);
+  }
+
+  static async hasVendorAccess(adminId: number, vendorId: number): Promise<boolean> {
+    const admin = await this.getAdminUserById(adminId);
+    if (!admin) return false;
+    
+    // Superusers have access to all vendors
+    if (admin.role === 'superuser') return true;
+    
+    // Check if vendor is assigned to this admin
+    const assignment = await db.get(`
+      SELECT 1 FROM admin_vendor_assignments 
+      WHERE admin_id = $1 AND vendor_id = $2
+    `, [adminId, vendorId]);
+    
+    return !!assignment;
+  }
+
+  static async assignVendorsToAdmin(adminId: number, vendorIds: number[]): Promise<void> {
+    // Remove existing assignments
+    await db.run(`
+      DELETE FROM admin_vendor_assignments 
+      WHERE admin_id = $1
+    `, [adminId]);
+
+    // Add new assignments
+    for (const vendorId of vendorIds) {
+      await db.run(`
+        INSERT INTO admin_vendor_assignments (admin_id, vendor_id)
+        VALUES ($1, $2)
+      `, [adminId, vendorId]);
+    }
+  }
 }

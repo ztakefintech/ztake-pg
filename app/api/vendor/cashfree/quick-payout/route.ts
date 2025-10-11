@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withApiKeyAuth, createApiResponse, createErrorResponse, AuthenticatedRequest } from '@/lib/middleware';
 import { db } from '@/lib/database';
+import { generatePayoutId } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -200,7 +201,7 @@ async function handler(req: AuthenticatedRequest) {
     }
 
     // 2) Initiate transfer
-    const transferId = reference_id || `QREF-${vendor.id}-${Date.now()}`;
+    const transferId = reference_id || generatePayoutId();
     const idempotencyKey = req.headers.get('x-idempotency-key') || transferId;
 
     const transferHeaders = { ...commonHeaders, 'X-Idempotency-Key': idempotencyKey };

@@ -12,19 +12,33 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Validation schema for the request
 const paymentDetailsSchema = Joi.object({
-  vendor_id: Joi.number().integer().positive().required(),
+  vendor_code: Joi.string().pattern(/^[A-Z]{2}[0-9]{4}$/).required().messages({
+    'string.pattern.base': 'Vendor code must be in format AA4563 (2 letters + 4 numbers)',
+    'any.required': 'Vendor code is required'
+  }),
 });
 
 export async function GET(request: NextRequest) {
   try {
     console.log('Payment details API called');
     const { searchParams } = new URL(request.url);
-    const vendorId = searchParams.get('vendor_id');
-    console.log('Vendor ID from params:', vendorId);
+    const vendorCode = searchParams.get('vendor_code');
+    console.log('Vendor Code from params:', vendorCode);
 
     // Validate input
+    if (!vendorCode) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'vendor_code parameter is required',
+          details: 'Please provide a valid vendor code in the format AA4563'
+        },
+        { status: 400 }
+      );
+    }
+
     const { error, value } = paymentDetailsSchema.validate({ 
-      vendor_id: vendorId ? parseInt(vendorId) : undefined 
+      vendor_code: vendorCode 
     });
 
     if (error) {
@@ -32,18 +46,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Invalid vendor ID',
-          details: error.details[0].message 
+          error: 'Invalid vendor code format',
+          details: error.details[0].message,
+          expected_format: 'AA4563 (2 uppercase letters + 4 numbers)'
         },
         { status: 400 }
       );
     }
 
     // Fetch vendor details
-    console.log('Fetching vendor with ID:', value.vendor_id);
+    console.log('Fetching vendor with code:', value.vendor_code);
     const vendor = await db.get(
-      'SELECT id, business_name, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, created_at FROM vendors WHERE id = ?',
-      [value.vendor_id]
+      'SELECT id, vendor_code, business_name, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, created_at FROM vendors WHERE vendor_code = ?',
+      [value.vendor_code]
     );
     console.log('Vendor found:', vendor);
 
@@ -88,6 +103,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         vendor_id: vendor.id,
+        vendor_code: vendor.vendor_code,
         business_name: vendor.business_name,
         upi_id: vendor.upi_id,
         bank_name: vendor.bank_name,
