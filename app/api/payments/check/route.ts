@@ -4,6 +4,7 @@ import { checkPaymentSchema, validateRequest } from '@/lib/validation';
 import { withRateLimit, createApiResponse, createErrorResponse } from '@/lib/middleware';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
+import { eventStore } from '@/lib/event-store';
 
 async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
@@ -95,6 +96,30 @@ async function handler(req: NextRequest) {
        WHERE p.utr = ? AND p.vendor_id = ?`,
       [validatedData.utr, validatedData.vendor_id]
     );
+
+    // Emit payment checked event via WebSocket
+    const event = {
+      id: `payment_checked_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'payment_status_changed',
+      payload: {
+        id: updatedPayment.id,
+        vendorId: updatedPayment.vendor_id,
+        businessName: updatedPayment.business_name,
+        contactName: updatedPayment.contact_name,
+        upiId: updatedPayment.upi_id,
+        utr: updatedPayment.utr,
+        amount: updatedPayment.amount,
+        payment_status: updatedPayment.payment_status,
+        status: updatedPayment.status,
+        checked_status: updatedPayment.checked_status,
+        checked_at: updatedPayment.checked_at,
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Payment checked event emitted:', event);
 
     return createApiResponse({
       payment: {

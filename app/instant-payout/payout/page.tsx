@@ -95,7 +95,7 @@ export default function PayoutDemoPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payout Demo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Payout</h1>
           <p className="text-gray-600">Create a test payout via the Payouts API</p>
         </div>
         

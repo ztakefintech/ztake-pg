@@ -191,6 +191,10 @@
     
     <p>Create payout requests (UPI or Bank) and list your payout history. Requires vendor auth: <code>Authorization: Bearer pk_... | &lt;jwt&gt;</code>.</p>
 
+    <div class="new-feature">
+        <strong>🆕 New:</strong> Payouts now include callback message support for better communication.
+    </div>
+
     <h3>Create Payout</h3>
     
     <p><span class="method post">POST</span> <code>/api/vendor/payouts</code></p>
@@ -226,6 +230,7 @@
       "reference_id": "PYT13947473",
       "remarks": "Vendor settlement",
       "status": "created",
+      "admin_notes": null,
       "created_at": "2025-10-08T10:10:00Z"
     }
   }
@@ -235,15 +240,30 @@
     
     <p><span class="method get">GET</span> <code>/api/vendor/payouts</code></p>
     
-    <p><strong>Query:</strong> <code>?status=created|approved|paid|failed|rejected</code> (optional)</p>
+    <p><strong>Query:</strong> <code>?status=created|paid|failed|rejected</code> (optional)</p>
 
     <h4>Response</h4>
     <pre>{
   "success": true,
   "data": {
     "payouts": [
-      { "id": 42, "amount": 1500.00, "currency": "INR", "status": "created", "reference_id": "PYT13947473", "created_at": "..." },
-      { "id": 41, "amount": 990.00, "currency": "INR", "status": "paid", "reference_id": "PYT98765432", "created_at": "..." }
+      { 
+        "id": 42, 
+        "amount": 1500.00, 
+        "currency": "INR", 
+        "status": "created", 
+        "reference_id": "PYT13947473", 
+        "admin_notes": null,
+        "created_at": "..." 
+      },
+      { 
+        "id": 41, 
+        "amount": 990.00, 
+        "currency": "INR", 
+        "status": "paid", 
+        "reference_id": "PYT98765432", 
+        "created_at": "..." 
+      }
     ]
   }
 }</pre>
@@ -312,7 +332,56 @@
   "order_id": "ord_12345"
 }</pre>
 
-    <h2>Callback</h2>
+    <h2>8) Callback Events API</h2>
+    
+    <div class="new-feature">
+        <strong>🆕 New:</strong> Callback events API for testing and monitoring real-time events.
+    </div>
+
+    <h3>Get Callback Events</h3>
+    
+    <p><span class="method get">GET</span> <code>/api/public/payment-callback?token=vendor-PY5954</code></p>
+    
+    <h4>Parameters</h4>
+    <ul>
+        <li><code>token</code> (required) - Vendor token format: <code>vendor-{vendor_code}</code></li>
+        <li><code>type</code> (optional) - Filter by event type: <code>payment</code> or <code>payout</code></li>
+    </ul>
+
+    <h4>Response</h4>
+    <pre>{
+  "success": true,
+  "data": {
+    "events": [
+      {
+        "receivedAt": "2024-01-01T00:00:00Z",
+        "payload": {
+          "type": "payout_status_changed",
+          "payoutId": 123,
+          "vendorId": 456,
+          "amount": 1000,
+          "status": "approved",
+          "timestamp": "2024-01-01T00:00:00Z"
+        }
+      }
+    ]
+  }
+}</pre>
+
+    <h3>Submit Callback Event</h3>
+    
+    <p><span class="method post">POST</span> <code>/api/public/payment-callback?token=vendor-PY5954</code></p>
+    
+    <h4>Request body</h4>
+    <pre>{
+  "type": "payout_status_changed",
+  "payoutId": 123,
+  "vendorId": 456,
+  "amount": 1000,
+  "status": "approved",
+}</pre>
+
+    <h2>9) Callback</h2>
     
     <p>Sent on success from submit-UTR (after verification) and from the status endpoint.</p>
 
@@ -395,10 +464,28 @@
     "order_id": "ord_12345"
   }'</pre>
 
+    <h3>Get Callback Events</h3>
+    <pre>curl -X GET 'http://localhost:3000/api/public/payment-callback?token=vendor-PY5954&type=payout'</pre>
+
+    <h3>Submit Callback Event</h3>
+    <pre>curl -X POST 'http://localhost:3000/api/public/payment-callback?token=vendor-PY5954' \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "payout_status_changed",
+    "payoutId": 123,
+    "vendorId": 456,
+    "amount": 1000,
+    "status": "approved",
+  }'</pre>
+
     <h2>Migration Guide</h2>
     
     <div class="highlight">
         <strong>⚠️ Breaking Changes:</strong> If you're upgrading from the previous version, update your API calls to use <code>vendor_code</code> instead of <code>vendor_id</code>.
+    </div>
+
+    <div class="new-feature">
+        <strong>🆕 New Features:</strong> This update includes callback messages and enhanced vendor APIs.
     </div>
 
     <h3>Before (Old Format)</h3>
@@ -414,6 +501,36 @@
   "utr": "690518190930",
   "amount": 100.00
 }</pre>
+
+    <h3>New Fields Added</h3>
+    <ul>
+        <li><strong>Payouts:</strong> <code>admin_notes</code> - Callback messages from admins</li>
+        <li><strong>Settlements:</strong> <code>admin_notes</code> - Callback messages from admins</li>
+        <li><strong>Recharges:</strong> <code>admin_notes</code> - Callback messages from admins</li>
+    </ul>
+
+    <h3>New APIs Added</h3>
+    <ul>
+        <li><strong>Callback Events API:</strong> <code>/api/public/payment-callback</code> for testing</li>
+        <li><strong>Enhanced Vendor APIs:</strong> Improved payout, settlement, and recharge management</li>
+        <li><strong>Event Filtering:</strong> Filter callback events by type (payment/payout)</li>
+    </ul>
+
+    <h3>Status Mapping</h3>
+    <p>All status displays now use user-friendly terms:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Technical Status</th>
+                <th>Display Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>paid, succeeded, completed</td><td>Success</td></tr>
+            <tr><td>created, pending</td><td>Pending</td></tr>
+            <tr><td>rejected, failed</td><td>Failed</td></tr>
+        </tbody>
+    </table>
 
     <h3>Payout ID Format</h3>
     <ul>

@@ -65,7 +65,7 @@ async function createTestUser() {
       testContactName,
       testUpiId,
       true, // Approve by default for testing
-      'TEST01' // Test vendor code
+      'TE1234' // Test vendor code (follows XX1234 pattern)
     ]);
     
     const newUser = result.rows[0];

@@ -41,7 +41,16 @@ async function testGoogleUserCreation() {
     }
     
     // Create new test Google user
-    const vendorCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate vendor code following XX1234 pattern
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const letter1 = letters[Math.floor(Math.random() * letters.length)];
+    const letter2 = letters[Math.floor(Math.random() * letters.length)];
+    const num1 = numbers[Math.floor(Math.random() * numbers.length)];
+    const num2 = numbers[Math.floor(Math.random() * numbers.length)];
+    const num3 = numbers[Math.floor(Math.random() * numbers.length)];
+    const num4 = numbers[Math.floor(Math.random() * numbers.length)];
+    const vendorCode = `${letter1}${letter2}${num1}${num2}${num3}${num4}`;
     const googleId = 'test_google_id_' + Math.random().toString(36).substring(2, 15);
     
     const result = await client.query(`

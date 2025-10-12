@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
+import { eventStore } from '@/lib/event-store';
 
 export async function POST(
   req: NextRequest,
@@ -64,6 +65,39 @@ export async function POST(
           `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
           [params.qpayOrderId]
         );
+        
+        // Emit payment verified event via WebSocket
+        const vendor = await db.get(
+          `SELECT id, business_name, contact_name, upi_id FROM vendors WHERE id = ?`,
+          [order.vendor_id]
+        );
+        
+        if (vendor) {
+          const event = {
+            id: `payment_verified_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'payment_status_changed',
+            payload: {
+              id: paymentRow.id,
+              vendorId: vendor.id,
+              businessName: vendor.business_name,
+              contactName: vendor.contact_name,
+              upiId: vendor.upi_id,
+              utr: paymentRow.utr,
+              amount: paymentRow.amount,
+              payment_status: 'Succeeded',
+              status: 'completed',
+              checked_status: true,
+              checked_at: new Date().toISOString(),
+              orderId: order.ztake_order_id,
+              timestamp: new Date().toISOString()
+            },
+            timestamp: new Date()
+          };
+          
+          eventStore.emit(event);
+          console.log('Payment verified event emitted:', event);
+        }
+        
         if (order.callback_url) {
           const successPayload = {
             merchantOrderId: order.merchant_order_id,

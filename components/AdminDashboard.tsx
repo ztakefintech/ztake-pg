@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { FiWifi, FiWifiOff } from 'react-icons/fi';
+import { useAdminWebSocket } from '@/hooks/use-websocket';
+import { toast } from '@/hooks/use-toast';
 
 interface Stats {
   totalUsers: number;
@@ -102,6 +105,7 @@ export default function AdminDashboard() {
     remarks?: string | null;
     status: string;
     cashfree_payout_id?: string | null;
+    admin_notes?: string | null;
     created_at: string;
   }>>([]);
   const [settlements, setSettlements] = useState<Array<{
@@ -118,6 +122,131 @@ export default function AdminDashboard() {
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // WebSocket connection for real-time updates
+  const ws = useAdminWebSocket({
+    onEvent: (event) => {
+      console.log('Admin received WebSocket event:', event);
+      
+      // Show toast notification for important events
+      if (event.type !== 'heartbeat') {
+        const message = getEventMessage(event);
+        const variant = getEventNotificationType(event.type);
+        
+        toast({
+          title: "Live Update",
+          description: message,
+          variant: variant,
+          duration: 5000,
+        });
+      }
+      
+      // Handle specific event types
+      if (event.type === 'recharge_created' || event.type === 'recharge_status_changed') {
+        // Refresh recharge requests
+        window.dispatchEvent(new CustomEvent('rechargeEvent', { 
+          detail: { type: event.type } 
+        }));
+      }
+      
+      if (event.type === 'payment_status_changed') {
+        // Refresh payment data
+        window.dispatchEvent(new CustomEvent('paymentEvent', { 
+          detail: { type: event.type } 
+        }));
+      }
+      
+      if (event.type === 'settlement_status_changed') {
+        // Refresh settlement data
+        window.dispatchEvent(new CustomEvent('settlementEvent', { 
+          detail: { type: event.type } 
+        }));
+      }
+      
+      if (event.type === 'payout_status_changed') {
+        // Refresh payout data
+        window.dispatchEvent(new CustomEvent('payoutEvent', { 
+          detail: { type: event.type } 
+        }));
+      }
+    },
+    onConnect: () => {
+      console.log('Admin WebSocket connected');
+      toast({
+        title: "Connection Established",
+        description: "Live updates are now active",
+        variant: "default",
+        duration: 3000,
+      });
+    },
+    onDisconnect: () => {
+      console.log('Admin WebSocket disconnected');
+    },
+    onError: (error) => {
+      console.error('Admin WebSocket error:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to maintain live connection",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  });
+
+  // Helper functions for event handling
+  const getEventMessage = (event: any) => {
+    switch (event.type) {
+      case 'recharge_created':
+        return `New recharge request from ${event.payload.businessName} for ₹${event.payload.amount}`;
+      case 'recharge_status_changed':
+        return `Recharge request ${event.payload.id} status changed to ${getStatusText(event.payload.status)}`;
+      case 'payment_status_changed':
+        return `Payment ${event.payload.utr} status changed to ${getStatusText(event.payload.payment_status)}`;
+      case 'settlement_status_changed':
+        return `Settlement request ${event.payload.id} status changed to ${getStatusText(event.payload.status)}`;
+      case 'payout_status_changed':
+        return `Payout request ${event.payload.id} status changed to ${getStatusText(event.payload.status)}`;
+      default:
+        return `New ${event.type} event`;
+    }
+  };
+
+  const getEventNotificationType = (eventType: string): 'default' | 'destructive' => {
+    if (eventType.includes('rejected') || eventType.includes('failed') || eventType.includes('error')) {
+      return 'destructive';
+    }
+    return 'default';
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      // Recharge statuses
+      case 'paid':
+        return 'Success';
+      case 'approved':
+        return 'Success';
+      case 'rejected':
+        return 'Failed';
+      case 'created':
+        return 'Pending';
+      
+      // Payment statuses
+      case 'Succeeded':
+        return 'Success';
+      case 'Failed':
+        return 'Failed';
+      case 'Pending':
+        return 'Pending';
+      
+      // Settlement statuses
+      case 'pending':
+        return 'Pending';
+      
+      default:
+        return 'Pending';
+    }
+  };
+
   // UTR approvals
   const [payoutStatusFilter, setPayoutStatusFilter] = useState<string>('created');
   const [updatingPayoutId, setUpdatingPayoutId] = useState<number | null>(null);
@@ -145,8 +274,8 @@ export default function AdminDashboard() {
   const [assignedVendors, setAssignedVendors] = useState<number[]>([]);
   const [loadingVendorAssignments, setLoadingVendorAssignments] = useState(false);
 
-  function PendingUtrList({ onApprove }: { onApprove: (p: { id?: number; utr: string; amount: number; vendor_id: number }) => Promise<void> }) {
-    const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; business_name?: string; created_at: string }>>([]);
+  function PendingUtrList({ onApprove }: { onApprove: (p: { id?: number; utr: string; amount: number; vendor_code: string }) => Promise<void> }) {
+    const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; vendor_code: string; business_name?: string; created_at: string }>>([]);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string | null>(null);
 
@@ -162,9 +291,10 @@ export default function AdminDashboard() {
           utr: o.utr,
           amount: Number(o.amount),
           vendor_id: Number(o.vendor_id || 0),
+          vendor_code: o.vendor_code || '',
           business_name: o.customer_name,
           created_at: o.created_at
-        })).filter((r: any) => r.utr);
+        })).filter((r: any) => r.utr && r.vendor_code);
         setRows(mapped);
       } catch (e: any) {
         setErr(e.message || 'Failed to load');
@@ -195,7 +325,7 @@ export default function AdminDashboard() {
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">UTR</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor Code</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
@@ -217,7 +347,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-sm font-mono">{r.vendor_id}</td>
+                    <td className="px-4 py-2 text-sm font-mono">{r.vendor_code}</td>
                     <td className="px-4 py-2 text-right">
                       <button
                         onClick={async () => {
@@ -336,7 +466,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const updatePayoutStatus = async (id: number, status: string) => {
+  const updatePayoutStatus = async (id: number, status: string, adminNotes?: string) => {
     setUpdatingPayoutId(id);
     // Guard against invalid transitions based on current local status
     setPayouts(prev => {
@@ -352,20 +482,20 @@ export default function AdminDashboard() {
         }
       }
       // Optimistically update UI to immediately disable buttons for this row
-      return prev.map(p => (p.id === id ? { ...p, status } : p));
+      return prev.map(p => (p.id === id ? { ...p, status, admin_notes: adminNotes } : p));
     });
     try {
       const res = await fetch('/api/admin/payouts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status })
+        body: JSON.stringify({ id, status, admin_notes: adminNotes })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Update failed');
       // Sync local row with server response if present
       if (json?.data?.payout) {
         const srv = json.data.payout;
-        setPayouts(prev => prev.map(p => (p.id === srv.id ? { ...p, status: srv.status } : p)));
+        setPayouts(prev => prev.map(p => (p.id === srv.id ? { ...p, status: srv.status, admin_notes: srv.admin_notes } : p)));
       }
       await loadPayouts(payoutStatusFilter);
     } catch (e: any) {
@@ -840,7 +970,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Current Admin Info */}
+      {/* Current Admin Info with Connection Status */}
       {currentAdmin && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
@@ -859,13 +989,52 @@ export default function AdminDashboard() {
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-indigo-600">
-                {Object.values(currentAdmin.permissions || {}).filter(p => p).length} permissions active
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Active: {Object.entries(currentAdmin.permissions || {}).filter(([_, v]) => v).map(([k, _]) => k).join(', ')}
-              </p>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-xs text-indigo-600">
+                  {Object.values(currentAdmin.permissions || {}).filter(p => p).length} permissions active
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Active: {Object.entries(currentAdmin.permissions || {}).filter(([_, v]) => v).map(([k, _]) => k).join(', ')}
+                </p>
+              </div>
+              
+              {/* WebSocket Connection Status */}
+              <div className="flex items-center space-x-2">
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+                  ws.isConnected 
+                    ? 'bg-green-100 text-green-800' 
+                    : ws.isConnecting 
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                }`}>
+                  {ws.isConnected ? (
+                    <>
+                      <FiWifi className="w-3 h-3" />
+                      <span>Live ({ws.connectionCount})</span>
+                    </>
+                  ) : ws.isConnecting ? (
+                    <>
+                      <div className="w-3 h-3 border border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                      <span>Connecting</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiWifiOff className="w-3 h-3" />
+                      <span>Offline</span>
+                    </>
+                  )}
+                </div>
+                
+                {ws.error && (
+                  <button 
+                    onClick={() => ws.reconnect()}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Reconnect
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -941,7 +1110,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Total Received (Orders)</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Payin Balance</dt>
                       <dd className="text-lg font-medium text-gray-900">₹{Number(stats.totalReceivedOrdersAmount || 0).toFixed(2)}</dd>
                     </dl>
                   </div>
@@ -1023,7 +1192,7 @@ export default function AdminDashboard() {
                             payment.payment_status === 'Failed' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {payment.payment_status}
+                            {getStatusText(payment.payment_status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1183,7 +1352,7 @@ export default function AdminDashboard() {
                           payment.payment_status === 'Failed' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {payment.payment_status}
+                          {getStatusText(payment.payment_status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1233,7 +1402,7 @@ export default function AdminDashboard() {
                         headers: {
                           'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ utr: p.utr, amount: p.amount, vendor_id: p.vendor_id })
+                        body: JSON.stringify({ utr: p.utr, amount: p.amount, vendor_code: p.vendor_code })
                       });
                       if (!res.ok) {
                         const j = await res.json().catch(() => ({}));
@@ -1299,6 +1468,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bank / UPI</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Callback Message</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
@@ -1327,30 +1497,48 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-2 text-sm">{p.reference_id || '-'}</td>
                       <td className="px-4 py-2 text-sm">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          p.status === 'paid' || p.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          p.status === 'rejected' || p.status === 'failed' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {p.status}
-                        </span>
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  p.status === 'paid' || p.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  p.status === 'rejected' || p.status === 'failed' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {getStatusText(p.status)}
+                </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {p.admin_notes ? (
+                          <div className="max-w-xs">
+                            <div className="text-gray-900 text-sm">{p.admin_notes}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-right">
                         {hasPermission('manage_payout') ? (
                           p.status === 'created' ? (
                             <div className="inline-flex gap-2">
                               <button
-                                onClick={() => updatePayoutStatus(p.id, 'approved')}
+                                onClick={() => {
+                                  const message = prompt('Enter callback message (optional):');
+                                  updatePayoutStatus(p.id, 'approved', message || undefined);
+                                }}
                                 disabled={updatingPayoutId === p.id}
                                 className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
                               >Approve</button>
                               <button
-                                onClick={() => updatePayoutStatus(p.id, 'paid')}
+                                onClick={() => {
+                                  const message = prompt('Enter callback message (optional):');
+                                  updatePayoutStatus(p.id, 'paid', message || undefined);
+                                }}
                                 disabled={updatingPayoutId === p.id}
                                 className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
                               >Mark Paid</button>
                               <button
-                                onClick={() => updatePayoutStatus(p.id, 'rejected')}
+                                onClick={() => {
+                                  const message = prompt('Enter callback message (optional):');
+                                  updatePayoutStatus(p.id, 'rejected', message || undefined);
+                                }}
                                 disabled={updatingPayoutId === p.id}
                                 className="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-50"
                               >Reject</button>
@@ -1423,7 +1611,7 @@ export default function AdminDashboard() {
                           s.status === 'rejected' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {s.status}
+                          {getStatusText(s.status)}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm">{new Date(s.created_at).toLocaleString()}</td>
@@ -1957,6 +2145,21 @@ function AdminRechargeRequests() {
   const [updatingId, setUpdatingId] = React.useState<number | null>(null)
   const [edits, setEdits] = React.useState<Record<number, { amount: string; utr: string }>>({})
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'Success';
+      case 'approved':
+        return 'Success';
+      case 'rejected':
+        return 'Failed';
+      case 'created':
+        return 'Pending';
+      default:
+        return 'Pending';
+    }
+  };
+
   const load = async () => {
     setLoading(true)
     setErr(null)
@@ -1974,12 +2177,48 @@ function AdminRechargeRequests() {
 
   React.useEffect(() => { load() }, [])
 
+  // Listen for WebSocket events to refresh data
+  React.useEffect(() => {
+    const handleCustomEvent = (event: CustomEvent) => {
+      if (event.detail.type === 'recharge_created' || event.detail.type === 'recharge_status_changed') {
+        load();
+      }
+    };
+
+    window.addEventListener('rechargeEvent' as any, handleCustomEvent);
+    
+    return () => {
+      window.removeEventListener('rechargeEvent' as any, handleCustomEvent);
+    };
+  }, []);
+
   const update = async (id:number, status:string) => {
     setUpdatingId(id)
     try {
       const payload:any = { id, status }
-      if (edits[id]?.amount) payload.amount = Number(edits[id].amount)
-      if (edits[id]?.utr) payload.utr = edits[id].utr
+      
+      // Get the original recharge data
+      const originalRecharge = rows.find(r => r.id === id);
+      if (!originalRecharge) {
+        throw new Error('Recharge request not found');
+      }
+      
+      // Use edited values if available, otherwise use original values
+      const finalAmount = edits[id]?.amount ? Number(edits[id].amount) : originalRecharge.amount;
+      const finalUtr = edits[id]?.utr || originalRecharge.utr;
+      
+      // Add to payload if they were edited
+      if (edits[id]?.amount) payload.amount = finalAmount;
+      if (edits[id]?.utr) payload.utr = finalUtr;
+      
+      // Validate required fields for approval/paid status
+      if ((status === 'approved' || status === 'paid') && (!finalUtr || !finalAmount || finalAmount <= 0)) {
+        const missingFields = [];
+        if (!finalUtr) missingFields.push('UTR');
+        if (!finalAmount || finalAmount <= 0) missingFields.push('valid amount');
+        throw new Error(`${missingFields.join(' and ')} ${missingFields.length > 1 ? 'are' : 'is'} required for approval`)
+      }
+      
       const res = await fetch('/api/admin/recharges', { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
       let j:any = null; try { j = await res.json() } catch {}
       if (!res.ok) throw new Error((j && j.error) || 'Update failed')
@@ -2037,7 +2276,7 @@ function AdminRechargeRequests() {
                   r.status === 'rejected' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {r.status}
+                  {getStatusText(r.status)}
                 </span>
               </td>
               <td className="px-4 py-2 text-right">

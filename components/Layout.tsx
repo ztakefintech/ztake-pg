@@ -33,10 +33,16 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <FiUser className="text-gray-500" />
-                <span className="text-sm text-gray-700">{vendor?.business_name}</span>
-              </div>
+              <Link
+                href="/profile"
+                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
+                title="Profile Settings"
+              >
+                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                  <FiUser className="w-4 h-4 text-gray-600" />
+                </div>
+                <span className="text-sm font-medium">{vendor?.business_name}</span>
+              </Link>
               
               <button
                 onClick={logout}
@@ -61,14 +67,6 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <FiCreditCard />
                 <span>Dashboard</span>
-              </Link>
-              
-              <Link
-                href="/profile"
-                className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                <FiUser />
-                <span>Profile</span>
               </Link>
               
               <Link

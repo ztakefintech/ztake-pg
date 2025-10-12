@@ -4,6 +4,7 @@ import { AuthService } from '@/lib/auth';
 import { createApiResponse, createErrorResponse } from '@/lib/middleware';
 import { withRateLimit } from '@/lib/middleware';
 import { authRateLimit } from '@/lib/rate-limit';
+import { generateVendorId } from '@/lib/utils';
 
 interface GoogleUserInfo {
   id: string;
@@ -57,8 +58,25 @@ async function handler(req: NextRequest) {
       console.log('Google OAuth: Creating new user:', googleUser.email);
       
       try {
-        // Generate a vendor code
-        const vendorCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Generate unique vendor code using proper pattern
+        let vendorCode: string;
+        let isUnique = false;
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        do {
+          vendorCode = generateVendorId();
+          const existingCode = await db.get(
+            'SELECT id FROM vendors WHERE vendor_code = $1',
+            [vendorCode]
+          );
+          isUnique = !existingCode;
+          attempts++;
+        } while (!isUnique && attempts < maxAttempts);
+
+        if (!isUnique) {
+          throw new Error('Failed to generate unique vendor code');
+        }
         
         // Create new vendor with Google OAuth data
         const result = await db.run(`

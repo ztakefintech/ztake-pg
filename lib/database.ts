@@ -310,7 +310,8 @@ class Database {
       `);
       await client.query(`
         ALTER TABLE payouts 
-        ADD COLUMN IF NOT EXISTS held_amount DECIMAL(12,2)
+        ADD COLUMN IF NOT EXISTS held_amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS admin_notes TEXT
       `);
 
       // Add payout balance to vendors

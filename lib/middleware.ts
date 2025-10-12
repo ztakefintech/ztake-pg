@@ -6,6 +6,7 @@ import { authRateLimit, apiRateLimit, paymentUpdateRateLimit } from './rate-limi
 export interface AuthenticatedRequest extends NextRequest {
   vendor?: {
     id: number;
+    vendor_code?: string;
     email: string;
     business_name: string;
     contact_name: string;
@@ -44,7 +45,7 @@ export function withAuth(handler: (req: AuthenticatedRequest) => Promise<NextRes
 
       // Fetch complete vendor data from database
       const vendor = await db.get(
-        'SELECT id, email, business_name, contact_name, phone, upi_id, bot_token, chat_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env FROM vendors WHERE id = ?',
+        'SELECT id, vendor_code, email, business_name, contact_name, phone, upi_id, bot_token, chat_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env FROM vendors WHERE id = ?',
         [tokenPayload.id]
       );
 
@@ -96,7 +97,7 @@ export function withApiKeyAuth(handler: (req: AuthenticatedRequest) => Promise<N
       // Also attach vendor if linked to this API key
       if ((keyInfo as any).vendorId) {
         const vendor = await db.get(
-          'SELECT id, email, business_name, contact_name, phone, upi_id, bot_token, chat_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env FROM vendors WHERE id = ?',
+          'SELECT id, vendor_code, email, business_name, contact_name, phone, upi_id, bot_token, chat_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env FROM vendors WHERE id = ?',
           [(keyInfo as any).vendorId]
         );
         if (vendor) {

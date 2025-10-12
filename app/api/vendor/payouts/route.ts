@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/database';
 import { withAuth, createApiResponse, createErrorResponse, AuthenticatedRequest } from '@/lib/middleware';
 import { generatePayoutId } from '@/lib/utils';
+import { eventStore } from '@/lib/event-store';
+import { demoCallbackStore } from '@/lib/callback-store';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,7 +22,7 @@ async function listPayouts(req: AuthenticatedRequest) {
     const total = totalRow?.total || 0;
 
     const rows = await db.all(
-      `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id AS provider_payout_id, created_at, updated_at
+      `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id AS provider_payout_id, admin_notes, created_at, updated_at
        FROM payouts
        WHERE vendor_id = ?
        ORDER BY created_at DESC
@@ -96,6 +98,54 @@ async function createPayout(req: AuthenticatedRequest) {
        FROM payouts WHERE id = ?`,
       [result.lastID]
     );
+
+    // Emit payout created event via WebSocket
+    const event = {
+      id: `payout_created_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'payout_status_changed',
+      payload: {
+        id: result.lastID,
+        vendorId: req.vendor!.id,
+        businessName: req.vendor!.business_name || `Vendor #${req.vendor!.id}`,
+        contactName: req.vendor!.contact_name,
+        email: req.vendor!.email,
+        amount: amt,
+        currency,
+        beneficiaryName: beneficiary_name,
+        beneficiaryAccount: beneficiary_account,
+        beneficiaryIfsc: beneficiary_ifsc,
+        beneficiaryUpi: beneficiary_upi,
+        referenceId: payoutReferenceId,
+        remarks,
+        status: 'created',
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Payout created event emitted:', event);
+
+    // Also send to callback store for demo purposes
+    const callbackToken = `vendor-${req.vendor!.vendor_code || req.vendor!.id}`;
+    demoCallbackStore.append(callbackToken, {
+      type: 'payout_status_changed',
+      payoutId: result.lastID,
+      vendorId: req.vendor!.id,
+      businessName: req.vendor!.business_name || `Vendor #${req.vendor!.id}`,
+      contactName: req.vendor!.contact_name,
+      email: req.vendor!.email,
+      amount: amt,
+      currency,
+      beneficiaryName: beneficiary_name,
+      beneficiaryAccount: beneficiary_account,
+      beneficiaryIfsc: beneficiary_ifsc,
+      beneficiaryUpi: beneficiary_upi,
+      referenceId: payoutReferenceId,
+      remarks,
+      status: 'created',
+      timestamp: new Date().toISOString()
+    });
 
     return createApiResponse({ message: 'Payout request created', payout });
   } catch (error) {

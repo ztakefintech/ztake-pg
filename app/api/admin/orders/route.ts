@@ -34,8 +34,10 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
     if (withUtr === '1' || withUtr === 'true') { where += ' AND utr IS NOT NULL AND LENGTH(utr) > 0'; }
 
     const orders = await db.all(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, utr, vendor_id, created_at
-       FROM orders ${where} ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      `SELECT o.ztake_order_id, o.merchant_order_id, o.amount, o.currency, o.customer_name, o.status, o.utr, o.vendor_id, v.vendor_code, o.created_at
+       FROM orders o
+       LEFT JOIN vendors v ON o.vendor_id = v.id
+       ${where} ORDER BY o.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
     return NextResponse.json({ success: true, data: { orders } });

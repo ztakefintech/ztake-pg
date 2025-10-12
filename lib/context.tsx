@@ -10,6 +10,8 @@ interface Vendor {
   contact_name: string;
   phone?: string;
   upi_id: string;
+  bot_token?: string;
+  chat_id?: string;
 }
 
 interface AuthContextType {

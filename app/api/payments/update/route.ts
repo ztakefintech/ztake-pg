@@ -6,6 +6,7 @@ import { updatePaymentSchema, validateRequest } from '@/lib/validation';
 import { withRateLimit } from '@/lib/middleware';
 import { paymentUpdateRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
+import { eventStore } from '@/lib/event-store';
 
 async function handler(req: AuthenticatedRequest) {
   if (req.method !== 'POST') {
@@ -116,6 +117,28 @@ async function handler(req: AuthenticatedRequest) {
        WHERE p.id = ?`,
       [result.lastID]
     );
+
+    // Emit payment created event via WebSocket
+    const event = {
+      id: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'payment_status_changed',
+      payload: {
+        id: payment.id,
+        vendorId: vendor.id,
+        businessName: payment.business_name,
+        contactName: payment.contact_name,
+        upiId: payment.upi_id,
+        utr: payment.utr,
+        amount: payment.amount,
+        payment_status: payment.payment_status,
+        status: payment.status,
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Payment event emitted:', event);
 
     return createApiResponse({
       message: 'Payment updated successfully',

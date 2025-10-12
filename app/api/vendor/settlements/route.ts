@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/middleware';
 import { db } from '@/lib/database';
+import { eventStore } from '@/lib/event-store';
 
 export const POST = withAuth(async (req: NextRequest) => {
   try {
@@ -49,6 +50,26 @@ export const POST = withAuth(async (req: NextRequest) => {
       'INSERT INTO settlements (vendor_id, amount, status) VALUES (?, ?, ?)',
       [vendor.id, amount, 'pending']
     );
+
+    // Emit settlement created event via WebSocket
+    const event = {
+      id: `settlement_created_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'settlement_status_changed',
+      payload: {
+        id: result.lastID,
+        vendorId: vendor.id,
+        businessName: vendor.business_name || `Vendor #${vendor.id}`,
+        contactName: vendor.contact_name,
+        email: vendor.email,
+        amount,
+        status: 'pending',
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Settlement created event emitted:', event);
 
     return NextResponse.json({
       success: true,

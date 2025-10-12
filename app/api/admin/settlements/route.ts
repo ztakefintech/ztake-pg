@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware';
 import { db } from '@/lib/database';
+import { eventStore } from '@/lib/event-store';
 
 export const GET = requirePermission('view_settlements')(async (req: NextRequest) => {
   try {
@@ -83,6 +84,34 @@ export const PATCH = requirePermission('manage_settlements')(async (req: NextReq
       );
     }
     // If rejected, no change to payout balance (settlement is cancelled)
+
+    // Get vendor information for the event
+    const vendor = await db.get(
+      `SELECT business_name, contact_name, email FROM vendors WHERE id = ?`,
+      [settlement.vendor_id]
+    );
+
+    // Emit settlement status changed event via WebSocket
+    const event = {
+      id: `settlement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'settlement_status_changed',
+      payload: {
+        id: Number(id),
+        vendorId: settlement.vendor_id,
+        businessName: vendor?.business_name || `Vendor #${settlement.vendor_id}`,
+        contactName: vendor?.contact_name,
+        email: vendor?.email,
+        amount: settlement.amount,
+        status,
+        adminNotes: admin_notes,
+        previousStatus: settlement.status,
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Settlement event emitted:', event);
 
     return NextResponse.json({
       success: true,

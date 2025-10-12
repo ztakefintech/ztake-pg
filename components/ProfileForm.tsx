@@ -2,7 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle } from 'react-icons/fi';
+import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw } from 'react-icons/fi';
+
+interface PaymentInfo {
+  qr_code_url: string;
+  upi_id: string;
+  upi_url: string;
+  vendor_id: number;
+  bank_name?: string | null;
+  bank_account_holder?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  bot_token_present?: boolean;
+  chat_id_present?: boolean;
+  is_bot_live?: boolean;
+}
 
 export default function ProfileForm() {
   const { vendor, token, updateVendor } = useAuth();
@@ -27,10 +41,25 @@ export default function ProfileForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [qrError, setQrError] = useState('');
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (token) {
+      fetchProfile();
+      fetchPaymentInfo();
+    }
+  }, [token]);
+
+  // Refresh payment info when UPI ID changes
+  useEffect(() => {
+    if (formData.upi_id && paymentInfo) {
+      if (formData.upi_id !== paymentInfo.upi_id) {
+        fetchPaymentInfo(true);
+      }
+    }
+  }, [formData.upi_id]);
 
   const fetchProfile = async () => {
     try {
@@ -68,6 +97,52 @@ export default function ProfileForm() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchPaymentInfo = async (isRefresh = false) => {
+    if (!token) {
+      return;
+    }
+    
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      }
+      setQrError('');
+      
+      const response = await fetch('/api/vendor/payment-info', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPaymentInfo(data);
+      } else {
+        setQrError('Failed to load payment information');
+      }
+    } catch (err) {
+      setQrError('Network error. Please try again.');
+    } finally {
+      if (isRefresh) {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setSuccess('Copied to clipboard!');
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (err) {
+      setError('Failed to copy to clipboard');
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchPaymentInfo(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -340,6 +415,66 @@ export default function ProfileForm() {
               {success}
             </div>
           )}
+
+          <div className="pt-2">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Information</h2>
+            <p className="text-gray-600 mb-4">Your UPI payment details and QR code for receiving payments.</p>
+            
+            {qrError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-600">{qrError}</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : paymentInfo ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">UPI ID</h3>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-lg font-mono bg-gray-100 p-3 rounded flex-1">{paymentInfo.upi_id}</p>
+                    <button
+                      onClick={() => copyToClipboard(paymentInfo.upi_id || '')}
+                      className="p-2 text-gray-500 hover:text-gray-700"
+                      title="Copy UPI ID"
+                    >
+                      <FiCopy className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Click the copy icon to copy UPI ID</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">QR Code</h3>
+                  <div className="flex justify-center">
+                    <div className="relative">
+                      <img 
+                        src={paymentInfo.qr_code_url} 
+                        alt="Payment QR Code" 
+                        className="w-40 h-40 border-2 border-gray-200 rounded-lg shadow-sm"
+                        onError={() => setQrError('Failed to load QR code image')}
+                      />
+                      {isRefreshing && (
+                        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+                          <FiRefreshCw className="h-6 w-6 animate-spin text-primary-600" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-center">Scan with any UPI app to pay</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 mb-6">
+                <FiRefreshCw className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Loading payment info...</h3>
+                <p className="mt-1 text-sm text-gray-500">Please wait while we fetch your UPI details.</p>
+              </div>
+            )}
+          </div>
 
           <div className="pt-2">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Ztake Settings</h2>

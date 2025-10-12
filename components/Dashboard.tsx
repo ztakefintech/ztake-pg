@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiRefreshCw, FiCopy, FiMaximize2, FiShield, FiInfo, FiCpu, FiAlertTriangle, FiArchive } from 'react-icons/fi';
+import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiShield, FiInfo, FiCpu, FiAlertTriangle, FiArchive } from 'react-icons/fi';
+import { useVendorWebSocket } from '@/hooks/use-websocket';
+import { toast } from '@/hooks/use-toast';
 
 interface Payment {
   id: number;
@@ -12,36 +14,159 @@ interface Payment {
   created_at: string;
 }
 
-interface PaymentInfo {
-  qr_code_url: string;
-  upi_id: string;
-  upi_url: string;
-  vendor_id: number;
-  bank_name?: string | null;
-  bank_account_holder?: string | null;
-  bank_account_number?: string | null;
-  bank_ifsc?: string | null;
-  bot_token_present?: boolean;
-  chat_id_present?: boolean;
-  is_bot_live?: boolean;
+interface RechargeRequest {
+  id: number;
+  amount: number;
+  utr: string;
+  status: string;
+  admin_notes?: string | null;
+  created_at: string;
 }
 
 export default function Dashboard() {
   const { vendor, token } = useAuth();
-  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalReceived, setTotalReceived] = useState<number>(0);
   const [payoutBalance, setPayoutBalance] = useState<number>(0);
   const [rechargeAccount, setRechargeAccount] = useState<{ bank_name?: string | null; account_number?: string | null; account_holder?: string | null; ifsc?: string | null } | null>(null);
+  const [rechargeRequests, setRechargeRequests] = useState<RechargeRequest[]>([]);
   const [showRecharge, setShowRecharge] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [rechargeUtr, setRechargeUtr] = useState('');
   const [submittingRecharge, setSubmittingRecharge] = useState(false);
   const [submittingSettlement, setSubmittingSettlement] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [qrError, setQrError] = useState('');
+
+  // WebSocket connection for real-time updates
+  const ws = useVendorWebSocket({
+    onEvent: (event) => {
+      console.log('Vendor received WebSocket event:', event);
+      
+      // Handle recharge status changes
+      if (event.type === 'recharge_status_changed' && event.payload.vendorId === vendor?.id) {
+        const message = getRechargeEventMessage(event);
+        const variant = getRechargeEventVariant(event.payload.status);
+        
+        toast({
+          title: "Recharge Update",
+          description: message,
+          variant: variant,
+          duration: 5000,
+        });
+        
+        // Refresh recharge requests
+        fetchRechargeRequests();
+      }
+      
+      // Handle payment status changes
+      if (event.type === 'payment_status_changed' && event.payload.vendorId === vendor?.id) {
+        const message = getPaymentEventMessage(event);
+        const variant = getPaymentEventVariant(event.payload.payment_status);
+        
+        toast({
+          title: "Payment Update",
+          description: message,
+          variant: variant,
+          duration: 5000,
+        });
+        
+        // Refresh dashboard data
+        fetchDashboardData();
+      }
+      
+      // Handle settlement status changes
+      if (event.type === 'settlement_status_changed' && event.payload.vendorId === vendor?.id) {
+        const message = getSettlementEventMessage(event);
+        const variant = getSettlementEventVariant(event.payload.status);
+        
+        toast({
+          title: "Settlement Update",
+          description: message,
+          variant: variant,
+          duration: 5000,
+        });
+        
+        // Refresh dashboard data
+        fetchDashboardData();
+      }
+    },
+    onConnect: () => {
+      console.log('Vendor WebSocket connected');
+    },
+    onDisconnect: () => {
+      console.log('Vendor WebSocket disconnected');
+    },
+    onError: (error) => {
+      console.error('Vendor WebSocket error:', error);
+    }
+  });
+
+  // Helper functions for recharge events
+  const getRechargeEventMessage = (event: any) => {
+    const { amount, status, adminNotes } = event.payload;
+    switch (status) {
+      case 'approved':
+        return `Your recharge request of ₹${amount} was successful!`;
+      case 'paid':
+        return `Your recharge request of ₹${amount} has been processed successfully!`;
+      case 'rejected':
+        return `Your recharge request of ₹${amount} failed. ${adminNotes ? `Reason: ${adminNotes}` : ''}`;
+      default:
+        return `Your recharge request status updated to ${getStatusText(status)}`;
+    }
+  };
+
+  const getRechargeEventVariant = (status: string): 'default' | 'destructive' => {
+    if (status === 'rejected') {
+      return 'destructive';
+    }
+    return 'default';
+  };
+
+  // Helper functions for payment events
+  const getPaymentEventMessage = (event: any) => {
+    const { amount, payment_status, utr } = event.payload;
+    switch (payment_status) {
+      case 'Succeeded':
+        return `Payment of ₹${amount} (UTR: ${utr}) was successful!`;
+      case 'Failed':
+        return `Payment of ₹${amount} (UTR: ${utr}) failed.`;
+      case 'Pending':
+        return `Payment of ₹${amount} (UTR: ${utr}) is pending.`;
+      default:
+        return `Payment status updated to ${getStatusText(payment_status)}`;
+    }
+  };
+
+  const getPaymentEventVariant = (status: string): 'default' | 'destructive' => {
+    if (status === 'Failed') {
+      return 'destructive';
+    }
+    return 'default';
+  };
+
+  // Helper functions for settlement events
+  const getSettlementEventMessage = (event: any) => {
+    const { amount, status, adminNotes } = event.payload;
+    switch (status) {
+      case 'approved':
+        return `Your settlement request of ₹${amount} was successful!`;
+      case 'paid':
+        return `Your settlement request of ₹${amount} has been processed successfully!`;
+      case 'rejected':
+        return `Your settlement request of ₹${amount} failed. ${adminNotes ? `Reason: ${adminNotes}` : ''}`;
+      default:
+        return `Settlement request status updated to ${getStatusText(status)}`;
+    }
+  };
+
+  const getSettlementEventVariant = (status: string): 'default' | 'destructive' => {
+    if (status === 'rejected') {
+      return 'destructive';
+    }
+    return 'default';
+  };
 
   useEffect(() => {
     if (vendor && token) {
@@ -49,33 +174,13 @@ export default function Dashboard() {
     }
   }, [vendor, token]);
 
-  // Refresh data when vendor UPI ID changes
-  useEffect(() => {
-    if (vendor?.upi_id && paymentInfo) {
-      // If the UPI ID in context is different from what we have in paymentInfo, refresh
-      if (vendor.upi_id !== paymentInfo.upi_id) {
-        fetchDashboardData(true);
-      }
-    }
-  }, [vendor?.upi_id]);
-
-  const fetchDashboardData = async (isRefresh = false) => {
+  const fetchDashboardData = async () => {
     try {
-      if (isRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
       setError('');
-      setQrError('');
       
-      // Fetch payment info and recent payments in parallel
-      const [paymentInfoRes, paymentsRes, statsRes, balanceRes, settlementsRes] = await Promise.all([
-        fetch('/api/vendor/payment-info', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }),
+      // Fetch recent payments and stats in parallel
+      const [paymentsRes, statsRes, balanceRes, settlementsRes] = await Promise.all([
         fetch('/api/vendor/payments?limit=5', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -93,15 +198,6 @@ export default function Dashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
-
-      if (paymentInfoRes.ok) {
-        const paymentData = await paymentInfoRes.json();
-        setPaymentInfo(paymentData);
-        setQrError('');
-      } else {
-        const errorData = await paymentInfoRes.json();
-        setQrError(errorData.error || 'Failed to load payment info');
-      }
       
       if (paymentsRes.ok) {
         const paymentsData = await paymentsRes.json();
@@ -132,12 +228,30 @@ export default function Dashboard() {
         setPayoutBalance(Number(balJson?.data?.balance || 0));
         setRechargeAccount(balJson?.data?.recharge_account || null);
       }
+
+      // Fetch recharge requests
+      await fetchRechargeRequests();
     } catch (err) {
       setError('Failed to load dashboard data');
-      setQrError('Network error occurred');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
+    }
+  };
+
+  const fetchRechargeRequests = async () => {
+    try {
+      const res = await fetch('/api/vendor/payouts/recharges', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (res.ok) {
+        const json = await res.json();
+        setRechargeRequests(json?.data?.recharges || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch recharge requests:', err);
     }
   };
 
@@ -160,27 +274,67 @@ export default function Dashboard() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      // Payment statuses
       case 'completed':
         return <FiCheckCircle className="text-green-500" />;
+      case 'Succeeded':
+        return <FiCheckCircle className="text-green-500" />;
+      case 'Failed':
+        return <FiAlertTriangle className="text-red-500" />;
+      case 'Pending':
+        return <FiClock className="text-yellow-500" />;
+      
+      // Recharge statuses
+      case 'paid':
+        return <FiCheckCircle className="text-green-500" />;
+      case 'approved':
+        return <FiCheckCircle className="text-green-500" />;
+      case 'rejected':
+        return <FiAlertTriangle className="text-red-500" />;
+      case 'created':
+        return <FiClock className="text-yellow-500" />;
+      
+      // Settlement statuses
       case 'pending':
         return <FiClock className="text-yellow-500" />;
+      
       default:
         return <FiClock className="text-gray-500" />;
     }
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      // Recharge statuses
+      case 'paid':
+        return 'Success';
+      case 'approved':
+        return 'Success';
+      case 'rejected':
+        return 'Failed';
+      case 'created':
+        return 'Pending';
+      
+      // Payment statuses
+      case 'completed':
+        return 'Success';
+      case 'Succeeded':
+        return 'Success';
+      case 'Failed':
+        return 'Failed';
+      case 'Pending':
+        return 'Pending';
+      
+      // Settlement statuses
+      case 'pending':
+        return 'Pending';
+      
+      default:
+        return 'Pending';
     }
   };
 
-  const handleRefresh = () => {
-    fetchDashboardData(true);
-  };
+
 
   const submitRecharge = async () => {
     const amt = Number(rechargeAmount);
@@ -206,6 +360,8 @@ export default function Dashboard() {
       setRechargeAmount('');
       setRechargeUtr('');
       alert('Recharge request submitted');
+      // Refresh recharge requests to show the new one
+      await fetchRechargeRequests();
     } catch (e: any) {
       alert(e.message || 'Recharge failed');
     } finally {
@@ -277,87 +433,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Payment Info Card */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Payment Information</h2>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-              title="Refresh QR Code"
-            >
-              <FiRefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <FiMaximize2 className="text-primary-600" />
-          </div>
-        </div>
-        
-        {qrError ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-600">{qrError}</p>
-            <button
-              onClick={handleRefresh}
-              className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-            >
-              Try again
-            </button>
-          </div>
-        ) : paymentInfo ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">UPI ID</h3>
-              <div className="flex items-center space-x-2">
-                <p className="text-lg font-mono bg-gray-100 p-3 rounded flex-1">{paymentInfo.upi_id}</p>
-                <button
-                  onClick={() => copyToClipboard(paymentInfo.upi_id || '')}
-                  className="p-2 text-gray-500 hover:text-gray-700"
-                  title="Copy UPI ID"
-                >
-                  <FiCopy className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Click the copy icon to copy UPI ID</p>
-            </div>
-            
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">QR Code</h3>
-              <div className="flex justify-center">
-                <div className="relative">
-                  <img 
-                    src={paymentInfo.qr_code_url} 
-                    alt="Payment QR Code" 
-                    className="w-40 h-40 border-2 border-gray-200 rounded-lg shadow-sm"
-                    onError={() => setQrError('Failed to load QR code image')}
-                  />
-                  {isRefreshing && (
-                    <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
-                      <FiRefreshCw className="h-6 w-6 animate-spin text-primary-600" />
-                    </div>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">Scan with any UPI app to pay</p>
-            </div>
-
-            {/* Bank Details */}
-        
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <FiMaximize2 className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Loading payment info...</h3>
-            <p className="mt-1 text-sm text-gray-500">Please wait while we fetch your UPI details.</p>
-          </div>
-        )}
-      </div>
 
       {/* Totals */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Total Received (Orders)</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Payin Balance</h2>
             <FiDollarSign className="text-primary-600" />
           </div>
           <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
@@ -405,7 +486,7 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-gray-900">Bot Status</h2>
             <FiShield className="text-primary-600" />
           </div>
-          {paymentInfo && paymentInfo.is_bot_live ? (
+          {vendor?.bot_token && vendor?.chat_id ? (
             <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center space-x-3">
                 <FiCheckCircle className="text-green-600" />
@@ -495,11 +576,70 @@ export default function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(payment.status)}
-                        <span className="text-sm text-gray-900 capitalize">{payment.status}</span>
+                        <span className="text-sm text-gray-900">{getStatusText(payment.status)}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(payment.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recharge Requests Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Recharge Requests</h2>
+          <button 
+            onClick={() => setShowRecharge(true)} 
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Request Recharge
+          </button>
+        </div>
+        
+        {rechargeRequests.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <FiCreditCard className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p>No recharge requests yet</p>
+            <p className="text-sm">Click "Request Recharge" to submit your first request</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UTR</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Notes</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {rechargeRequests.map((request) => (
+                  <tr key={request.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency(request.amount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      {request.utr}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(request.status)}
+                        <span className="text-sm text-gray-900">{getStatusText(request.status)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {request.admin_notes || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(request.created_at)}
                     </td>
                   </tr>
                 ))}

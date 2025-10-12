@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
 import { requireAdmin } from '@/lib/admin-middleware'
+import { eventStore } from '@/lib/event-store'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,6 +29,18 @@ export const PATCH = requireAdmin(async (req: NextRequest) => {
       return NextResponse.json({ success: false, error: 'id and status required' }, { status: 400 })
     }
 
+    // Get current recharge data before updating
+    const currentRecharge = await db.get(`
+      SELECT r.*, v.business_name, v.contact_name, v.email 
+      FROM payout_recharges r 
+      JOIN vendors v ON v.id = r.vendor_id 
+      WHERE r.id = ?
+    `, [Number(id)]);
+
+    if (!currentRecharge) {
+      return NextResponse.json({ success: false, error: 'Recharge request not found' }, { status: 404 })
+    }
+
     // allow editing amount and utr
     await db.run(`UPDATE payout_recharges SET status = ?, admin_notes = ?, amount = COALESCE(?, amount), utr = COALESCE(?, utr), updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [status, admin_notes || null, amount ?? null, utr ?? null, Number(id)])
 
@@ -38,6 +51,29 @@ export const PATCH = requireAdmin(async (req: NextRequest) => {
         await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) + ? WHERE id = ?`, [Number(r.amount), Number(r.vendor_id)])
       }
     }
+
+    // Emit recharge status changed event via WebSocket
+    const event = {
+      id: `recharge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'recharge_status_changed',
+      payload: {
+        id: Number(id),
+        vendorId: currentRecharge.vendor_id,
+        businessName: currentRecharge.business_name,
+        contactName: currentRecharge.contact_name,
+        email: currentRecharge.email,
+        amount: amount ?? currentRecharge.amount,
+        utr: utr ?? currentRecharge.utr,
+        status,
+        adminNotes: admin_notes,
+        previousStatus: currentRecharge.status,
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Admin recharge event emitted:', event);
 
     return NextResponse.json({ success: true })
   } catch (e) {

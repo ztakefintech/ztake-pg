@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
 import { requirePermission, getVendorFilterForAdmin } from '@/lib/admin-middleware'
+import { eventStore } from '@/lib/event-store'
+import { demoCallbackStore } from '@/lib/callback-store'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -47,6 +49,7 @@ export const GET = requirePermission('view_payouts')(async (req: NextRequest) =>
          p.remarks,
          p.status,
          p.cashfree_payout_id,
+         p.admin_notes,
          p.created_at,
          p.updated_at
        FROM payouts p
@@ -67,7 +70,7 @@ export const GET = requirePermission('view_payouts')(async (req: NextRequest) =>
 export const PATCH = requirePermission('manage_payout')(async (req: NextRequest) => {
   try {
     const body = await req.json().catch(() => ({}))
-    const { id, status } = body || {}
+    const { id, status, admin_notes } = body || {}
     if (!id || !status) {
       return NextResponse.json({ success: false, error: 'id and status are required' }, { status: 400 })
     }
@@ -79,8 +82,8 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
     )
 
     await db.run(
-      `UPDATE payouts SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [String(status), Number(id)]
+      `UPDATE payouts SET status = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [String(status), admin_notes || null, Number(id)]
     )
 
     // If transitioning into approved/paid from a non-approved state, subtract amount from vendor balance
@@ -102,9 +105,60 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
     }
 
     const payout = await db.get(
-      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, created_at, updated_at FROM payouts WHERE id = ?`,
+      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, admin_notes, created_at, updated_at FROM payouts WHERE id = ?`,
       [Number(id)]
     )
+
+    // Get vendor information for the event
+    const vendor = await db.get(
+      `SELECT business_name, contact_name, email FROM vendors WHERE id = ?`,
+      [existing?.vendor_id]
+    );
+
+    // Emit payout status changed event via WebSocket
+    const event = {
+      id: `payout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'payout_status_changed',
+      payload: {
+        id: Number(id),
+        vendorId: existing?.vendor_id,
+        businessName: vendor?.business_name || `Vendor #${existing?.vendor_id}`,
+        contactName: vendor?.contact_name,
+        email: vendor?.email,
+        amount: existing?.amount,
+        status: newStatus,
+        adminNotes: admin_notes,
+        previousStatus: existing?.status,
+        timestamp: new Date().toISOString()
+      },
+      timestamp: new Date()
+    };
+    
+    eventStore.emit(event);
+    console.log('Payout event emitted:', event);
+
+    // Also send to callback store for demo purposes
+    const vendorCode = await db.get(
+      `SELECT vendor_code FROM vendors WHERE id = ?`,
+      [existing?.vendor_id]
+    );
+    
+    if (vendorCode) {
+      const callbackToken = `vendor-${vendorCode.vendor_code}`;
+      demoCallbackStore.append(callbackToken, {
+        type: 'payout_status_changed',
+        payoutId: Number(id),
+        vendorId: existing?.vendor_id,
+        businessName: vendor?.business_name || `Vendor #${existing?.vendor_id}`,
+        contactName: vendor?.contact_name,
+        email: vendor?.email,
+        amount: existing?.amount,
+        status: newStatus,
+        adminNotes: admin_notes,
+        previousStatus: existing?.status,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     return NextResponse.json({ success: true, data: { payout } })
   } catch (error) {

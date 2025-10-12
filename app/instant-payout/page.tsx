@@ -24,7 +24,7 @@ export default function DemoPage() {
   const [utr, setUtr] = useState<string>('');
   const [payinMsg, setPayinMsg] = useState<string>('');
   const [payinErr, setPayinErr] = useState<string>('');
-  const callbackToken = useMemo(() => (vendor ? `vendor-${vendor.id}` : 'default'), [vendor]);
+  const callbackToken = useMemo(() => (vendor ? `vendor-${vendor.vendor_code}` : 'default'), [vendor]);
 
   // Payout demo state (bank transfer only)
   const [payoutAmt, setPayoutAmt] = useState<string>('50');
@@ -36,6 +36,7 @@ export default function DemoPage() {
 
   // Callback events
   const [events, setEvents] = useState<any[]>([]);
+  const [payoutEvents, setPayoutEvents] = useState<any[]>([]);
 
   useEffect(() => {
     if (!vendor) return;
@@ -47,12 +48,23 @@ export default function DemoPage() {
     return () => clearInterval(id);
   }, [vendor, callbackToken]);
 
+  // Fetch payout callback events
+  useEffect(() => {
+    if (!vendor) return;
+    const id = setInterval(async () => {
+      const res = await fetch(`/api/public/payment-callback?token=${callbackToken}&type=payout`);
+      const json = await res.json();
+      setPayoutEvents(json?.data?.events || []);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [vendor, callbackToken]);
+
   // Fetch QR code
   useEffect(() => {
     if (!vendor) return;
     (async () => {
       try {
-        const response = await fetch(`/api/vendor/payment-details?vendor_id=${vendor.id}`);
+        const response = await fetch(`/api/vendor/payment-details?vendor_code=${vendor.vendor_code}`);
         const data = await response.json();
         if (data.success && data.data.qr_code) {
           setQrCode(data.data.qr_code);
@@ -141,14 +153,14 @@ export default function DemoPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Instant Payout Demo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Instant Payout</h1>
           <p className="text-gray-600">Test payment and payout functionality with real-time callbacks.</p>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pay-in Card */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-xl font-semibold mb-4">Pay-in Demo</h2>
+            <h2 className="text-xl font-semibold mb-4">Pay-in</h2>
             <p className="text-gray-600 mb-4">Create order, submit UTR, and observe callback events.</p>
             <div className="mb-4 text-center">
               {qrCode ? (
@@ -203,7 +215,7 @@ export default function DemoPage() {
 
           {/* Payout Card */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-xl font-semibold mb-4">Payout Demo</h2>
+            <h2 className="text-xl font-semibold mb-4">Payout</h2>
             <p className="text-gray-600 mb-4">Create a payout to bank account (transfer).</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input className="border rounded px-3 py-2" value={payoutAmt} onChange={(e) => setPayoutAmt(e.target.value)} placeholder="Amount" />
@@ -218,6 +230,24 @@ export default function DemoPage() {
             {(payoutMsg || payoutErr) && (
               <div className={`mt-3 p-2 rounded ${payoutErr ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>{payoutErr || payoutMsg}</div>
             )}
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold">Callback Events</h3>
+                <span className="text-xs text-gray-500">token: {callbackToken}</span>
+              </div>
+              <div className="border rounded p-2 h-56 overflow-auto bg-gray-50 text-xs">
+                {payoutEvents.length === 0 ? (
+                  <div className="text-gray-500">No callbacks yet</div>
+                ) : (
+                  payoutEvents.map((e, idx) => (
+                    <div key={idx} className="mb-2">
+                      <div className="text-gray-600">{new Date(e.receivedAt).toLocaleString()}</div>
+                      <pre className="overflow-auto">{JSON.stringify(e.payload, null, 2)}</pre>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
