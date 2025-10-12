@@ -543,35 +543,40 @@ export default function LoginForm() {
             </p>
           </div>
 
-          {/* Security Badges */}
-          <div className="mt-8 lg:mt-12 space-y-4 lg:space-y-6">
-            {/* Security Certifications */}
-            <div className="text-center">
-              <p className="text-xs text-gray-500 mb-3">SECURITY CERTIFICATIONS</p>
-              <div className="flex flex-wrap justify-center items-center gap-3 lg:gap-6">
-                <div className="flex items-center space-x-1">
-                  <FiShield className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs text-gray-600">VAPT CERTIFIED</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <FiShield className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs text-gray-600">PCI DSS</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <FiShield className="w-4 h-4 text-gray-600" />
-                  <span className="text-xs text-gray-600">ISO 27001</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Methods */}
+          {/* Payment Methods */}
+          <div className="mt-8 lg:mt-12">
             <div className="text-center">
               <p className="text-xs text-gray-500 mb-3">ACCEPTED PAYMENT METHODS</p>
-              <div className="flex flex-wrap justify-center items-center gap-2 lg:gap-4">
-                <div className="w-8 h-5 bg-red-600 rounded text-white text-xs flex items-center justify-center font-bold">V</div>
-                <div className="w-8 h-5 bg-blue-600 rounded text-white text-xs flex items-center justify-center font-bold">M</div>
-                <div className="w-8 h-5 bg-green-600 rounded text-white text-xs flex items-center justify-center font-bold">₹</div>
-                <div className="w-8 h-5 bg-orange-600 rounded text-white text-xs flex items-center justify-center font-bold">UPI</div>
+              <div className="flex flex-wrap justify-center items-center gap-4 lg:gap-6">
+                {/* Visa */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-blue-600 font-bold text-sm">VISA</span>
+                </div>
+                
+                {/* Mastercard */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-red-600 font-bold text-sm">MC</span>
+                </div>
+                
+                {/* UPI */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-purple-600 font-bold text-sm">UPI</span>
+                </div>
+                
+                {/* RuPay */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-orange-600 font-bold text-sm">₹</span>
+                </div>
+                
+                {/* Net Banking */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-green-600 font-bold text-xs">NET</span>
+                </div>
+                
+                {/* Wallet */}
+                <div className="flex items-center justify-center w-12 h-8 bg-white border border-gray-200 rounded shadow-sm">
+                  <span className="text-indigo-600 font-bold text-xs">WALLET</span>
+                </div>
               </div>
             </div>
           </div>

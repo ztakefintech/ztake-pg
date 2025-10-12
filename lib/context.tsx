@@ -18,7 +18,7 @@ interface AuthContextType {
   vendor: Vendor | null;
   token: string | null;
   login: (vendor: Vendor, token: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateVendor: (updatedVendor: Vendor) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -50,11 +50,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('vendor_data', JSON.stringify(vendorData));
   };
 
-  const logout = () => {
-    setVendor(null);
-    setToken(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('vendor_data');
+  const logout = async () => {
+    try {
+      // Call the logout API endpoint
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Logout API error:', error);
+    } finally {
+      // Clear local state regardless of API call success
+      setVendor(null);
+      setToken(null);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('vendor_data');
+      
+      // Redirect to login page
+      window.location.href = '/login';
+    }
   };
 
   const updateVendor = (updatedVendor: Vendor) => {

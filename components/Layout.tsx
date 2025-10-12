@@ -45,7 +45,7 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
               
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="flex items-center space-x-1 text-gray-500 hover:text-gray-700"
               >
                 <FiLogOut />
