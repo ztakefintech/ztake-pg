@@ -199,7 +199,7 @@ export const updateAdminSchema = Joi.object({
 });
 
 // Enhanced validation function with better error handling
-export function validateRequest(schema: Joi.ObjectSchema, data: any, options: Joi.ValidationOptions = {}) {
+export function validateRequest(schema: Joi.ObjectSchema | Joi.StringSchema, data: any, options: Joi.ValidationOptions = {}) {
   const defaultOptions: Joi.ValidationOptions = {
     abortEarly: false,
     stripUnknown: true,

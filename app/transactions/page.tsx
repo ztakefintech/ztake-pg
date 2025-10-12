@@ -100,7 +100,7 @@ export default function TransactionsPage() {
           paymentsCount: data?.payments?.length || 0,
           statusCounts: data?.statusCounts,
           pagination: data?.pagination,
-          payments: data?.payments?.map(p => ({
+          payments: data?.payments?.map((p: Transaction) => ({
             id: p.id,
             ztake_order_id: p.ztake_order_id,
             utr: p.utr,
