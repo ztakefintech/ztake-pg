@@ -106,11 +106,11 @@ export default function Dashboard() {
   const getRechargeEventMessage = (event: any) => {
     const { amount, status, adminNotes } = event.payload;
     switch (status) {
-      case 'approved':
+      case 'success':
         return `Your recharge request of ₹${amount} was successful!`;
       case 'paid':
         return `Your recharge request of ₹${amount} has been processed successfully!`;
-      case 'rejected':
+      case 'failed':
         return `Your recharge request of ₹${amount} failed. ${adminNotes ? `Reason: ${adminNotes}` : ''}`;
       default:
         return `Your recharge request status updated to ${getStatusText(status)}`;
@@ -118,7 +118,7 @@ export default function Dashboard() {
   };
 
   const getRechargeEventVariant = (status: string): 'default' | 'destructive' => {
-    if (status === 'rejected') {
+    if (status === 'failed') {
       return 'destructive';
     }
     return 'default';
@@ -150,11 +150,11 @@ export default function Dashboard() {
   const getSettlementEventMessage = (event: any) => {
     const { amount, status, adminNotes } = event.payload;
     switch (status) {
-      case 'approved':
+      case 'success':
         return `Your settlement request of ₹${amount} was successful!`;
       case 'paid':
         return `Your settlement request of ₹${amount} has been processed successfully!`;
-      case 'rejected':
+      case 'failed':
         return `Your settlement request of ₹${amount} failed. ${adminNotes ? `Reason: ${adminNotes}` : ''}`;
       default:
         return `Settlement request status updated to ${getStatusText(status)}`;
@@ -162,7 +162,7 @@ export default function Dashboard() {
   };
 
   const getSettlementEventVariant = (status: string): 'default' | 'destructive' => {
-    if (status === 'rejected') {
+    if (status === 'failed') {
       return 'destructive';
     }
     return 'default';
@@ -210,10 +210,10 @@ export default function Dashboard() {
         const statsData = await statsRes.json();
         let totalReceivedAmount = Number(statsData?.data?.totalReceivedOrdersAmount || 0);
         
-        // Subtract settlements that are already requested or completed (pending/approved/paid)
+        // Subtract settlements that are already requested or completed (pending/success/paid)
         if (settlementsRes.ok) {
           const settlementsData = await settlementsRes.json();
-          const deductedStatuses = new Set(['pending', 'approved', 'paid']);
+          const deductedStatuses = new Set(['pending', 'success', 'paid']);
           const deductedSettlements = (settlementsData.settlements || []).filter((s: any) => deductedStatuses.has(String(s.status)));
           const deductedAmount = deductedSettlements.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
           totalReceivedAmount -= deductedAmount;
@@ -287,11 +287,11 @@ export default function Dashboard() {
       // Recharge statuses
       case 'paid':
         return <FiCheckCircle className="text-green-500" />;
-      case 'approved':
+      case 'success':
         return <FiCheckCircle className="text-green-500" />;
-      case 'rejected':
+      case 'failed':
         return <FiAlertTriangle className="text-red-500" />;
-      case 'created':
+      case 'pending':
         return <FiClock className="text-yellow-500" />;
       
       // Settlement statuses
@@ -308,11 +308,11 @@ export default function Dashboard() {
       // Recharge statuses
       case 'paid':
         return 'Success';
-      case 'approved':
+      case 'success':
         return 'Success';
-      case 'rejected':
+      case 'failed':
         return 'Failed';
-      case 'created':
+      case 'pending':
         return 'Pending';
       
       // Payment statuses

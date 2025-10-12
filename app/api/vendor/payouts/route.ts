@@ -4,6 +4,9 @@ import { withAuth, createApiResponse, createErrorResponse, AuthenticatedRequest 
 import { generatePayoutId } from '@/lib/utils';
 import { eventStore } from '@/lib/event-store';
 import { demoCallbackStore } from '@/lib/callback-store';
+import { createPayoutSchema, validateRequest, validateBusinessRules, sanitizeInput, paginationSchema, validateQueryParams } from '@/lib/validation';
+import { withRateLimit } from '@/lib/middleware';
+import { payoutCreationRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -11,9 +14,10 @@ export const revalidate = 0;
 async function listPayouts(req: AuthenticatedRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
+    
+    // Validate pagination parameters
+    const validatedParams = validateQueryParams(paginationSchema, searchParams);
+    const { page, limit, offset } = validatedParams;
 
     const totalRow = await db.get(
       'SELECT COUNT(*)::int as total FROM payouts WHERE vendor_id = ?',
@@ -30,6 +34,37 @@ async function listPayouts(req: AuthenticatedRequest) {
       [req.vendor!.id, limit, offset]
     );
 
+    // Get status counts based on payout status
+    const successCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM payouts
+       WHERE vendor_id = ? AND (status = 'paid' OR status = 'approved' OR status = 'success')`,
+      [req.vendor!.id]
+    );
+    const successCount = successCountRow?.count || 0;
+
+    const pendingCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM payouts
+       WHERE vendor_id = ? AND (status = 'created' OR status = 'pending')`,
+      [req.vendor!.id]
+    );
+    const pendingCount = pendingCountRow?.count || 0;
+
+    const failedCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM payouts
+       WHERE vendor_id = ? AND (status = 'rejected' OR status = 'failed')`,
+      [req.vendor!.id]
+    );
+    const failedCount = failedCountRow?.count || 0;
+
+    const statusCounts = {
+      Success: successCount,
+      Pending: pendingCount,
+      Failed: failedCount
+    };
+
     return createApiResponse({
       payouts: rows,
       pagination: {
@@ -37,7 +72,8 @@ async function listPayouts(req: AuthenticatedRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit)
-      }
+      },
+      statusCounts
     });
   } catch (error) {
     console.error('List payouts error:', error);
@@ -48,11 +84,28 @@ async function listPayouts(req: AuthenticatedRequest) {
 async function createPayout(req: AuthenticatedRequest) {
   try {
     const body = await req.json();
-    const { amount, currency = 'INR', beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks } = body || {};
-
-    if (!amount || isNaN(Number(amount))) {
-      return createErrorResponse('Invalid amount', 400);
-    }
+    
+    // Validate request body using comprehensive schema
+    const validatedData = validateRequest(createPayoutSchema, body);
+    
+    // Apply business rules validation
+    validateBusinessRules(validatedData, 'payout');
+    
+    // Sanitize inputs
+    const {
+      amount,
+      currency,
+      beneficiary_name,
+      beneficiary_account,
+      beneficiary_ifsc,
+      beneficiary_upi,
+      reference_id,
+      remarks
+    } = {
+      ...validatedData,
+      beneficiary_name: sanitizeInput(validatedData.beneficiary_name),
+      remarks: validatedData.remarks ? sanitizeInput(validatedData.remarks) : undefined
+    };
 
     // Check vendor balance
     const vendor = await db.get(`SELECT payout_balance FROM vendors WHERE id = ?`, [req.vendor!.id]);
@@ -165,4 +218,4 @@ async function handler(req: AuthenticatedRequest) {
 }
 
 export const GET = withAuth(handler);
-export const POST = withAuth(handler);
+export const POST = withAuth(withRateLimit(payoutCreationRateLimit)(handler));

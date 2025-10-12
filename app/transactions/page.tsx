@@ -8,13 +8,13 @@ import { FiRefreshCw, FiChevronLeft, FiChevronRight, FiDollarSign, FiClock, FiCh
 
 interface Transaction {
   id: number;
-  order_id?: string | null;
-  utr: string;
+  ztake_order_id?: string | null;
+  merchant_order_id?: string | null;
+  utr?: string | null;
   amount: number;
+  currency?: string;
+  customer_name?: string;
   status: string;
-  payment_status: string;
-  checked_status: boolean;
-  checked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,7 +27,7 @@ interface Pagination {
 }
 
 interface StatusCounts {
-  Succeeded: number;
+  Success: number;
   Pending: number;
   Failed: number;
 }
@@ -40,7 +40,7 @@ export default function TransactionsPage() {
   const { vendor, token, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [statusCounts, setStatusCounts] = useState<StatusCounts>({ Succeeded: 0, Pending: 0, Failed: 0 });
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({ Success: 0, Pending: 0, Failed: 0 });
   const [checkedCount, setCheckedCount] = useState<number>(0);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -87,14 +87,28 @@ export default function TransactionsPage() {
         setPagination(data?.pagination || { page, limit: pagination.limit, total: 0, totalPages: 0 });
         if (data?.statusCounts) {
           setStatusCounts({
-            Succeeded: data.statusCounts.Succeeded || 0,
+            Success: data.statusCounts.Success || 0,
             Pending: data.statusCounts.Pending || 0,
             Failed: data.statusCounts.Failed || 0
           });
         } else {
-          setStatusCounts({ Succeeded: 0, Pending: 0, Failed: 0 });
+          setStatusCounts({ Success: 0, Pending: 0, Failed: 0 });
         }
         setCheckedCount(typeof data?.checkedCount === 'number' ? data.checkedCount : 0);
+        
+        console.log('API Response:', {
+          paymentsCount: data?.payments?.length || 0,
+          statusCounts: data?.statusCounts,
+          pagination: data?.pagination,
+          payments: data?.payments?.map(p => ({
+            id: p.id,
+            ztake_order_id: p.ztake_order_id,
+            utr: p.utr,
+            status: p.status,
+            amount: p.amount,
+            currency: p.currency
+          }))
+        });
       } else {
         const message = data?.error || rawText || 'Failed to fetch transactions';
         setError(`${message} (HTTP ${response.status})`);
@@ -127,31 +141,59 @@ export default function TransactionsPage() {
   // Filter transactions based on search term and status
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = searchTerm === '' || 
-      transaction.utr.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.amount.toString().includes(searchTerm);
+      (transaction.utr && transaction.utr.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      transaction.amount.toString().includes(searchTerm) ||
+      (transaction.ztake_order_id && transaction.ztake_order_id.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = statusFilter === 'all' || transaction.payment_status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'Success' && (transaction.status === 'Succeeded' || transaction.status === 'SUCCEEDED' || transaction.status === 'completed')) ||
+      (statusFilter === 'Pending' && (transaction.status === 'Pending' || transaction.status === 'PENDING' || transaction.status === 'created')) ||
+      (statusFilter === 'Failed' && (transaction.status === 'Failed' || transaction.status === 'FAILED' || transaction.status === 'rejected'));
     
-    return matchesSearch && matchesStatus;
+    const result = matchesSearch && matchesStatus;
+    
+    if (!result) {
+      console.log('Filtered out transaction:', {
+        id: transaction.id,
+        ztake_order_id: transaction.ztake_order_id,
+        utr: transaction.utr,
+        status: transaction.status,
+        matchesSearch,
+        matchesStatus,
+        statusFilter
+      });
+    }
+    
+    return result;
   });
 
-  const getStatusIcon = (status: string, paymentStatus: string) => {
-    if (paymentStatus === 'Succeeded') {
+  const getStatusIcon = (status: string) => {
+    if (status === 'Succeeded' || status === 'SUCCEEDED' || status === 'completed') {
       return <FiCheckCircle className="text-green-500" />;
-    } else if (paymentStatus === 'Failed') {
+    } else if (status === 'Failed' || status === 'FAILED' || status === 'rejected') {
       return <FiXCircle className="text-red-500" />;
     } else {
       return <FiClock className="text-yellow-500" />;
     }
   };
 
-  const getStatusColor = (status: string, paymentStatus: string) => {
-    if (paymentStatus === 'Succeeded') {
+  const getStatusColor = (status: string) => {
+    if (status === 'Succeeded' || status === 'SUCCEEDED' || status === 'completed') {
       return 'bg-green-100 text-green-800';
-    } else if (paymentStatus === 'Failed') {
+    } else if (status === 'Failed' || status === 'FAILED' || status === 'rejected') {
       return 'bg-red-100 text-red-800';
     } else {
       return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    if (status === 'Succeeded' || status === 'SUCCEEDED' || status === 'completed') {
+      return 'Success';
+    } else if (status === 'Failed' || status === 'FAILED' || status === 'rejected') {
+      return 'Failed';
+    } else {
+      return 'Pending';
     }
   };
 
@@ -233,7 +275,7 @@ export default function TransactionsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
-                <option value="Succeeded">Succeeded</option>
+                <option value="Success">Success</option>
                 <option value="Pending">Pending</option>
                 <option value="Failed">Failed</option>
               </select>
@@ -251,7 +293,7 @@ export default function TransactionsPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Successful</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {statusCounts.Succeeded}
+                  {statusCounts.Success}
                 </p>
               </div>
             </div>
@@ -365,24 +407,24 @@ export default function TransactionsPage() {
                       <tr key={transaction.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {transaction.order_id || '-'}
+                            {transaction.ztake_order_id || '-'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
-                            {transaction.utr}
+                            {transaction.utr || '-'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-gray-900">
-                            {formatAmount(transaction.amount)}
+                            {transaction.currency || '₹'} {formatAmount(transaction.amount)}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            {getStatusIcon(transaction.status, transaction.payment_status)}
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status, transaction.payment_status)}`}>
-                              {transaction.payment_status}
+                            {getStatusIcon(transaction.status)}
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                              {getStatusText(transaction.status)}
                             </span>
                           </div>
                         </td>
@@ -390,7 +432,7 @@ export default function TransactionsPage() {
                           {formatDate(transaction.created_at)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {transaction.checked_status ? (
+                          {transaction.status === 'Succeeded' || transaction.status === 'SUCCEEDED' || transaction.status === 'completed' ? (
                             <span className="text-green-600">Yes</span>
                           ) : (
                             <span className="text-gray-400">No</span>

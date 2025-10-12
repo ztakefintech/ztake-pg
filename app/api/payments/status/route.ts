@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { withApiKeyAuth, createApiResponse, createErrorResponse, AuthenticatedRequest } from '@/lib/middleware';
-import { updatePaymentStatusSchema, validateRequest } from '@/lib/validation';
+import { updatePaymentStatusSchema, validateRequest, validateBusinessRules, sanitizeInput } from '@/lib/validation';
 import { withRateLimit } from '@/lib/middleware';
 import { paymentUpdateRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
@@ -13,12 +13,23 @@ async function handler(req: AuthenticatedRequest) {
 
   try {
     const body = await req.json();
+    
+    // Validate request body using comprehensive schema
     const validatedData = validateRequest(updatePaymentStatusSchema, body);
+    
+    // Apply business rules validation
+    validateBusinessRules(validatedData, 'payment');
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      ...validatedData,
+      utr: sanitizeInput(validatedData.utr)
+    };
 
     // Check if payment exists
     const existingPayment = await db.get(
       'SELECT id, utr, amount, status, payment_status, vendor_id FROM payments WHERE utr = ?',
-      [validatedData.utr]
+      [sanitizedData.utr]
     );
 
     if (!existingPayment) {
@@ -28,7 +39,7 @@ async function handler(req: AuthenticatedRequest) {
     // Update payment status
     await db.run(
       'UPDATE payments SET payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE utr = ?',
-      [validatedData.payment_status, validatedData.utr]
+      [sanitizedData.payment_status, sanitizedData.utr]
     );
 
     // Fetch the updated payment with vendor details
@@ -38,19 +49,19 @@ async function handler(req: AuthenticatedRequest) {
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
        WHERE p.utr = ?`,
-      [validatedData.utr]
+      [sanitizedData.utr]
     );
 
   // If payment succeeded, attempt to update linked order by UTR and send callback
-  if (validatedData.payment_status === 'Succeeded') {
+  if (sanitizedData.payment_status === 'Succeeded') {
     const order = await db.get(
       `SELECT ztake_order_id, merchant_order_id, amount, callback_url FROM orders WHERE utr = ?`,
-      [validatedData.utr]
+      [sanitizedData.utr]
     );
     if (order) {
       await db.run(
         `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP WHERE utr = ? AND checked_status = FALSE`,
-        [order.ztake_order_id, validatedData.utr]
+        [order.ztake_order_id, sanitizedData.utr]
       );
       await db.run(
         `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
@@ -61,7 +72,7 @@ async function handler(req: AuthenticatedRequest) {
           merchantOrderId: order.merchant_order_id,
           ztakeOrderId: order.ztake_order_id,
           amount: Number(payment.amount),
-          utr: validatedData.utr,
+          utr: sanitizedData.utr,
           status: 'SUCCESS',
           paymentTime: new Date().toISOString()
         };

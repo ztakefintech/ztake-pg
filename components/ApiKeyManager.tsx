@@ -36,7 +36,7 @@ export default function ApiKeyManager() {
 
       if (response.ok) {
         setNewApiKey(data.api_key);
-        setSuccess('API key created successfully!');
+        setSuccess('API key pending!');
         setKeyName('');
       } else {
         setError(data.error || 'Failed to create API key');

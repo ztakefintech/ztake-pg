@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { withApiKeyAuth, createApiResponse, createErrorResponse, AuthenticatedRequest } from '@/lib/middleware';
-import { updatePaymentSchema, validateRequest } from '@/lib/validation';
+import { updatePaymentSchema, validateRequest, validateBusinessRules, sanitizeInput } from '@/lib/validation';
 import { withRateLimit } from '@/lib/middleware';
 import { paymentUpdateRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
@@ -15,12 +15,24 @@ async function handler(req: AuthenticatedRequest) {
 
   try {
     const body = await req.json();
+    
+    // Validate request body using comprehensive schema
     const validatedData = validateRequest(updatePaymentSchema, body);
+    
+    // Apply business rules validation
+    validateBusinessRules(validatedData, 'payment');
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      ...validatedData,
+      utr: sanitizeInput(validatedData.utr),
+      order_id: validatedData.order_id ? sanitizeInput(validatedData.order_id) : undefined
+    };
 
     // Check if vendor exists
     const vendor = await db.get(
       'SELECT id, vendor_code, business_name FROM vendors WHERE vendor_code = ?',
-      [validatedData.vendor_code]
+      [sanitizedData.vendor_code]
     );
 
     if (!vendor) {
@@ -30,7 +42,7 @@ async function handler(req: AuthenticatedRequest) {
     // Check if UTR already exists
     const existingPayment = await db.get(
       'SELECT id FROM payments WHERE utr = ?',
-      [validatedData.utr]
+      [sanitizedData.utr]
     );
 
     if (existingPayment) {
@@ -38,18 +50,18 @@ async function handler(req: AuthenticatedRequest) {
     }
 
     // Create payment record with provided status
-    const paymentStatus = validatedData.payment_status || 'Succeeded';
+    const paymentStatus = sanitizedData.payment_status || 'Succeeded';
     const result = await db.run(
       `INSERT INTO payments (order_id, utr, amount, vendor_id, status, payment_status) 
        VALUES (?, ?, ?, ?, 'completed', ?)`,
-      [validatedData.order_id || null, validatedData.utr, validatedData.amount, vendor.id, paymentStatus]
+      [sanitizedData.order_id || null, sanitizedData.utr, sanitizedData.amount, vendor.id, paymentStatus]
     );
 
     // If the new payment is pending, mark related order pending by UTR (if attached later)
     if (paymentStatus === 'Pending') {
       const order = await db.get(
         `SELECT ztake_order_id, merchant_order_id, amount, callback_url FROM orders WHERE utr = ?`,
-        [validatedData.utr]
+        [sanitizedData.utr]
       );
       if (order) {
         await db.run(
@@ -60,8 +72,8 @@ async function handler(req: AuthenticatedRequest) {
           const payload = {
             merchantOrderId: order.merchant_order_id,
             ztakeOrderId: order.ztake_order_id,
-            amount: Number(validatedData.amount),
-            utr: validatedData.utr,
+            amount: Number(sanitizedData.amount),
+            utr: sanitizedData.utr,
             status: 'PENDING',
             paymentTime: new Date().toISOString()
           };
@@ -78,7 +90,7 @@ async function handler(req: AuthenticatedRequest) {
     if (paymentStatus === 'Succeeded') {
       const order = await db.get(
         `SELECT ztake_order_id, merchant_order_id, amount, callback_url FROM orders WHERE utr = ?`,
-        [validatedData.utr]
+        [sanitizedData.utr]
       );
       if (order) {
         await db.run(
@@ -88,14 +100,14 @@ async function handler(req: AuthenticatedRequest) {
         // Sync order amount from payment
         await db.run(
           `UPDATE orders SET amount = ?, status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
-          [validatedData.amount, order.ztake_order_id]
+          [sanitizedData.amount, order.ztake_order_id]
         );
         if (order.callback_url) {
           const payload = {
             merchantOrderId: order.merchant_order_id,
             ztakeOrderId: order.ztake_order_id,
-            amount: Number(validatedData.amount),
-            utr: validatedData.utr,
+            amount: Number(sanitizedData.amount),
+            utr: sanitizedData.utr,
             status: 'SUCCESS',
             paymentTime: new Date().toISOString()
           };
@@ -150,7 +162,7 @@ async function handler(req: AuthenticatedRequest) {
         payment_status: payment.payment_status,
         created_at: payment.created_at,
         vendor: {
-          id: validatedData.vendor_id,
+          id: sanitizedData.vendor_id,
           business_name: payment.business_name,
           contact_name: payment.contact_name,
           upi_id: payment.upi_id

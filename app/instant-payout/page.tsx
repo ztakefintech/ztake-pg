@@ -93,7 +93,7 @@ export default function DemoPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to create order');
       setOrderId(json.ztakeOrderId);
-      setPayinMsg('Order created');
+      setPayinMsg('Order pending');
     } catch (e: any) {
       setPayinErr(e.message || 'Error creating order');
     }
@@ -133,7 +133,7 @@ export default function DemoPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to create payout');
-      setPayoutMsg('Payout created');
+      setPayoutMsg('Payout pending');
     } catch (e: any) {
       setPayoutErr(e.message || 'Error creating payout');
     }

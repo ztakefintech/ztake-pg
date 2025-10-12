@@ -82,7 +82,7 @@ export default function PayoutDemoPage() {
         return;
       }
 
-      setSuccessMessage(data?.data?.message || data?.message || 'Payout created');
+      setSuccessMessage(data?.data?.message || data?.message || 'Payout pending');
       setCreatedPayout(data?.data?.payout || data?.payout || null);
     } catch (err: any) {
       setError('Network error while creating payout');
@@ -95,139 +95,116 @@ export default function PayoutDemoPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payout</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Instant Payout</h1>
           <p className="text-gray-600">Create a test payout via the Payouts API</p>
         </div>
         
         <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-xl font-semibold mb-4">Payout</h2>
+          <p className="text-gray-600 mb-4">Create a payout to bank account or UPI ID.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="100.00"
+                className="border rounded px-3 py-2"
+                placeholder="Amount"
                 required
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
               <input
                 type="text"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="INR"
+                className="border rounded px-3 py-2"
+                placeholder="Currency (INR)"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Beneficiary Name</label>
             <input
               type="text"
               value={beneficiaryName}
               onChange={(e) => setBeneficiaryName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="John Doe"
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Beneficiary Name"
             />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">UPI ID (optional)</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input
                 type="text"
                 value={beneficiaryUpi}
                 onChange={(e) => setBeneficiaryUpi(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="user@upi"
+                className="border rounded px-3 py-2"
+                placeholder="UPI ID (optional)"
               />
+              <div></div>
             </div>
-            <div></div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Bank Account (optional)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
                 type="text"
                 value={beneficiaryAccount}
                 onChange={(e) => setBeneficiaryAccount(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Account Number"
+                className="border rounded px-3 py-2 md:col-span-2"
+                placeholder="Bank Account Number (optional)"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">IFSC (optional)</label>
               <input
                 type="text"
                 value={beneficiaryIfsc}
                 onChange={(e) => setBeneficiaryIfsc(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="HDFC0001234"
+                className="border rounded px-3 py-2"
+                placeholder="IFSC (optional)"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Reference ID (optional)</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input
                 type="text"
                 value={referenceId}
                 onChange={(e) => setReferenceId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Your internal reference"
+                className="border rounded px-3 py-2"
+                placeholder="Reference ID (optional)"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
               <input
                 type="text"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Purpose or note"
+                className="border rounded px-3 py-2"
+                placeholder="Remarks (optional)"
               />
             </div>
-          </div>
 
-          {error && (
-            <div className="p-3 rounded-md bg-red-100 text-red-800 border border-red-200">
-              <p className="font-medium">{error}</p>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {submitting ? 'Creating...' : 'Create Payout'}
+              </button>
+              <a className="px-4 py-2 rounded border hover:bg-gray-50" href="/payouts">
+                View Payouts
+              </a>
             </div>
-          )}
 
-          {successMessage && (
-            <div className="p-3 rounded-md bg-green-100 text-green-800 border border-green-200">
-              <p className="font-medium">{successMessage}</p>
-            </div>
-          )}
+            {(error || successMessage) && (
+              <div className={`mt-3 p-2 rounded ${error ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                {error || successMessage}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
-          >
-            {submitting ? 'Submitting...' : 'Create Payout'}
-          </button>
-        </form>
-
-        {createdPayout && (
-          <div className="mt-6 border rounded-md p-4 bg-gray-50">
-            <h2 className="text-lg font-semibold mb-2">Created Payout</h2>
-            <pre className="text-xs overflow-auto">
-{JSON.stringify(createdPayout, null, 2)}
-            </pre>
-          </div>
-        )}
+            {createdPayout && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2">Created Payout</h3>
+                <div className="border rounded p-2 bg-gray-50 text-xs">
+                  <pre className="overflow-auto">{JSON.stringify(createdPayout, null, 2)}</pre>
+                </div>
+              </div>
+            )}
+          </form>
         </div>
       </div>
     </Layout>

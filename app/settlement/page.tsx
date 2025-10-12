@@ -100,11 +100,30 @@ export default function SettlementPage() {
     });
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusText = (status: string) => {
     switch (status) {
       case 'approved':
-        return <FiCheckCircle className="text-green-500" />;
+        return 'Success';
       case 'rejected':
+        return 'Failed';
+      case 'created':
+        return 'Pending';
+      case 'success':
+        return 'Success';
+      case 'failed':
+        return 'Failed';
+      case 'pending':
+        return 'Pending';
+      default:
+        return status;
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <FiCheckCircle className="text-green-500" />;
+      case 'failed':
         return <FiXCircle className="text-red-500" />;
       case 'pending':
         return <FiClock className="text-yellow-500" />;
@@ -116,9 +135,12 @@ export default function SettlementPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
+      case 'success':
         return 'bg-green-100 text-green-800';
       case 'rejected':
+      case 'failed':
         return 'bg-red-100 text-red-800';
+      case 'created':
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       default:
@@ -217,7 +239,7 @@ export default function SettlementPage() {
                           <div className="flex items-center">
                             {getStatusIcon(record.status)}
                             <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(record.status)}`}>
-                              {record.status}
+                              {getStatusText(record.status)}
                             </span>
                           </div>
                         </td>
@@ -269,7 +291,7 @@ export default function SettlementPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">{r.utr || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(r.status)}`}>
-                            {r.status}
+                            {getStatusText(r.status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(r.created_at)}</td>

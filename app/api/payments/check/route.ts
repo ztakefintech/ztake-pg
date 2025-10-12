@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { checkPaymentSchema, validateRequest } from '@/lib/validation';
+import { checkPaymentSchema, validateRequest, validateBusinessRules, sanitizeInput } from '@/lib/validation';
 import { withRateLimit, createApiResponse, createErrorResponse } from '@/lib/middleware';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
@@ -13,7 +13,19 @@ async function handler(req: NextRequest) {
 
   try {
     const body = await req.json();
+    
+    // Validate request body using comprehensive schema
     const validatedData = validateRequest(checkPaymentSchema, body);
+    
+    // Apply business rules validation
+    validateBusinessRules(validatedData, 'payment');
+    
+    // Sanitize inputs
+    const sanitizedData = {
+      ...validatedData,
+      utr: sanitizeInput(validatedData.utr),
+      order_id: sanitizeInput(validatedData.order_id)
+    };
 
     // Find payment by UTR and vendor_code only (order_id may not exist yet)
     const payment = await db.get(
@@ -22,7 +34,7 @@ async function handler(req: NextRequest) {
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
        WHERE p.utr = ? AND v.vendor_code = ?`,
-      [validatedData.utr, validatedData.vendor_code]
+      [sanitizedData.utr, sanitizedData.vendor_code]
     );
 
     if (!payment) {
@@ -84,7 +96,7 @@ async function handler(req: NextRequest) {
       `UPDATE payments 
        SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
        WHERE utr = ? AND vendor_id = ? AND payment_status = 'Succeeded' AND checked_status = FALSE`,
-      [validatedData.order_id, validatedData.utr, validatedData.vendor_id]
+      [sanitizedData.order_id, sanitizedData.utr, sanitizedData.vendor_id]
     );
 
     // Fetch updated payment data
@@ -94,7 +106,7 @@ async function handler(req: NextRequest) {
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
        WHERE p.utr = ? AND p.vendor_id = ?`,
-      [validatedData.utr, validatedData.vendor_id]
+      [sanitizedData.utr, sanitizedData.vendor_id]
     );
 
     // Emit payment checked event via WebSocket

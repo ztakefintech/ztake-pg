@@ -16,57 +16,62 @@ async function handler(req: AuthenticatedRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    // Get total count
+    // Get total count from orders table
     const totalResult = await db.get(
-      'SELECT COUNT(*) as total FROM payments WHERE vendor_id = ?',
+      'SELECT COUNT(*) as total FROM orders WHERE vendor_id = ?',
       [req.vendor!.id]
     );
     const total = totalResult.total;
 
-    // Get payments with pagination
-    const payments = await db.all(
-      `SELECT id, order_id, utr, amount, status, payment_status, checked_status, checked_at, created_at, updated_at
-       FROM payments 
+    console.log(`Vendor ID: ${req.vendor!.id}, Total orders: ${total}`);
+
+    // Get orders with pagination
+    const orders = await db.all(
+      `SELECT id, ztake_order_id, merchant_order_id, amount, currency, customer_name, status, utr, created_at, updated_at
+       FROM orders 
        WHERE vendor_id = ? 
        ORDER BY created_at DESC 
        LIMIT ? OFFSET ?`,
       [req.vendor!.id, limit, offset]
     );
 
-    // Get overall status counts (not limited by pagination)
-    const statusCountRows = await db.all(
-      `SELECT payment_status, COUNT(*)::int AS count
-       FROM payments
-       WHERE vendor_id = ?
-       GROUP BY payment_status`,
+    console.log(`Returning ${orders.length} orders for vendor ${req.vendor!.id}`);
+
+    // Get status counts based on order status
+    const successCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM orders
+       WHERE vendor_id = ? AND (status = 'Succeeded' OR status = 'SUCCEEDED' OR status = 'completed')`,
       [req.vendor!.id]
     );
+    const successCount = successCountRow?.count || 0;
+
+    const pendingCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM orders
+       WHERE vendor_id = ? AND (status = 'Pending' OR status = 'PENDING' OR status = 'created')`,
+      [req.vendor!.id]
+    );
+    const pendingCount = pendingCountRow?.count || 0;
+
+    const failedCountRow = await db.get(
+      `SELECT COUNT(*)::int AS count
+       FROM orders
+       WHERE vendor_id = ? AND (status = 'Failed' OR status = 'FAILED' OR status = 'rejected')`,
+      [req.vendor!.id]
+    );
+    const failedCount = failedCountRow?.count || 0;
 
     const statusCounts = {
-      Succeeded: 0,
-      Pending: 0,
-      Failed: 0
-    } as { [key: string]: number };
+      Success: successCount,
+      Pending: pendingCount,
+      Failed: failedCount
+    };
 
-    for (const row of statusCountRows) {
-      const key = row.payment_status as string;
-      const value = typeof row.count === 'number' ? row.count : parseInt(row.count || '0', 10);
-      if (key in statusCounts) {
-        statusCounts[key] = value;
-      }
-    }
-
-    // Get count of checked transactions
-    const checkedRow = await db.get(
-      `SELECT COUNT(*)::int AS count
-       FROM payments
-       WHERE vendor_id = ? AND checked_status = TRUE`,
-      [req.vendor!.id]
-    );
-    const checkedCount = checkedRow?.count || 0;
+    console.log(`Status counts - Success: ${successCount}, Pending: ${pendingCount}, Failed: ${failedCount}`);
 
     return createApiResponse({
-      payments,
+      payments: orders,
       pagination: {
         page,
         limit,
@@ -74,7 +79,7 @@ async function handler(req: AuthenticatedRequest) {
         totalPages: Math.ceil(total / limit)
       },
       statusCounts,
-      checkedCount
+      checkedCount: successCount // Using success count as checked count for orders
     });
 
   } catch (error) {

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { AuthService } from '@/lib/auth';
 import { withApiKeyAuth, type AuthenticatedRequest } from '@/lib/middleware';
+import { createOrderSchema, validateRequest, validateBusinessRules, sanitizeInput, pkValidationSchema } from '@/lib/validation';
+import { withRateLimit } from '@/lib/middleware';
+import { orderCreationRateLimit } from '@/lib/rate-limit';
+import { apiCors } from '@/lib/cors';
 
 function generateztakeOrderId(): string {
   const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -18,9 +22,30 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function createOrder(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    // Validate request body using comprehensive schema
+    const validatedData = validateRequest(createOrderSchema, body);
+    
+    // Apply business rules validation
+    validateBusinessRules(validatedData, 'order');
+    
+    // Validate PK from authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authorization header with Bearer token is required' }, { status: 401 });
+    }
+    
+    const pk = authHeader.substring(7);
+    try {
+      validateRequest(pkValidationSchema, pk);
+    } catch (error) {
+      return NextResponse.json({ error: 'Invalid PK format in Authorization header' }, { status: 401 });
+    }
+    
+    // Sanitize inputs
     const {
       merchantOrderId,
       amount,
@@ -29,47 +54,35 @@ export async function POST(req: NextRequest) {
       returnUrl,
       callbackUrl,
       vendorCode: vendorCodeFromBody
-    } = body || {};
-
-    if (!merchantOrderId || typeof merchantOrderId !== 'string') {
-      return NextResponse.json({ error: 'merchantOrderId is required' }, { status: 400 });
-    }
-    if (
-      amount === undefined ||
-      amount === null ||
-      typeof amount !== 'number' ||
-      !Number.isFinite(amount)
-    ) {
-      return NextResponse.json({ error: 'amount must be a number' }, { status: 400 });
-    }
-    if (!currency || typeof currency !== 'string') {
-      return NextResponse.json({ error: 'currency is required' }, { status: 400 });
-    }
-    if (!customerName || typeof customerName !== 'string') {
-      return NextResponse.json({ error: 'customerName is required' }, { status: 400 });
-    }
-    if (!returnUrl || typeof returnUrl !== 'string' || !isValidUrl(returnUrl)) {
-      return NextResponse.json({ error: 'returnUrl must be a valid URL' }, { status: 400 });
-    }
-    if (!callbackUrl || typeof callbackUrl !== 'string' || !isValidUrl(callbackUrl)) {
-      return NextResponse.json({ error: 'callbackUrl must be a valid URL' }, { status: 400 });
-    }
+    } = {
+      ...validatedData,
+      merchantOrderId: sanitizeInput(validatedData.merchantOrderId),
+      customerName: sanitizeInput(validatedData.customerName),
+      returnUrl: sanitizeInput(validatedData.returnUrl),
+      callbackUrl: sanitizeInput(validatedData.callbackUrl)
+    };
 
     const ztakeOrderId = generateztakeOrderId();
     const paymentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/orders/${ztakeOrderId}`;
 
-    // Optional vendor association: prefer API key mapping vendor, else vendor JWT, else vendor_code
+    // Vendor association: prefer PK (secret key), then API key, then JWT token, then vendor_code
     let vendorId: number | null = null;
     
-    // First try to get vendor from API key or JWT token
-    const authHeader = req.headers.get('authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const bearer = authHeader.substring(7);
-      const apiKeyInfo = await AuthService.verifyApiKeyFromDb(bearer);
+    // First try to get vendor from PK (secret key) - already validated above
+    const vendorByPk = await db.get(
+      'SELECT id FROM vendors WHERE secret_key = ?',
+      [pk]
+    );
+    if (vendorByPk) {
+      vendorId = vendorByPk.id;
+    } else {
+      // Try API key authentication
+      const apiKeyInfo = await AuthService.verifyApiKeyFromDb(pk);
       if (apiKeyInfo && apiKeyInfo.vendorId) {
         vendorId = apiKeyInfo.vendorId;
       } else {
-        const payload = AuthService.verifyVendorToken(bearer);
+        // Try JWT token authentication
+        const payload = AuthService.verifyVendorToken(pk);
         if (payload && (payload as any).id) {
           vendorId = (payload as any).id;
         }
@@ -85,6 +98,11 @@ export async function POST(req: NextRequest) {
       if (vendor) {
         vendorId = vendor.id;
       }
+    }
+    
+    // If still no vendor found, return error
+    if (!vendorId) {
+      return NextResponse.json({ error: 'Invalid PK or vendor not found' }, { status: 401 });
     }
 
     await db.run(
@@ -113,6 +131,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 }
+
+export const POST = apiCors(withRateLimit(orderCreationRateLimit)(createOrder));
+export const OPTIONS = apiCors(async () => new NextResponse(null, { status: 200 }));
 
 export async function GET(req: NextRequest) {
   try {
