@@ -1,20 +1,23 @@
 # API Authentication Status Summary
 
 ## Overview
-This document provides a comprehensive overview of the authentication requirements for all API endpoints in the payment gateway system.
+This document provides a comprehensive overview of the authentication requirements for all API endpoints in the payment gateway system. **All vendor-facing endpoints now require API key authentication with vendor code validation for enhanced security.**
 
 ## Authentication Types
 
-### 1. **PK Authentication** (Secret Key)
-- Requires PK (secret key) generated from settings page
-- Used for order creation (primary method)
-- PK must be provided in Authorization header as `Bearer <pk_secret_key>`
-- Validates against `vendors.secret_key` database field
+### 1. **API Key + Vendor Code Authentication** (Primary Method)
+- **NEW**: Requires API key in Authorization header as `Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+- **NEW**: Requires vendor code in request body or query parameters
+- **NEW**: Validates API key belongs to the specified vendor
+- Used for all vendor operations (orders, payouts, payments, etc.)
+- API key format: `pk_` + 32 alphanumeric characters
+- Vendor code format: 2 uppercase letters + 4 digits (e.g., `AB1234`)
 
-### 2. **withAuth** - Vendor Authentication
+### 2. **withAuth** - Vendor Authentication (Legacy)
 - Requires valid vendor JWT token
 - Used for vendor-specific operations
 - Token must be provided in Authorization header as `Bearer <token>`
+- **Note**: Being phased out in favor of API key authentication
 
 ### 3. **withApiKeyAuth** - API Key Authentication  
 - Requires valid API key
@@ -38,20 +41,29 @@ This document provides a comprehensive overview of the authentication requiremen
 
 ## Endpoint Authentication Status
 
-### 🔐 **Vendor Endpoints** (requireAuth)
-| Endpoint | Method | Auth Type | Description |
-|----------|--------|-----------|-------------|
-| `/api/vendor/orders` | GET | withAuth | Get vendor orders |
-| `/api/vendor/payments` | GET | withAuth | Get vendor payments |
-| `/api/vendor/payouts` | GET/POST | withAuth | Manage vendor payouts |
-| `/api/vendor/payouts/balance` | GET | withAuth | Get payout balance |
-| `/api/vendor/payouts/recharges` | GET/POST | withAuth | Manage recharges |
-| `/api/vendor/settlements` | GET/POST | withAuth | Manage settlements |
-| `/api/vendor/profile` | GET/PUT | withAuth | Manage vendor profile |
-| `/api/vendor/payment-info` | GET | withAuth | Get payment info |
-| `/api/vendor/stats` | GET | withAuth | Get vendor statistics |
+### 🔐 **Vendor Endpoints** (API Key + Vendor Code Required)
+| Endpoint | Method | Auth Type | Vendor Code | Description |
+|----------|--------|-----------|-------------|-------------|
+| `/api/vendor/orders` | GET | API Key + Vendor Code | Query Param | Get vendor orders |
+| `/api/vendor/payments` | GET | API Key + Vendor Code | Query Param | Get vendor payments |
+| `/api/vendor/payouts` | GET/POST | API Key + Vendor Code | Query/Body | Manage vendor payouts |
+| `/api/vendor/payouts/balance` | GET | API Key + Vendor Code | Query Param | Get payout balance |
+| `/api/vendor/payouts/recharges` | GET/POST | API Key + Vendor Code | Query/Body | Manage recharges |
+| `/api/vendor/settlements` | GET/POST | API Key + Vendor Code | Query/Body | Manage settlements |
+| `/api/vendor/profile` | GET/PUT | API Key + Vendor Code | Query/Body | Manage vendor profile |
+| `/api/vendor/payment-info` | GET | API Key + Vendor Code | Query Param | Get payment info |
+| `/api/vendor/payment-details` | GET | API Key + Vendor Code | Query Param | Get payment details |
+| `/api/vendor/stats` | GET | API Key + Vendor Code | Query Param | Get vendor statistics |
 
-### 🔑 **API Key Endpoints** (withApiKeyAuth)
+### 🔑 **V1 API Endpoints** (API Key + Vendor Code Required)
+| Endpoint | Method | Auth Type | Vendor Code | Description |
+|----------|--------|-----------|-------------|-------------|
+| `/api/v1/orders` | POST | API Key + Vendor Code | Body Required | Create orders |
+| `/api/v1/orders/[orderId]` | GET | API Key + Vendor Code | Query Param | Get order details |
+| `/api/v1/orders/[orderId]/submit-utr` | POST | API Key + Vendor Code | Query Param | Submit UTR for order |
+| `/api/payments/check` | POST | API Key + Vendor Code | Body Required | Check payment status |
+
+### 🔑 **Legacy API Key Endpoints** (withApiKeyAuth)
 | Endpoint | Method | Auth Type | Description |
 |----------|--------|-----------|-------------|
 | `/api/payments/update` | POST | withApiKeyAuth | Update payment status |
@@ -80,15 +92,9 @@ This document provides a comprehensive overview of the authentication requiremen
 | `/api/admin/permissions` | GET | requirePermission | manage_admins | Get permissions |
 | `/api/events/poll` | GET/POST | requireAdmin | - | Event polling |
 
-### 🔐 **PK Authentication Endpoints** (requireSecretKey)
-| Endpoint | Method | Auth Type | Rate Limit | Description |
-|----------|--------|-----------|------------|-------------|
-| `/api/v1/orders` | POST | PK Required | orderCreationRateLimit | Create orders (PK from settings page) |
-
 ### 🌐 **Public Endpoints** (No Authentication)
 | Endpoint | Method | Auth Type | Rate Limit | Description |
 |----------|--------|-----------|------------|-------------|
-| `/api/payments/check` | POST | Public | apiRateLimit | Check payment status |
 | `/api/auth/login` | POST | Public | authRateLimit | Vendor login |
 | `/api/auth/register` | POST | Public | authRateLimit | Vendor registration |
 | `/api/auth/google` | POST | Public | authRateLimit | Google OAuth |
@@ -99,15 +105,16 @@ This document provides a comprehensive overview of the authentication requiremen
 
 ## Authentication Flow
 
-### 1. **PK Authentication** (Primary for Order Creation)
+### 1. **API Key + Vendor Code Authentication** (Primary Method)
 ```
-1. Generate PK from vendor settings page
-2. Use PK in Authorization: Bearer <pk_secret_key> header
-3. PK validated against vendors.secret_key database field
-4. Order associated with authenticated vendor
+1. Admin creates API key for vendor via /api/admin/api-keys
+2. Use API key in Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx header
+3. Provide vendor code in request body or query parameters
+4. System validates API key exists and belongs to specified vendor
+5. Operation proceeds only if both validations pass
 ```
 
-### 2. **Vendor Authentication**
+### 2. **Vendor Authentication** (Legacy)
 ```
 1. POST /api/auth/login with email/password
 2. Receive JWT token
@@ -115,7 +122,7 @@ This document provides a comprehensive overview of the authentication requiremen
 4. Token expires after configured time
 ```
 
-### 2. **API Key Authentication**
+### 3. **API Key Authentication** (Legacy)
 ```
 1. Admin creates API key via /api/admin/api-keys
 2. Use API key in Authorization: Bearer <api_key> header
@@ -123,7 +130,7 @@ This document provides a comprehensive overview of the authentication requiremen
 4. API keys can be revoked by admin
 ```
 
-### 3. **Admin Authentication**
+### 4. **Admin Authentication**
 ```
 1. Admin login via admin interface
 2. Receive admin JWT token

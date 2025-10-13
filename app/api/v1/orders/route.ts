@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { AuthService } from '@/lib/auth';
 import { withApiKeyAuth, type AuthenticatedRequest } from '@/lib/middleware';
-import { createOrderSchema, validateRequest, validateBusinessRules, sanitizeInput, pkValidationSchema } from '@/lib/validation';
+import { createOrderSchema, validateRequest, validateBusinessRules, sanitizeInput, apiKeyValidationSchema } from '@/lib/validation';
 import { withRateLimit } from '@/lib/middleware';
 import { orderCreationRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
@@ -32,17 +32,17 @@ async function createOrder(req: NextRequest) {
     // Apply business rules validation
     validateBusinessRules(validatedData, 'order');
     
-    // Validate PK from authorization header
+    // Validate API key from authorization header
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Authorization header with Bearer token is required' }, { status: 401 });
     }
     
-    const pk = authHeader.substring(7);
+    const apiKey = authHeader.substring(7);
     try {
-      validateRequest(pkValidationSchema, pk);
+      validateRequest(apiKeyValidationSchema, apiKey);
     } catch (error) {
-      return NextResponse.json({ error: 'Invalid PK format in Authorization header' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid API key format in Authorization header' }, { status: 401 });
     }
     
     // Sanitize inputs
@@ -65,51 +65,58 @@ async function createOrder(req: NextRequest) {
     const ztakeOrderId = generateztakeOrderId();
     const paymentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ''}/orders/${ztakeOrderId}`;
 
-    // Vendor association: prefer PK (secret key), then API key, then JWT token, then vendor_code
+    // Vendor association: API key + vendor code authentication
     let vendorId: number | null = null;
     
-    // First try to get vendor from PK (secret key) - already validated above
-    const vendorByPk = await db.get(
-      'SELECT id FROM vendors WHERE secret_key = ?',
-      [pk]
+    console.log(`[AUTH] Attempting authentication for API key: ${apiKey.substring(0, 8)}... and vendor code: ${vendorCodeFromBody}`);
+    
+    // Verify API key exists in database
+    const apiKeyInfo = await AuthService.verifyApiKeyFromDb(apiKey);
+    if (!apiKeyInfo) {
+      console.log(`[AUTH] API key not found in database: ${apiKey.substring(0, 8)}...`);
+      return NextResponse.json({ 
+        error: 'Invalid API key. The provided API key does not exist.',
+        details: 'Please check your API key and try again'
+      }, { status: 401 });
+    }
+    
+    console.log(`[AUTH] API key verified for key ID: ${apiKeyInfo.keyId}`);
+    
+    // Get vendor by vendor code
+    const vendor = await db.get(
+      'SELECT id FROM vendors WHERE vendor_code = ?',
+      [vendorCodeFromBody]
     );
-    if (vendorByPk) {
-      vendorId = vendorByPk.id;
-    } else {
-      // Try API key authentication
-      const apiKeyInfo = await AuthService.verifyApiKeyFromDb(pk);
-      if (apiKeyInfo && apiKeyInfo.vendorId) {
-        vendorId = apiKeyInfo.vendorId;
-      } else {
-        // Try JWT token authentication
-        const payload = AuthService.verifyVendorToken(pk);
-        if (payload && (payload as any).id) {
-          vendorId = (payload as any).id;
-        }
-      }
+    
+    if (!vendor) {
+      console.log(`[AUTH] Vendor code not found: ${vendorCodeFromBody}`);
+      return NextResponse.json({ 
+        error: 'Invalid vendor code. The provided vendor code does not exist.',
+        details: 'Please check your vendor code and try again'
+      }, { status: 401 });
     }
     
-    // If no vendor from auth, try vendor_code from body
-    if (!vendorId && vendorCodeFromBody && typeof vendorCodeFromBody === 'string') {
-      const vendor = await db.get(
-        'SELECT id FROM vendors WHERE vendor_code = ?',
-        [vendorCodeFromBody]
-      );
-      if (vendor) {
-        vendorId = vendor.id;
-      }
+    vendorId = vendor.id;
+    console.log(`[AUTH] Vendor code verified for vendor ID: ${vendorId}`);
+    
+    // Verify that the API key belongs to the vendor (if API key has vendor association)
+    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== vendorId) {
+      console.log(`[AUTH] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but vendor code belongs to vendor ${vendorId}`);
+      return NextResponse.json({ 
+        error: 'API key and vendor code mismatch.',
+        details: 'The provided API key does not belong to the specified vendor'
+      }, { status: 401 });
     }
     
-    // If still no vendor found, return error
-    if (!vendorId) {
-      return NextResponse.json({ error: 'Invalid PK or vendor not found' }, { status: 401 });
-    }
+    console.log(`[AUTH] Successfully authenticated with API key and vendor code for vendor ID: ${vendorId}`);
 
     await db.run(
       `INSERT INTO orders (ztake_order_id, order_code, merchant_order_id, amount, currency, customer_name, return_url, callback_url, vendor_id, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'order_created')`,
       [ztakeOrderId, ztakeOrderId, merchantOrderId, amount, currency, customerName, returnUrl, callbackUrl, vendorId]
     );
+
+    console.log(`[ORDER] Successfully created order ${ztakeOrderId} for vendor ${vendorId} using API key + vendor code authentication`);
 
     // Get vendor code for response
     let vendorCode: string | null = null;
@@ -124,7 +131,8 @@ async function createOrder(req: NextRequest) {
       ztakeOrderId:ztakeOrderId,
       paymentUrl,
       vendorId: vendorId,
-      vendorCode: vendorCode
+      vendorCode: vendorCode,
+      authMethod: 'api_key_vendor_code'
     });
   } catch (error) {
     console.error('Create order error:', error);

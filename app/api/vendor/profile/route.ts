@@ -10,7 +10,7 @@ export const revalidate = 0;
 async function getProfile(req: AuthenticatedRequest) {
   try {
     const vendor = await db.get(
-      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, created_at FROM vendors WHERE id = ?',
+      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, created_at FROM vendors WHERE id = ?',
       [req.vendor!.id]
     );
 
@@ -32,6 +32,7 @@ async function getProfile(req: AuthenticatedRequest) {
         bank_ifsc: vendor.bank_ifsc,
         bot_token: vendor.bot_token,
         chat_id: vendor.chat_id,
+        vendor_code: vendor.vendor_code,
         created_at: vendor.created_at
       }
     });
@@ -71,7 +72,7 @@ async function updateProfile(req: AuthenticatedRequest) {
 
     // Fetch updated vendor data
     const updatedVendor = await db.get(
-      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env, updated_at FROM vendors WHERE id = ?',
+      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env, updated_at FROM vendors WHERE id = ?',
       [req.vendor!.id]
     );
 

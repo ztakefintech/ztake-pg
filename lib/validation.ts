@@ -43,7 +43,11 @@ export const createOrderSchema = Joi.object({
   customerName: Joi.string().min(2).max(100).pattern(/^[a-zA-Z\s.]+$/).required(),
   returnUrl: Joi.string().uri({ scheme: ['http', 'https'] }).max(2048).required(),
   callbackUrl: Joi.string().uri({ scheme: ['http', 'https'] }).max(2048).required(),
-  vendorCode: Joi.string().pattern(VENDOR_CODE_PATTERN).optional()
+  vendorCode: Joi.string().pattern(VENDOR_CODE_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'Vendor code must be in format: 2 uppercase letters followed by 4 digits (e.g., AB1234)',
+      'any.required': 'Vendor code is required'
+    })
 });
 
 // Update payment details validation
@@ -100,7 +104,12 @@ export const createPayoutSchema = Joi.object({
     }),
   beneficiary_upi: Joi.string().pattern(UPI_PATTERN).optional(),
   reference_id: Joi.string().pattern(ORDER_ID_PATTERN).optional(),
-  remarks: Joi.string().max(500).optional()
+  remarks: Joi.string().max(500).optional(),
+  vendorCode: Joi.string().pattern(VENDOR_CODE_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'Vendor code must be in format: 2 uppercase letters followed by 4 digits (e.g., AB1234)',
+      'any.required': 'Vendor code is required'
+    })
 }).custom((value, helpers) => {
   // At least one payment method must be provided
   if (!value.beneficiary_account && !value.beneficiary_upi) {
@@ -151,25 +160,25 @@ export const orderQuerySchema = Joi.object({
   max_amount: Joi.number().positive().min(Joi.ref('min_amount')).optional()
 });
 
-// Security validation for API keys
-export const apiKeyValidationSchema = Joi.object({
+// Security validation for API key names
+export const apiKeyNameValidationSchema = Joi.object({
   key_name: Joi.string().min(2).max(50).pattern(/^[a-zA-Z0-9\s_-]+$/).required()
     .messages({
       'string.pattern.base': 'API key name can only contain letters, numbers, spaces, underscores, and hyphens'
     })
 });
 
-// PK (Secret Key) validation for order creation
-export const pkValidationSchema = Joi.string()
-  .pattern(/^[a-zA-Z0-9_-]{32,64}$/)
+// API Key validation for order creation
+export const apiKeyValidationSchema = Joi.string()
+  .pattern(/^pk_[a-zA-Z0-9]{32}$/)
   .required()
   .messages({
-    'string.pattern.base': 'PK must be 32-64 characters and contain only letters, numbers, underscores, and hyphens',
-    'any.required': 'PK is required in Authorization header'
+    'string.pattern.base': 'API key must start with "pk_" followed by 32 alphanumeric characters',
+    'any.required': 'API key is required in Authorization header'
   });
 
 // API key creation validation (using the enhanced schema)
-export const createApiKeySchema = apiKeyValidationSchema;
+export const createApiKeySchema = apiKeyNameValidationSchema;
 
 // Admin login validation
 export const adminLoginSchema = Joi.object({

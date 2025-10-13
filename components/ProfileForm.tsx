@@ -57,6 +57,8 @@ export default function ProfileForm() {
       fetchProfile();
       fetchPaymentInfo();
       fetchCredentialsConfig();
+      // Refresh vendor data from API to get latest vendor_code
+      refreshVendorData();
     }
   }, [token]);
 
@@ -154,6 +156,32 @@ export default function ProfileForm() {
   };
 
   // Fetch existing webhook/IP settings (placeholder endpoints)
+  const refreshVendorData = async () => {
+    try {
+      const response = await fetch('/api/vendor/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update the vendor data in auth context with latest vendor_code
+        updateVendor({
+          id: data.vendor.id,
+          vendor_code: data.vendor.vendor_code,
+          email: data.vendor.email,
+          business_name: data.vendor.business_name,
+          contact_name: data.vendor.contact_name,
+          phone: data.vendor.phone,
+          upi_id: data.vendor.upi_id
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh vendor data:', err);
+    }
+  };
+
   const fetchCredentialsConfig = async () => {
     try {
       const [whRes, ipRes] = await Promise.all([

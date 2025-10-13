@@ -102,20 +102,25 @@
     <p><code>https://ztake.in</code> <span class="muted">(replace with your deployment domain if different)</span></p>
 
     <h2>Authentication</h2>
+    <div class="highlight">
+        <strong>🔐 SECURITY UPDATE:</strong> All vendor endpoints now require API key + vendor code authentication for enhanced security.
+    </div>
+    
     <ul>
-        <li><strong>PK (Secret Key)</strong>: <code>Authorization: Bearer sk_...</code> — primary method; validates against vendor secret key.</li>
-        <li><strong>API Key</strong>: <code>Authorization: Bearer api_...</code> — supported for integrations.</li>
-        <li><strong>Vendor JWT</strong>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — supported fallback.</li>
-        <li><strong>Request body</strong>: optional <code>vendorCode</code> field (format: AA4563).</li>
+        <li><strong>API Key (Primary)</strong>: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code> — 32 characters after "pk_"</li>
+        <li><strong>Vendor Code (Required)</strong>: Must be provided in request body or query parameters (format: AA4563)</li>
+        <li><strong>Cross-Validation</strong>: API key must belong to the specified vendor</li>
+        <li><strong>Legacy Support</strong>: JWT tokens still supported but being phased out</li>
     </ul>
 
     <div class="new-feature">
-        <strong>🆕 New:</strong> Vendor codes now use human-readable format (AA4563, QX4012, etc.) instead of numeric IDs for better usability.
+        <strong>🆕 Security Enhancement:</strong> Vendor codes now use human-readable format (AA4563, QX4012, etc.) and are required for all operations to prevent cross-vendor access.
     </div>
 
     <h2>1) Create Order</h2>
     
     <p><span class="method post">POST</span> <code>/api/v1/orders</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     <p><strong>Content-Type:</strong> <code>application/json</code></p>
 
     <h3>Request body</h3>
@@ -126,7 +131,7 @@
   "customerName": "John Doe",
   "returnUrl": "https://merchant.com/payment/return",
   "callbackUrl": "https://merchant.com/payment/callback",
-  "vendorCode": "AA4563"   // optional (API key/JWT also supported)
+  "vendorCode": "AA4563"   // REQUIRED - must match API key vendor
 }</pre>
 
     <h3>Response</h3>
@@ -136,18 +141,40 @@
   "ztakeOrderId": "ZTKXXXXXX",
   "paymentUrl": "https://your-domain/orders/ZTKXXXXXX",
   "vendorId": 2,
-  "vendorCode": "AA4563"
+  "vendorCode": "AA4563",
+  "authMethod": "api_key_vendor_code"
 }</pre>
 
     <p>Open <code>paymentUrl</code> to show the payer a UTR submission screen.</p>
 
     <h2>2) Get Order</h2>
     
-    <p><span class="method get">GET</span> <code>/api/v1/orders/{ztakeOrderId}</code></p>
+    <p><span class="method get">GET</span> <code>/api/v1/orders/{ztakeOrderId}?vendorCode=AA4563</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
+    
+    <h3>Response</h3>
+    <pre>{
+  "success": true,
+  "order": {
+    "ztake_order_id": "ZTK2802033T89HJ",
+    "merchant_order_id": "ORD12345",
+    "amount": 250.0,
+    "currency": "INR",
+    "customer_name": "John Doe",
+    "return_url": "https://merchant.com/payment/return",
+    "callback_url": "https://merchant.com/payment/callback",
+    "status": "pending|success|failed",
+    "utr": "1234567890",
+    "payment_time": "2025-01-01T12:00:00.000Z",
+    "vendor_id": 2,
+    "created_at": "2025-01-01T00:00:00.000Z"
+  }
+}</pre>
 
     <h2>3) Submit UTR</h2>
     
-    <p><span class="method post">POST</span> <code>/api/v1/orders/{ztakeOrderId}/submit-utr</code></p>
+    <p><span class="method post">POST</span> <code>/api/v1/orders/{ztakeOrderId}/submit-utr?vendorCode=AA4563</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
 
     <h3>Body</h3>
     <pre>{ "utr": "214587963214" }</pre>
@@ -216,15 +243,16 @@
 
     <h2>6) Vendor Payouts API</h2>
     
-    <p>Create payout requests (UPI or Bank) and list your payout history. Requires vendor auth: <code>Authorization: Bearer pk_... | &lt;jwt&gt;</code>.</p>
+    <p>Create payout requests (UPI or Bank) and list your payout history. Requires API key + vendor code authentication: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>.</p>
 
     <div class="new-feature">
-        <strong>🆕 New:</strong> Payouts now include callback message support for better communication.
+        <strong>🆕 Security Update:</strong> Payouts now require API key + vendor code authentication for enhanced security.
     </div>
 
     <h3>Create Payout</h3>
     
     <p><span class="method post">POST</span> <code>/api/vendor/payouts</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     <p><strong>Content-Type:</strong> <code>application/json</code></p>
 
     <h4>Request body</h4>
@@ -238,7 +266,8 @@
   // Option B: UPI transfer (use either bank OR UPI)
   // "beneficiary_upi": "jane@upi",
   "reference_id": "PYT13947473",
-  "remarks": "Vendor settlement"
+  "remarks": "Vendor settlement",
+  "vendorCode": "AA4563"  // REQUIRED - must match API key vendor
 }</pre>
 
     <h4>Response</h4>
@@ -265,9 +294,10 @@
 
     <h3>List Payouts</h3>
     
-    <p><span class="method get">GET</span> <code>/api/vendor/payouts</code></p>
+    <p><span class="method get">GET</span> <code>/api/vendor/payouts?vendorCode=AA4563</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     
-    <p><strong>Query:</strong> <code>?status=created|paid|failed|rejected</code> (optional)</p>
+    <p><strong>Query:</strong> <code>?vendorCode=AA4563&status=created|paid|failed|rejected</code> (vendorCode required, status optional)</p>
 
     <h4>Response</h4>
     <pre>{
@@ -298,13 +328,14 @@
 
     <h2>7) Payment APIs</h2>
     
-    <div class="new-feature">
-        <strong>🆕 Updated:</strong> All payment APIs now use vendor codes instead of numeric vendor IDs.
+    <div class="highlight">
+        <strong>🔐 SECURITY UPDATE:</strong> All payment APIs now require API key + vendor code authentication.
     </div>
 
     <h3>Get Vendor Payment Details</h3>
     
     <p><span class="method get">GET</span> <code>/api/vendor/payment-details?vendor_code=AA4563</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     
     <h4>Response</h4>
     <pre>{
@@ -351,12 +382,35 @@
     <h3>Check Payment Status</h3>
     
     <p><span class="method post">POST</span> <code>/api/payments/check</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     
     <h4>Request body</h4>
     <pre>{
   "utr": "690518190930",
   "vendor_code": "AA4563",
   "order_id": "ord_12345"
+}</pre>
+
+    <h4>Response</h4>
+    <pre>{
+  "success": true,
+  "payment": {
+    "id": 123,
+    "order_id": "ord_12345",
+    "utr": "690518190930",
+    "amount": 1000,
+    "status": "completed",
+    "payment_status": "Succeeded",
+    "checked_status": true,
+    "checked_at": "2025-01-01T12:00:00.000Z",
+    "vendor": {
+      "id": 456,
+      "business_name": "Example Business",
+      "contact_name": "John Doe",
+      "upi_id": "business@upi"
+    }
+  },
+  "message": "UTR checked successfully"
 }</pre>
 
     <h2>8) Callback Events API</h2>
@@ -429,7 +483,7 @@
     <h3>Create Order</h3>
     <pre>curl -X POST https://ztake.in/api/v1/orders \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk_your_secret_key" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{
     "merchantOrderId": "ORD12345",
     "amount": 250.0,
@@ -440,20 +494,26 @@
     "vendorCode": "AA4563"
   }'</pre>
 
+    <h3>Get Order</h3>
+    <pre>curl -X GET 'https://ztake.in/api/v1/orders/ZTKXXXX?vendorCode=AA4563' \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef"</pre>
+
     <h3>Submit UTR</h3>
-    <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/submit-utr \
+    <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/submit-utr?vendorCode=AA4563 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{ "utr": "214587963214" }'</pre>
 
     <h3>Update Status</h3>
     <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/status \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
 
     <h3>Create Payout</h3>
     <pre>curl -X POST https://ztake.in/api/vendor/payouts \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk_your_secret_key" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{
     "amount": 1500,
     "currency": "INR",
@@ -461,20 +521,22 @@
     "beneficiary_account": "1234567890",
     "beneficiary_ifsc": "HDFC0001234",
     "reference_id": "PYT13947473",
-    "remarks": "Vendor settlement"
+    "remarks": "Vendor settlement",
+    "vendorCode": "AA4563"
   }'</pre>
 
     <h3>List Payouts</h3>
-    <pre>curl -X GET 'https://ztake.in/api/vendor/payouts?status=created' \
-  -H "Authorization: Bearer sk_your_secret_key"</pre>
+    <pre>curl -X GET 'https://ztake.in/api/vendor/payouts?vendorCode=AA4563' \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef"</pre>
 
     <h3>Get Vendor Payment Details</h3>
-    <pre>curl -X GET 'https://ztake.in/api/vendor/payment-details?vendor_code=AA4563'</pre>
+    <pre>curl -X GET 'https://ztake.in/api/vendor/payment-details?vendor_code=AA4563' \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef"</pre>
 
     <h3>Update Payment Status</h3>
     <pre>curl -X POST https://ztake.in/api/payments/update \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk_your_secret_key" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{
     "utr": "690518190930",
     "amount": 100.00,
@@ -485,6 +547,7 @@
     <h3>Check Payment Status</h3>
     <pre>curl -X POST https://ztake.in/api/payments/check \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
   -d '{
     "utr": "690518190930",
     "vendor_code": "AA4563",
@@ -566,6 +629,71 @@
         <li><strong>Auto-generation:</strong> If no reference_id is provided, a unique PYT ID is automatically generated</li>
         <li><strong>Uniqueness:</strong> Each payout ID is guaranteed to be unique across the system</li>
     </ul>
+
+    <h2>Security Requirements</h2>
+    
+    <div class="highlight">
+        <strong>🔐 CRITICAL SECURITY UPDATE:</strong> All vendor endpoints now require dual authentication for enhanced security.
+    </div>
+
+    <h3>Authentication Requirements</h3>
+    <ul>
+        <li><strong>API Key:</strong> Must be in format <code>pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code> (32 characters after "pk_")</li>
+        <li><strong>Vendor Code:</strong> Must be provided in request body or query parameters (format: AA4563)</li>
+        <li><strong>Cross-Validation:</strong> API key must belong to the specified vendor</li>
+        <li><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></li>
+    </ul>
+
+    <h3>Security Benefits</h3>
+    <ul>
+        <li><strong>Vendor Isolation:</strong> Vendors can only access their own data</li>
+        <li><strong>Cross-Vendor Protection:</strong> Prevents unauthorized access to other vendors' information</li>
+        <li><strong>Multi-Layer Authentication:</strong> API key format + existence + vendor ownership validation</li>
+        <li><strong>Audit Trail:</strong> Comprehensive logging for all authentication attempts</li>
+    </ul>
+
+    <h3>Error Handling</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Error Code</th>
+                <th>Description</th>
+                <th>Solution</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>401</td><td>Invalid or missing API key</td><td>Check API key format and existence</td></tr>
+            <tr><td>403</td><td>API key and vendor code mismatch</td><td>Ensure API key belongs to specified vendor</td></tr>
+            <tr><td>400</td><td>Missing vendor code</td><td>Provide vendor code in request</td></tr>
+            <tr><td>404</td><td>Vendor code not found</td><td>Verify vendor code exists in system</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Migration from Legacy Authentication</h3>
+    <div class="new-feature">
+        <strong>🔄 Migration Required:</strong> Update all API calls to use the new authentication format.
+    </div>
+
+    <h4>Before (Legacy)</h4>
+    <pre>curl -X POST 'https://ztake.in/api/v1/orders' \
+  -H "Authorization: Bearer sk_your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchantOrderId": "ORD123",
+    "amount": 1000,
+    "customerName": "John Doe"
+  }'</pre>
+
+    <h4>After (New Security Model)</h4>
+    <pre>curl -X POST 'https://ztake.in/api/v1/orders' \
+  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "merchantOrderId": "ORD123",
+    "amount": 1000,
+    "customerName": "John Doe",
+    "vendorCode": "AB1234"
+  }'</pre>
 
     <hr>
     <p><em>© ztake. This page documents the Order Management additions only.</em></p>

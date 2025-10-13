@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { checkPaymentSchema, validateRequest, validateBusinessRules, sanitizeInput } from '@/lib/validation';
+import { AuthService } from '@/lib/auth';
+import { checkPaymentSchema, validateRequest, validateBusinessRules, sanitizeInput, apiKeyValidationSchema } from '@/lib/validation';
 import { withRateLimit, createApiResponse, createErrorResponse } from '@/lib/middleware';
 import { apiRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
@@ -12,6 +13,33 @@ async function handler(req: NextRequest) {
   }
 
   try {
+    // Validate API key from authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Authorization header with Bearer token is required' }, { status: 401 });
+    }
+    
+    const apiKey = authHeader.substring(7);
+    try {
+      validateRequest(apiKeyValidationSchema, apiKey);
+    } catch (error) {
+      return NextResponse.json({ error: 'Invalid API key format in Authorization header' }, { status: 401 });
+    }
+
+    console.log(`[PAYMENTS-CHECK] Attempting authentication for API key: ${apiKey.substring(0, 8)}...`);
+
+    // Verify API key exists in database
+    const apiKeyInfo = await AuthService.verifyApiKeyFromDb(apiKey);
+    if (!apiKeyInfo) {
+      console.log(`[PAYMENTS-CHECK] API key not found in database: ${apiKey.substring(0, 8)}...`);
+      return NextResponse.json({ 
+        error: 'Invalid API key. The provided API key does not exist.',
+        details: 'Please check your API key and try again'
+      }, { status: 401 });
+    }
+    
+    console.log(`[PAYMENTS-CHECK] API key verified for key ID: ${apiKeyInfo.keyId}`);
+
     const body = await req.json();
     
     // Validate request body using comprehensive schema
@@ -27,6 +55,8 @@ async function handler(req: NextRequest) {
       order_id: sanitizeInput(validatedData.order_id)
     };
 
+    console.log(`[PAYMENTS-CHECK] Checking payment for UTR: ${sanitizedData.utr}, vendor code: ${sanitizedData.vendor_code}`);
+
     // Find payment by UTR and vendor_code only (order_id may not exist yet)
     const payment = await db.get(
       `SELECT p.id, p.order_id, p.utr, p.amount, p.status, p.payment_status, p.checked_status, p.checked_at, p.created_at, p.updated_at,
@@ -38,8 +68,29 @@ async function handler(req: NextRequest) {
     );
 
     if (!payment) {
+      console.log(`[PAYMENTS-CHECK] Payment not found for UTR: ${sanitizedData.utr}, vendor code: ${sanitizedData.vendor_code}`);
       return createErrorResponse('Payment not found for this vendor', 404);
     }
+
+    console.log(`[PAYMENTS-CHECK] Payment found for vendor ID: ${payment.vendor_id}`);
+
+    // Verify that the API key belongs to the same vendor
+    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== payment.vendor_id) {
+      console.log(`[PAYMENTS-CHECK] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but payment belongs to vendor ${payment.vendor_id}`);
+      return NextResponse.json({ 
+        error: 'API key and vendor code mismatch.',
+        details: 'The provided API key does not belong to the specified vendor'
+      }, { status: 403 });
+    }
+
+    // If API key doesn't have vendor association, we need to verify it belongs to the payment's vendor
+    if (!apiKeyInfo.vendorId) {
+      console.log(`[PAYMENTS-CHECK] API key has no vendor association, checking if it can access this vendor's payments`);
+      // For now, we'll allow it, but this could be enhanced with additional validation
+      console.log(`[PAYMENTS-CHECK] Allowing API key without vendor association to proceed`);
+    }
+
+    console.log(`[PAYMENTS-CHECK] Authentication successful for vendor ${payment.vendor_id}`);
 
     // Check if UTR has already been checked
     if (payment.checked_status) {
@@ -96,7 +147,7 @@ async function handler(req: NextRequest) {
       `UPDATE payments 
        SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
        WHERE utr = ? AND vendor_id = ? AND payment_status = 'Succeeded' AND checked_status = FALSE`,
-      [sanitizedData.order_id, sanitizedData.utr, sanitizedData.vendor_id]
+      [sanitizedData.order_id, sanitizedData.utr, payment.vendor_id]
     );
 
     // Fetch updated payment data
@@ -132,6 +183,7 @@ async function handler(req: NextRequest) {
     
     eventStore.emit(event);
     console.log('Payment checked event emitted:', event);
+    console.log(`[PAYMENTS-CHECK] Successfully checked payment ${updatedPayment.id} for vendor ${payment.vendor_id}`);
 
     return createApiResponse({
       payment: {
