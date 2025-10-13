@@ -291,6 +291,26 @@ class Database {
         ADD COLUMN IF NOT EXISTS secret_key VARCHAR(64) UNIQUE
       `);
 
+      // Webhook URLs on vendors
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS payin_webhook_url TEXT,
+        ADD COLUMN IF NOT EXISTS payout_webhook_url TEXT
+      `);
+
+      // Vendor IP allowlist table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS vendor_ips (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER NOT NULL,
+          ip VARCHAR(45) NOT NULL,
+          enabled BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(vendor_id, ip),
+          FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
+        )
+      `);
+
       // Create payouts table
       await client.query(`
         CREATE TABLE IF NOT EXISTS payouts (
