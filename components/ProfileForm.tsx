@@ -446,26 +446,26 @@ export default function ProfileForm() {
 
         {/* Accounts */}
         <TabsContent value="accounts" className="space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="form-group">
                 <label htmlFor="bank_name" className="form-label">Bank Name</label>
-                <input id="bank_name" name="bank_name" type="text" className="input-field" placeholder="e.g., HDFC Bank" value={formData.bank_name} onChange={handleChange} />
+                <input id="bank_name" name="bank_name" type="text" className="input-field" placeholder="e.g., HDFC Bank" value={formData.bank_name} onChange={handleChange} disabled readOnly />
               </div>
               <div className="form-group">
                 <label htmlFor="bank_account_holder" className="form-label">Account Holder Name</label>
-                <input id="bank_account_holder" name="bank_account_holder" type="text" className="input-field" placeholder="e.g., Rahul Sharma" value={formData.bank_account_holder} onChange={handleChange} />
+                <input id="bank_account_holder" name="bank_account_holder" type="text" className="input-field" placeholder="e.g., Rahul Sharma" value={formData.bank_account_holder} onChange={handleChange} disabled readOnly />
               </div>
               <div className="form-group">
                 <label htmlFor="bank_account_number" className="form-label">Account Number</label>
-                <input id="bank_account_number" name="bank_account_number" type="text" className="input-field" placeholder="e.g., 123456789012" value={formData.bank_account_number} onChange={handleChange} />
+                <input id="bank_account_number" name="bank_account_number" type="text" className="input-field" placeholder="e.g., 123456789012" value={formData.bank_account_number} onChange={handleChange} disabled readOnly />
               </div>
               <div className="form-group">
                 <label htmlFor="bank_ifsc" className="form-label">IFSC Code</label>
-                <input id="bank_ifsc" name="bank_ifsc" type="text" className="input-field uppercase" placeholder="e.g., HDFC0001234" value={formData.bank_ifsc} onChange={handleChange} />
+                <input id="bank_ifsc" name="bank_ifsc" type="text" className="input-field uppercase" placeholder="e.g., HDFC0001234" value={formData.bank_ifsc} onChange={handleChange} disabled readOnly />
               </div>
             </div>
-            <div className="flex justify-end"><button type="submit" disabled={isSaving} className="btn-primary flex items-center space-x-2"><FiSave /><span>{isSaving ? 'Saving...' : 'Save Changes'}</span></button></div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">These bank account details are managed by the admin team. Contact support to update.</div>
           </form>
         </TabsContent>
 
