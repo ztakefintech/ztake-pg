@@ -321,7 +321,7 @@ export default function LoginForm() {
       <div className="w-full lg:w-1/2 bg-white flex flex-col justify-center px-6 lg:px-8 py-8 lg:py-16">
         <div className="max-w-md mx-auto w-full">
           {/* Alert Banner */}
-          {showAlert && (
+          {!showAlert && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8 relative">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
