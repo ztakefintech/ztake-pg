@@ -99,7 +99,7 @@
     <p>Create orders, capture UTRs, verify against payments, update status, and receive callbacks.</p>
 
     <h2>Base URL</h2>
-    <p><code>https://api.ztake.com</code> <span class="muted">(replace with your deployment domain if different)</span></p>
+    <p><code>https://ztake.in</code> <span class="muted">(replace with your deployment domain if different)</span></p>
 
     <h2>Authentication</h2>
     <ul>
@@ -427,7 +427,7 @@
     <h2>cURL Samples</h2>
 
     <h3>Create Order</h3>
-    <pre>curl -X POST https://api.ztake.com/api/v1/orders \
+    <pre>curl -X POST https://ztake.in/api/v1/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
@@ -441,17 +441,17 @@
   }'</pre>
 
     <h3>Submit UTR</h3>
-    <pre>curl -X POST https://api.ztake.com/api/v1/orders/ZTKXXXX/submit-utr \
+    <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/submit-utr \
   -H "Content-Type: application/json" \
   -d '{ "utr": "214587963214" }'</pre>
 
     <h3>Update Status</h3>
-    <pre>curl -X POST https://api.ztake.com/api/v1/orders/ZTKXXXX/status \
+    <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/status \
   -H "Content-Type: application/json" \
   -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
 
     <h3>Create Payout</h3>
-    <pre>curl -X POST https://api.ztake.com/api/vendor/payouts \
+    <pre>curl -X POST https://ztake.in/api/vendor/payouts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
@@ -465,14 +465,14 @@
   }'</pre>
 
     <h3>List Payouts</h3>
-    <pre>curl -X GET 'https://api.ztake.com/api/vendor/payouts?status=created' \
+    <pre>curl -X GET 'https://ztake.in/api/vendor/payouts?status=created' \
   -H "Authorization: Bearer sk_your_secret_key"</pre>
 
     <h3>Get Vendor Payment Details</h3>
-    <pre>curl -X GET 'https://api.ztake.com/api/vendor/payment-details?vendor_code=AA4563'</pre>
+    <pre>curl -X GET 'https://ztake.in/api/vendor/payment-details?vendor_code=AA4563'</pre>
 
     <h3>Update Payment Status</h3>
-    <pre>curl -X POST https://api.ztake.com/api/payments/update \
+    <pre>curl -X POST https://ztake.in/api/payments/update \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
@@ -483,7 +483,7 @@
   }'</pre>
 
     <h3>Check Payment Status</h3>
-    <pre>curl -X POST https://api.ztake.com/api/payments/check \
+    <pre>curl -X POST https://ztake.in/api/payments/check \
   -H "Content-Type: application/json" \
   -d '{
     "utr": "690518190930",
@@ -492,10 +492,10 @@
   }'</pre>
 
     <h3>Get Callback Events</h3>
-    <pre>curl -X GET 'https://api.ztake.com/api/public/payment-callback?token=vendor-PY5954&type=payout'</pre>
+    <pre>curl -X GET 'https://ztake.in/api/public/payment-callback?token=vendor-PY5954&type=payout'</pre>
 
     <h3>Submit Callback Event</h3>
-    <pre>curl -X POST 'https://api.ztake.com/api/public/payment-callback?token=vendor-PY5954' \
+    <pre>curl -X POST 'https://ztake.in/api/public/payment-callback?token=vendor-PY5954' \
   -H "Content-Type: application/json" \
   -d '{
     "type": "payout_status_changed",

@@ -124,7 +124,7 @@ CREATE TABLE vendors (
 
 #### **cURL Example**:
 ```bash
-curl -X POST https://api.ztake.com/api/v1/orders \
+curl -X POST https://ztake.in/api/v1/orders \
   -H "Authorization: Bearer sk_live_51H1234567890abcdef1234567890abcdef1234567890abcdef1234567890" \
   -H "Content-Type: application/json" \
   -d '{
