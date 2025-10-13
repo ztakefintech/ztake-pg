@@ -24,6 +24,8 @@ export default function DemoPage() {
   const [utr, setUtr] = useState<string>('');
   const [payinMsg, setPayinMsg] = useState<string>('');
   const [payinErr, setPayinErr] = useState<string>('');
+  const [secretKey, setSecretKey] = useState<string>('');
+  const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
   const callbackToken = useMemo(() => (vendor ? `vendor-${vendor.vendor_code}` : 'default'), [vendor]);
 
   // Payout demo state (bank transfer only)
@@ -74,13 +76,35 @@ export default function DemoPage() {
     })();
   }, [vendor]);
 
+  // Optional: Auto-fetch secret key (commented out for manual input)
+  // useEffect(() => {
+  //   if (!vendor || !token) return;
+  //   (async () => {
+  //     try {
+  //       const response = await fetch('/api/vendor/secret-key', {
+  //         headers: { Authorization: `Bearer ${token}` }
+  //       });
+  //       const data = await response.json();
+  //       if (data.success && data.data.secret_key) {
+  //         setSecretKey(data.data.secret_key);
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to fetch secret key:', error);
+  //     }
+  //   })();
+  // }, [vendor, token]);
+
   const createOrder = async () => {
     setPayinErr(''); setPayinMsg(''); setOrderId('');
+    if (!secretKey) {
+      setPayinErr('Please enter your secret key above to create orders.');
+      return;
+    }
     try {
       const base = typeof window !== 'undefined' ? window.location.origin : '';
       const res = await fetch('/api/v1/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secretKey}` },
         body: JSON.stringify({
           merchantOrderId,
           amount: Number(amount),
@@ -175,10 +199,109 @@ export default function DemoPage() {
               <input className="border rounded px-3 py-2" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" />
               <input className="border rounded px-3 py-2 md:col-span-2" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name" />
             </div>
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key (PK)</label>
+              <div className="relative">
+                <input 
+                  className="border rounded px-3 py-2 w-full font-mono text-sm pr-10" 
+                  value={secretKey} 
+                  onChange={(e) => setSecretKey(e.target.value)} 
+                  placeholder="Enter your secret key (sk_live_...)" 
+                  type={showSecretKey ? "text" : "password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecretKey(!showSecretKey)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showSecretKey ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-gray-500">
+                  Enter your secret key to authenticate order creation requests
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!token) return;
+                    try {
+                      // First check if a key already exists in DB
+                      const getRes = await fetch('/api/vendor/secret-key', {
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      const getData = await getRes.json();
+                      if (getRes.ok && getData?.success && getData?.data?.secret_key) {
+                        setSecretKey(getData.data.secret_key);
+                        setPayinMsg('Loaded existing secret key');
+                        setPayinErr('');
+                        return;
+                      }
+
+                      // If not exists, generate a new key
+                      const response = await fetch('/api/vendor/secret-key', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      const data = await response.json();
+                      if (response.ok && data?.success && data?.data?.secret_key) {
+                        setSecretKey(data.data.secret_key);
+                        setPayinMsg('Secret key generated successfully');
+                        setPayinErr('');
+                      } else {
+                        setPayinErr(data?.error || 'Failed to generate secret key');
+                      }
+                    } catch (error) {
+                      setPayinErr('Failed to generate secret key');
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Generate New Key
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!token || !secretKey) return;
+                    try {
+                      const response = await fetch('/api/vendor/secret-key', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ secret_key: secretKey })
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        setPayinMsg('Secret key saved');
+                        setPayinErr('');
+                      } else {
+                        setPayinErr(data?.error || 'Failed to save secret key');
+                      }
+                    } catch (error) {
+                      setPayinErr('Failed to save secret key');
+                    }
+                  }}
+                  className="text-xs text-green-600 hover:text-green-800 underline ml-3"
+                >
+                  Save Key
+                </button>
+              </div>
+            </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={createOrder} className="bg-indigo-600 text-white px-4 py-2 rounded">Create Order</button>
+              <button onClick={createOrder} className="bg-indigo-600 text-white px-4 py-2 rounded" disabled={!secretKey}>
+                Create Order
+              </button>
               <button onClick={submitUtr} className="bg-blue-600 text-white px-4 py-2 rounded">Submit UTR</button>
             </div>
+            {secretKey && (
+              <div className="mt-2 text-xs text-gray-600">
+                <span className="text-green-600">✓</span> Secret key entered
+              </div>
+            )}
+            {!secretKey && (
+              <div className="mt-2 text-xs text-gray-600">
+                <span className="text-orange-600">⚠</span> Enter secret key to create orders
+              </div>
+            )}
             {orderId && (
               <div className="mt-2 text-sm">
                 <span className="text-gray-600">Order ID:</span> <span className="font-mono">{orderId}</span>

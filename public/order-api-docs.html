@@ -3,82 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ztake Order Management API</title>
+    <title>Ztake Order Management API</title>
     <style>
+        :root {
+            --bg: #0b0f14;
+            --panel: #0f1621;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --border: #1f2937;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+            --code-bg: #0b1220;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
+            line-height: 1.7;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-            color: #333;
+            padding: 28px;
+            color: var(--text);
+            background: var(--bg);
         }
-        h1, h2, h3 { color: #2c3e50; }
+        h1, h2, h3 { color: #fff; }
+        h1 { letter-spacing: 0.3px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
         code {
-            background: #f8f9fa;
+            background: var(--code-bg);
             padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Monaco', 'Consolas', monospace;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-family: 'Monaco', 'Consolas', ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: #cbd5e1;
         }
         pre {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
+            background: var(--panel);
+            padding: 16px;
+            border-radius: 8px;
             overflow-x: auto;
-            border-left: 4px solid #007bff;
+            border: 1px solid var(--border);
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
         th, td {
-            border: 1px solid #ddd;
+            border-bottom: 1px solid var(--border);
             padding: 12px;
             text-align: left;
         }
         th {
-            background-color: #f8f9fa;
+            background-color: #0b1220;
             font-weight: 600;
         }
         .method {
             display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-weight: 700;
             font-size: 12px;
             text-transform: uppercase;
+            letter-spacing: 0.6px;
         }
-        .method.post { background: #28a745; color: white; }
-        .method.get { background: #007bff; color: white; }
+        .method.post { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid rgba(16,185,129,0.35); }
+        .method.get { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid rgba(59,130,246,0.35); }
         .highlight {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid #ffc107;
-            margin: 15px 0;
+            background: rgba(245,158,11,0.1);
+            color: var(--text);
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(245,158,11,0.25);
+            margin: 16px 0;
         }
         .new-feature {
-            background: #d1ecf1;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 4px solid #17a2b8;
-            margin: 15px 0;
+            background: rgba(59,130,246,0.08);
+            color: var(--text);
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(59,130,246,0.25);
+            margin: 16px 0;
         }
+        .muted { color: var(--muted); }
     </style>
 </head>
 <body>
-    <h1>ztake Order Management API</h1>
+    <h1>Ztake Order Management API</h1>
     
     <p>Create orders, capture UTRs, verify against payments, update status, and receive callbacks.</p>
 
     <h2>Base URL</h2>
-    <p><code>http(s)://your-domain</code> (local: <code>http://localhost:3000</code>)</p>
+    <p><code>https://api.ztake.com</code> <span class="muted">(replace with your deployment domain if different)</span></p>
 
-    <h2>Authentication Options</h2>
+    <h2>Authentication</h2>
     <ul>
-        <li><strong>API Key</strong>: <code>Authorization: Bearer pk_...</code> — preferred; links to vendor via api key.</li>
-        <li><strong>Vendor JWT</strong>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — also supported.</li>
+        <li><strong>PK (Secret Key)</strong>: <code>Authorization: Bearer sk_...</code> — primary method; validates against vendor secret key.</li>
+        <li><strong>API Key</strong>: <code>Authorization: Bearer api_...</code> — supported for integrations.</li>
+        <li><strong>Vendor JWT</strong>: <code>Authorization: Bearer &lt;vendor-jwt&gt;</code> — supported fallback.</li>
         <li><strong>Request body</strong>: optional <code>vendorCode</code> field (format: AA4563).</li>
     </ul>
 
@@ -395,14 +422,14 @@
   "paymentTime": "2025-09-22T15:20:00+05:30"
 }</pre>
 
-    <p><strong>Tip:</strong> Use webhook.site as a test <code>callbackUrl</code>.</p>
+    <p class="muted"><strong>Tip:</strong> Use a webhook testing service for your <code>callbackUrl</code>.</p>
 
     <h2>cURL Samples</h2>
 
     <h3>Create Order</h3>
-    <pre>curl -X POST http://localhost:3000/api/v1/orders \
+    <pre>curl -X POST https://api.ztake.com/api/v1/orders \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer pk_your_api_key" \
+  -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
     "merchantOrderId": "ORD12345",
     "amount": 250.0,
@@ -414,19 +441,19 @@
   }'</pre>
 
     <h3>Submit UTR</h3>
-    <pre>curl -X POST http://localhost:3000/api/v1/orders/ZTKXXXX/submit-utr \
+    <pre>curl -X POST https://api.ztake.com/api/v1/orders/ZTKXXXX/submit-utr \
   -H "Content-Type: application/json" \
   -d '{ "utr": "214587963214" }'</pre>
 
     <h3>Update Status</h3>
-    <pre>curl -X POST http://localhost:3000/api/v1/orders/ZTKXXXX/status \
+    <pre>curl -X POST https://api.ztake.com/api/v1/orders/ZTKXXXX/status \
   -H "Content-Type: application/json" \
   -d '{ "status": "SUCCESS", "utr": "214587963214" }'</pre>
 
     <h3>Create Payout</h3>
-    <pre>curl -X POST http://localhost:3000/api/vendor/payouts \
+    <pre>curl -X POST https://api.ztake.com/api/vendor/payouts \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer pk_your_api_key" \
+  -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
     "amount": 1500,
     "currency": "INR",
@@ -438,16 +465,16 @@
   }'</pre>
 
     <h3>List Payouts</h3>
-    <pre>curl -X GET 'http://localhost:3000/api/vendor/payouts?status=created' \
-  -H "Authorization: Bearer pk_your_api_key"</pre>
+    <pre>curl -X GET 'https://api.ztake.com/api/vendor/payouts?status=created' \
+  -H "Authorization: Bearer sk_your_secret_key"</pre>
 
     <h3>Get Vendor Payment Details</h3>
-    <pre>curl -X GET 'http://localhost:3000/api/vendor/payment-details?vendor_code=AA4563'</pre>
+    <pre>curl -X GET 'https://api.ztake.com/api/vendor/payment-details?vendor_code=AA4563'</pre>
 
     <h3>Update Payment Status</h3>
-    <pre>curl -X POST http://localhost:3000/api/payments/update \
+    <pre>curl -X POST https://api.ztake.com/api/payments/update \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer pk_your_api_key" \
+  -H "Authorization: Bearer sk_your_secret_key" \
   -d '{
     "utr": "690518190930",
     "amount": 100.00,
@@ -456,7 +483,7 @@
   }'</pre>
 
     <h3>Check Payment Status</h3>
-    <pre>curl -X POST http://localhost:3000/api/payments/check \
+    <pre>curl -X POST https://api.ztake.com/api/payments/check \
   -H "Content-Type: application/json" \
   -d '{
     "utr": "690518190930",
@@ -465,10 +492,10 @@
   }'</pre>
 
     <h3>Get Callback Events</h3>
-    <pre>curl -X GET 'http://localhost:3000/api/public/payment-callback?token=vendor-PY5954&type=payout'</pre>
+    <pre>curl -X GET 'https://api.ztake.com/api/public/payment-callback?token=vendor-PY5954&type=payout'</pre>
 
     <h3>Submit Callback Event</h3>
-    <pre>curl -X POST 'http://localhost:3000/api/public/payment-callback?token=vendor-PY5954' \
+    <pre>curl -X POST 'https://api.ztake.com/api/public/payment-callback?token=vendor-PY5954' \
   -H "Content-Type: application/json" \
   -d '{
     "type": "payout_status_changed",

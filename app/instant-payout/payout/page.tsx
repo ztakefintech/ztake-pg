@@ -22,6 +22,8 @@ export default function PayoutDemoPage() {
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [createdPayout, setCreatedPayout] = useState<any>(null);
+  const [secretKey, setSecretKey] = useState<string>('');
+  const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -51,6 +53,11 @@ export default function PayoutDemoPage() {
       return;
     }
 
+    if (!secretKey) {
+      setError('Please enter your secret key to create payouts.');
+      return;
+    }
+
     if (!beneficiaryUpi && !(beneficiaryAccount && beneficiaryIfsc)) {
       setError('Provide either UPI ID or Bank Account + IFSC');
       return;
@@ -62,7 +69,7 @@ export default function PayoutDemoPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${secretKey}`
         },
         body: JSON.stringify({
           amount: amt,
@@ -124,6 +131,79 @@ export default function PayoutDemoPage() {
               />
             </div>
 
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key (PK)</label>
+              <div className="relative">
+                <input 
+                  className="border rounded px-3 py-2 w-full font-mono text-sm pr-10" 
+                  value={secretKey} 
+                  onChange={(e) => setSecretKey(e.target.value)} 
+                  placeholder="Enter your secret key (sk_live_...)" 
+                  type={showSecretKey ? "text" : "password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecretKey(!showSecretKey)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showSecretKey ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-gray-500">
+                  Enter your secret key to authenticate payout requests
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!token) return;
+                    try {
+                      const response = await fetch('/api/vendor/secret-key', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      const data = await response.json();
+                      if (data.success && data.data.secret_key) {
+                        setSecretKey(data.data.secret_key);
+                        setSuccessMessage('Secret key generated successfully');
+                        setError('');
+                      }
+                    } catch (error) {
+                      setError('Failed to generate secret key');
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  Generate New Key
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!token || !secretKey) return;
+                    try {
+                      const response = await fetch('/api/vendor/secret-key', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ secret_key: secretKey })
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        setSuccessMessage('Secret key saved');
+                        setError('');
+                      } else {
+                        setError(data?.error || 'Failed to save secret key');
+                      }
+                    } catch (error) {
+                      setError('Failed to save secret key');
+                    }
+                  }}
+                  className="text-xs text-green-600 hover:text-green-800 underline ml-3"
+                >
+                  Save Key
+                </button>
+              </div>
+            </div>
+
             <input
               type="text"
               value={beneficiaryName}
@@ -180,7 +260,7 @@ export default function PayoutDemoPage() {
             <div className="flex gap-2 mt-4">
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !secretKey}
                 className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-60"
               >
                 {submitting ? 'Creating...' : 'Create Payout'}

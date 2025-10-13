@@ -285,6 +285,12 @@ class Database {
         ADD COLUMN IF NOT EXISTS cashfree_env VARCHAR(16)
       `);
 
+      // Add secret_key column for PK authentication
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS secret_key VARCHAR(64) UNIQUE
+      `);
+
       // Create payouts table
       await client.query(`
         CREATE TABLE IF NOT EXISTS payouts (

@@ -213,7 +213,9 @@ export default function Dashboard() {
         // Subtract settlements that are already requested or completed (pending/success/paid)
         if (settlementsRes.ok) {
           const settlementsData = await settlementsRes.json();
-          const deductedStatuses = new Set(['pending', 'success', 'paid']);
+          // Deduct amounts that are already requested or approved/processed
+          // This prevents double counting between payin and payout balances
+          const deductedStatuses = new Set(['pending', 'approved', 'success', 'paid']);
           const deductedSettlements = (settlementsData.settlements || []).filter((s: any) => deductedStatuses.has(String(s.status)));
           const deductedAmount = deductedSettlements.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
           totalReceivedAmount -= deductedAmount;

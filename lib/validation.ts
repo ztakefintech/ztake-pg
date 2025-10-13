@@ -173,7 +173,11 @@ export const createApiKeySchema = apiKeyValidationSchema;
 
 // Admin login validation
 export const adminLoginSchema = Joi.object({
-  username: Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_-]+$/).required(),
+  // Allow either an email or a simple username
+  username: Joi.alternatives().try(
+    Joi.string().email().max(255),
+    Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_-]+$/)
+  ).required(),
   password: Joi.string().min(6).max(128).required()
 });
 
