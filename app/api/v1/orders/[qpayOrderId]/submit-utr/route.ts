@@ -44,7 +44,7 @@ export async function POST(
     }
 
     const order = await db.get(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, vendor_id, callback_url 
+      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, callback_url 
        FROM orders WHERE ztake_order_id = ?`,
       [params.qpayOrderId]
     );
@@ -54,11 +54,21 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    console.log(`[SUBMIT-UTR] Order found for vendor ID: ${order.vendor_id}`);
+    // Get vendor_id separately for verification
+    const orderWithVendor = await db.get(
+      `SELECT vendor_id FROM orders WHERE ztake_order_id = ?`,
+      [params.qpayOrderId]
+    );
+
+    if (!orderWithVendor) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    console.log(`[SUBMIT-UTR] Order found for vendor ID: ${orderWithVendor.vendor_id}`);
 
     // Verify that the API key belongs to the same vendor as the order
-    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== order.vendor_id) {
-      console.log(`[SUBMIT-UTR] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but order belongs to vendor ${order.vendor_id}`);
+    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== orderWithVendor.vendor_id) {
+      console.log(`[SUBMIT-UTR] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but order belongs to vendor ${orderWithVendor.vendor_id}`);
       return NextResponse.json({ 
         error: 'Access denied. You can only submit UTR for orders belonging to your vendor account.',
         details: 'The provided API key does not belong to the vendor who created this order'
@@ -80,7 +90,7 @@ export async function POST(
       [utr, params.qpayOrderId]
     );
 
-    console.log(`[SUBMIT-UTR] UTR ${utr} submitted for order ${params.qpayOrderId} by vendor ${order.vendor_id}`);
+    console.log(`[SUBMIT-UTR] UTR ${utr} submitted for order ${params.qpayOrderId} by vendor ${orderWithVendor.vendor_id}`);
 
     if (order.callback_url) {
       const pendingPayload = {
@@ -99,16 +109,16 @@ export async function POST(
     }
 
     // If payment already exists and succeeded, flip now and send SUCCESS callback
-    if (order.vendor_id) {
+    if (orderWithVendor.vendor_id) {
       const paymentRow = await db.get(
         `SELECT id, utr, amount, payment_status, checked_status FROM payments WHERE utr = ? AND vendor_id = ?`,
-        [utr, order.vendor_id]
+        [utr, orderWithVendor.vendor_id]
       );
       if (paymentRow && paymentRow.payment_status === 'Succeeded') {
         await db.run(
           `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
            WHERE utr = ? AND vendor_id = ? AND checked_status = FALSE`,
-          [order.ztake_order_id, utr, order.vendor_id]
+          [order.ztake_order_id, utr, orderWithVendor.vendor_id]
         );
         if (paymentRow.amount != null) {
           await db.run(`UPDATE orders SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`, [paymentRow.amount, params.qpayOrderId]);
@@ -121,7 +131,7 @@ export async function POST(
         // Emit payment verified event via WebSocket
         const vendor = await db.get(
           `SELECT id, business_name, contact_name, upi_id FROM vendors WHERE id = ?`,
-          [order.vendor_id]
+          [orderWithVendor.vendor_id]
         );
         
         if (vendor) {

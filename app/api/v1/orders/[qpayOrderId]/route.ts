@@ -36,7 +36,7 @@ export async function GET(
     console.log(`[GET-ORDER] API key verified for key ID: ${apiKeyInfo.keyId}`);
 
     const order = await db.get(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, return_url, callback_url, status, utr, payment_time, vendor_id, created_at
+      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, return_url, callback_url, status, utr, payment_time, created_at
        FROM orders WHERE ztake_order_id = ?`,
       [params.qpayOrderId]
     );
@@ -46,11 +46,21 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    console.log(`[GET-ORDER] Order found for vendor ID: ${order.vendor_id}`);
+    // Get vendor_id separately for verification
+    const orderWithVendor = await db.get(
+      `SELECT vendor_id FROM orders WHERE ztake_order_id = ?`,
+      [params.qpayOrderId]
+    );
+
+    if (!orderWithVendor) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    console.log(`[GET-ORDER] Order found for vendor ID: ${orderWithVendor.vendor_id}`);
 
     // Verify that the API key belongs to the same vendor as the order
-    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== order.vendor_id) {
-      console.log(`[GET-ORDER] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but order belongs to vendor ${order.vendor_id}`);
+    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== orderWithVendor.vendor_id) {
+      console.log(`[GET-ORDER] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but order belongs to vendor ${orderWithVendor.vendor_id}`);
       return NextResponse.json({ 
         error: 'Access denied. You can only view orders belonging to your vendor account.',
         details: 'The provided API key does not belong to the vendor who created this order'

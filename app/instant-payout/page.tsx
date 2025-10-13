@@ -35,6 +35,8 @@ export default function DemoPage() {
   const [beneficiaryIfsc, setBeneficiaryIfsc] = useState<string>('');
   const [payoutMsg, setPayoutMsg] = useState<string>('');
   const [payoutErr, setPayoutErr] = useState<string>('');
+  const [payoutBalance, setPayoutBalance] = useState<number>(0);
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
 
   // Callback events
   const [events, setEvents] = useState<any[]>([]);
@@ -60,6 +62,13 @@ export default function DemoPage() {
     }, 2000);
     return () => clearInterval(id);
   }, [vendor, callbackToken]);
+
+  // Fetch balance when secret key changes
+  useEffect(() => {
+    if (secretKey) {
+      fetchBalance();
+    }
+  }, [secretKey]);
 
   // Fetch QR code
   useEffect(() => {
@@ -102,7 +111,7 @@ export default function DemoPage() {
     }
     try {
       const base = typeof window !== 'undefined' ? window.location.origin : '';
-      const res = await fetch('/api/v1/orders', {
+      const res = await fetch('/api/instant-payin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secretKey}` },
         body: JSON.stringify({
@@ -127,26 +136,81 @@ export default function DemoPage() {
     setPayinErr(''); setPayinMsg('');
     if (!orderId) { setPayinErr('Create order first'); return; }
     if (!utr.trim()) { setPayinErr('Enter UTR'); return; }
+    if (!secretKey) { setPayinErr('Enter secret key'); return; }
     try {
-      const res = await fetch(`/api/v1/orders/${orderId}/submit-utr`, {
+      const res = await fetch(`/api/instant-payin/${orderId}/submit-utr`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secretKey}`
+        },
         body: JSON.stringify({ utr: utr.trim() })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Submit UTR failed');
-      setPayinMsg(`UTR submitted, status: ${json.status}`);
+      setPayinMsg(`UTR submitted, status: ${json.status || json.message}`);
     } catch (e: any) {
       setPayinErr(e.message || 'Error submitting UTR');
     }
   };
 
+  const createTestPayment = async () => {
+    setPayinErr(''); setPayinMsg('');
+    if (!utr.trim()) { setPayinErr('Enter UTR first'); return; }
+    if (!secretKey) { setPayinErr('Enter secret key'); return; }
+    try {
+      const res = await fetch('/api/instant-test-payment', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secretKey}`
+        },
+        body: JSON.stringify({
+          utr: utr.trim(),
+          amount: Number(amount) || 1000,
+          order_id: orderId || null
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to create test payment');
+      setPayinMsg(`Test payment created for UTR: ${utr.trim()}`);
+    } catch (e: any) {
+      setPayinErr(e.message || 'Error creating test payment');
+    }
+  };
+
+  const fetchBalance = async () => {
+    if (!secretKey) return;
+    setBalanceLoading(true);
+    try {
+      const res = await fetch('/api/instant-payout/balance', {
+        headers: { Authorization: `Bearer ${secretKey}` }
+      });
+      const json = await res.json();
+      console.log('Balance API response:', json);
+      if (res.ok) {
+        setPayoutBalance(json.balance || 0);
+        console.log('Set payout balance to:', json.balance || 0);
+      } else {
+        console.error('Balance API error:', json);
+      }
+    } catch (e) {
+      console.error('Failed to fetch balance:', e);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
   const createPayout = async () => {
     setPayoutErr(''); setPayoutMsg('');
+    if (!secretKey) { setPayoutErr('Enter secret key'); return; }
     try {
-      const res = await fetch('/api/vendor/payouts', {
+      const res = await fetch('/api/instant-payout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          Authorization: `Bearer ${secretKey}` 
+        },
         body: JSON.stringify({
           amount: Number(payoutAmt),
           currency: 'INR',
@@ -156,8 +220,17 @@ export default function DemoPage() {
         })
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to create payout');
-      setPayoutMsg('Payout pending');
+      if (!res.ok) {
+        if (json.details) {
+          setPayoutErr(`${json.error}: ${json.details}`);
+        } else {
+          setPayoutErr(json?.error || 'Failed to create payout');
+        }
+        return;
+      }
+      setPayoutMsg('Payout created successfully!');
+      // Refresh balance after successful payout
+      fetchBalance();
     } catch (e: any) {
       setPayoutErr(e.message || 'Error creating payout');
     }
@@ -291,6 +364,9 @@ export default function DemoPage() {
                 Create Order
               </button>
               <button onClick={submitUtr} className="bg-blue-600 text-white px-4 py-2 rounded">Submit UTR</button>
+              <button onClick={createTestPayment} className="bg-green-600 text-white px-4 py-2 rounded" disabled={!secretKey || !utr.trim()}>
+                Create Test Payment
+              </button>
             </div>
             {secretKey && (
               <div className="mt-2 text-xs text-gray-600">
@@ -340,6 +416,28 @@ export default function DemoPage() {
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-xl font-semibold mb-4">Payout</h2>
             <p className="text-gray-600 mb-4">Create a payout to bank account (transfer).</p>
+            
+            {/* Balance Display */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Available Balance:</span>
+                <div className="flex items-center gap-2">
+                  {balanceLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                  ) : (
+                    <span className="text-lg font-bold text-indigo-600">₹{payoutBalance.toLocaleString()}</span>
+                  )}
+                  <button 
+                    onClick={fetchBalance} 
+                    className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                    disabled={balanceLoading}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input className="border rounded px-3 py-2" value={payoutAmt} onChange={(e) => setPayoutAmt(e.target.value)} placeholder="Amount" />
               <input className="border rounded px-3 py-2" value={beneficiaryName} onChange={(e) => setBeneficiaryName(e.target.value)} placeholder="Beneficiary Name" />

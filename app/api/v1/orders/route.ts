@@ -130,7 +130,6 @@ async function createOrder(req: NextRequest) {
       merchantOrderId:merchantOrderId,
       ztakeOrderId:ztakeOrderId,
       paymentUrl,
-      vendorId: vendorId,
       vendorCode: vendorCode,
       authMethod: 'api_key_vendor_code'
     });

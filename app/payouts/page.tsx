@@ -68,7 +68,7 @@ export default function PayoutsPage() {
     setError('');
     
     try {
-      const response = await fetch(`/api/vendor/payouts?page=${page}&limit=${pagination.limit}`, {
+      const response = await fetch(`/api/vendor/payouts/jwt?page=${page}&limit=${pagination.limit}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

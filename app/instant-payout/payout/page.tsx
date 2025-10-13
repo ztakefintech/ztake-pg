@@ -24,12 +24,43 @@ export default function PayoutDemoPage() {
   const [createdPayout, setCreatedPayout] = useState<any>(null);
   const [secretKey, setSecretKey] = useState<string>('');
   const [showSecretKey, setShowSecretKey] = useState<boolean>(false);
+  const [payoutBalance, setPayoutBalance] = useState<number>(0);
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [authLoading, isAuthenticated, router]);
+
+  const fetchBalance = async () => {
+    if (!secretKey) return;
+    setBalanceLoading(true);
+    try {
+      const res = await fetch('/api/instant-payout/balance', {
+        headers: { Authorization: `Bearer ${secretKey}` }
+      });
+      const json = await res.json();
+      console.log('Balance API response:', json);
+      if (res.ok) {
+        setPayoutBalance(json.balance || 0);
+        console.log('Set payout balance to:', json.balance || 0);
+      } else {
+        console.error('Balance API error:', json);
+      }
+    } catch (e) {
+      console.error('Failed to fetch balance:', e);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  // Fetch balance when secret key changes
+  useEffect(() => {
+    if (secretKey) {
+      fetchBalance();
+    }
+  }, [secretKey]);
 
   if (authLoading) {
     return (
@@ -65,7 +96,7 @@ export default function PayoutDemoPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/vendor/payouts', {
+      const res = await fetch('/api/instant-payout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,8 +120,10 @@ export default function PayoutDemoPage() {
         return;
       }
 
-      setSuccessMessage(data?.data?.message || data?.message || 'Payout pending');
+      setSuccessMessage(data?.data?.message || data?.message || 'Payout created successfully!');
       setCreatedPayout(data?.data?.payout || data?.payout || null);
+      // Refresh balance after successful payout
+      fetchBalance();
     } catch (err: any) {
       setError('Network error while creating payout');
     } finally {
@@ -109,6 +142,27 @@ export default function PayoutDemoPage() {
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <h2 className="text-xl font-semibold mb-4">Payout</h2>
           <p className="text-gray-600 mb-4">Create a payout to bank account or UPI ID.</p>
+          
+          {/* Balance Display */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Available Balance:</span>
+              <div className="flex items-center gap-2">
+                {balanceLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                ) : (
+                  <span className="text-lg font-bold text-indigo-600">₹{payoutBalance.toLocaleString()}</span>
+                )}
+                <button 
+                  onClick={fetchBalance} 
+                  className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                  disabled={balanceLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -153,7 +153,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        vendor_id: vendor.id,
         vendor_code: vendor.vendor_code,
         business_name: vendor.business_name,
         upi_id: vendor.upi_id,

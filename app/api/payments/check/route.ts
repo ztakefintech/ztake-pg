@@ -60,7 +60,7 @@ async function handler(req: NextRequest) {
     // Find payment by UTR and vendor_code only (order_id may not exist yet)
     const payment = await db.get(
       `SELECT p.id, p.order_id, p.utr, p.amount, p.status, p.payment_status, p.checked_status, p.checked_at, p.created_at, p.updated_at,
-              v.id as vendor_id, v.vendor_code, v.business_name, v.contact_name, v.upi_id
+              v.vendor_code, v.business_name, v.contact_name, v.upi_id
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
        WHERE p.utr = ? AND v.vendor_code = ?`,
@@ -72,11 +72,21 @@ async function handler(req: NextRequest) {
       return createErrorResponse('Payment not found for this vendor', 404);
     }
 
-    console.log(`[PAYMENTS-CHECK] Payment found for vendor ID: ${payment.vendor_id}`);
+    // Get vendor_id separately for verification
+    const paymentWithVendor = await db.get(
+      `SELECT p.vendor_id FROM payments p JOIN vendors v ON p.vendor_id = v.id WHERE p.utr = ? AND v.vendor_code = ?`,
+      [sanitizedData.utr, sanitizedData.vendor_code]
+    );
+
+    if (!paymentWithVendor) {
+      return createErrorResponse('Payment not found for this vendor', 404);
+    }
+
+    console.log(`[PAYMENTS-CHECK] Payment found for vendor ID: ${paymentWithVendor.vendor_id}`);
 
     // Verify that the API key belongs to the same vendor
-    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== payment.vendor_id) {
-      console.log(`[PAYMENTS-CHECK] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but payment belongs to vendor ${payment.vendor_id}`);
+    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== paymentWithVendor.vendor_id) {
+      console.log(`[PAYMENTS-CHECK] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but payment belongs to vendor ${paymentWithVendor.vendor_id}`);
       return NextResponse.json({ 
         error: 'API key and vendor code mismatch.',
         details: 'The provided API key does not belong to the specified vendor'
@@ -90,7 +100,7 @@ async function handler(req: NextRequest) {
       console.log(`[PAYMENTS-CHECK] Allowing API key without vendor association to proceed`);
     }
 
-    console.log(`[PAYMENTS-CHECK] Authentication successful for vendor ${payment.vendor_id}`);
+    console.log(`[PAYMENTS-CHECK] Authentication successful for vendor ${paymentWithVendor.vendor_id}`);
 
     // Check if UTR has already been checked
     if (payment.checked_status) {
@@ -107,7 +117,6 @@ async function handler(req: NextRequest) {
           created_at: payment.created_at,
           updated_at: payment.updated_at,
           vendor: {
-            id: payment.vendor_id,
             business_name: payment.business_name,
             contact_name: payment.contact_name,
             upi_id: payment.upi_id
@@ -132,7 +141,6 @@ async function handler(req: NextRequest) {
           created_at: payment.created_at,
           updated_at: payment.updated_at,
           vendor: {
-            id: payment.vendor_id,
             business_name: payment.business_name,
             contact_name: payment.contact_name,
             upi_id: payment.upi_id
@@ -147,17 +155,17 @@ async function handler(req: NextRequest) {
       `UPDATE payments 
        SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
        WHERE utr = ? AND vendor_id = ? AND payment_status = 'Succeeded' AND checked_status = FALSE`,
-      [sanitizedData.order_id, sanitizedData.utr, payment.vendor_id]
+      [sanitizedData.order_id, sanitizedData.utr, paymentWithVendor.vendor_id]
     );
 
     // Fetch updated payment data
     const updatedPayment = await db.get(
       `SELECT p.id, p.order_id, p.utr, p.amount, p.status, p.payment_status, p.checked_status, p.checked_at, p.created_at, p.updated_at,
-              v.id as vendor_id, v.business_name, v.contact_name, v.upi_id
+              v.business_name, v.contact_name, v.upi_id
        FROM payments p
        JOIN vendors v ON p.vendor_id = v.id
        WHERE p.utr = ? AND p.vendor_id = ?`,
-      [sanitizedData.utr, sanitizedData.vendor_id]
+      [sanitizedData.utr, paymentWithVendor.vendor_id]
     );
 
     // Emit payment checked event via WebSocket
@@ -166,7 +174,7 @@ async function handler(req: NextRequest) {
       type: 'payment_status_changed',
       payload: {
         id: updatedPayment.id,
-        vendorId: updatedPayment.vendor_id,
+        vendorId: paymentWithVendor.vendor_id,
         businessName: updatedPayment.business_name,
         contactName: updatedPayment.contact_name,
         upiId: updatedPayment.upi_id,
@@ -183,7 +191,7 @@ async function handler(req: NextRequest) {
     
     eventStore.emit(event);
     console.log('Payment checked event emitted:', event);
-    console.log(`[PAYMENTS-CHECK] Successfully checked payment ${updatedPayment.id} for vendor ${payment.vendor_id}`);
+    console.log(`[PAYMENTS-CHECK] Successfully checked payment ${updatedPayment.id} for vendor ${paymentWithVendor.vendor_id}`);
 
     return createApiResponse({
       payment: {
@@ -197,12 +205,11 @@ async function handler(req: NextRequest) {
         checked_at: updatedPayment.checked_at,
         created_at: updatedPayment.created_at,
         updated_at: updatedPayment.updated_at,
-        vendor: {
-          id: updatedPayment.vendor_id,
-          business_name: updatedPayment.business_name,
-          contact_name: updatedPayment.contact_name,
-          upi_id: updatedPayment.upi_id
-        }
+          vendor: {
+            business_name: updatedPayment.business_name,
+            contact_name: updatedPayment.contact_name,
+            upi_id: updatedPayment.upi_id
+          }
       },
       message: 'UTR checked successfully'
     });
