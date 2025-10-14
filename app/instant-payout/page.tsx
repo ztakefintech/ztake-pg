@@ -154,30 +154,6 @@ export default function DemoPage() {
     }
   };
 
-  const createTestPayment = async () => {
-    setPayinErr(''); setPayinMsg('');
-    if (!utr.trim()) { setPayinErr('Enter UTR first'); return; }
-    if (!secretKey) { setPayinErr('Enter secret key'); return; }
-    try {
-      const res = await fetch('/api/instant-test-payment', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${secretKey}`
-        },
-        body: JSON.stringify({
-          utr: utr.trim(),
-          amount: Number(amount) || 1000,
-          order_id: orderId || null
-        })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to create test payment');
-      setPayinMsg(`Test payment created for UTR: ${utr.trim()}`);
-    } catch (e: any) {
-      setPayinErr(e.message || 'Error creating test payment');
-    }
-  };
 
   const fetchBalance = async () => {
     if (!secretKey) return;
@@ -364,9 +340,7 @@ export default function DemoPage() {
                 Create Order
               </button>
               <button onClick={submitUtr} className="bg-blue-600 text-white px-4 py-2 rounded">Submit UTR</button>
-              <button onClick={createTestPayment} className="bg-green-600 text-white px-4 py-2 rounded" disabled={!secretKey || !utr.trim()}>
-                Create Test Payment
-              </button>
+           
             </div>
             {secretKey && (
               <div className="mt-2 text-xs text-gray-600">

@@ -140,7 +140,6 @@
   "merchantOrderId": "ORD12345",
   "ztakeOrderId": "ZTKXXXXXX",
   "paymentUrl": "https://your-domain/orders/ZTKXXXXXX",
-  "vendorId": 2,
   "vendorCode": "AA4563",
   "authMethod": "api_key_vendor_code"
 }</pre>
@@ -437,7 +436,6 @@
         "payload": {
           "type": "payout_status_changed",
           "payoutId": 123,
-          "vendorId": 456,
           "amount": 1000,
           "status": "approved",
           "timestamp": "2024-01-01T00:00:00Z"
@@ -455,7 +453,6 @@
     <pre>{
   "type": "payout_status_changed",
   "payoutId": 123,
-  "vendorId": 456,
   "amount": 1000,
   "status": "approved",
 }</pre>
@@ -561,7 +558,6 @@
   -d '{
     "type": "payout_status_changed",
     "payoutId": 123,
-    "vendorId": 456,
     "amount": 1000,
     "status": "approved",
   }'</pre>
