@@ -43,12 +43,14 @@ interface User {
   contact_name: string;
   phone: string;
   upi_id: string;
+  website?: string;
   payout_balance?: number;
   payout_recharge_bank_name?: string | null;
   payout_recharge_account_number?: string | null;
   payout_recharge_account_holder?: string | null;
   payout_recharge_ifsc?: string | null;
   is_approved?: boolean;
+  kyc_status?: 'pending' | 'verified' | 'rejected';
   google_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -1220,8 +1222,10 @@ export default function AdminDashboard() {
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UPI ID</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KYC</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -1245,6 +1249,13 @@ export default function AdminDashboard() {
                           {user.email}
                         </div>
                       </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-blue-600">
+                        {user.website ? (
+                          <a href={user.website} target="_blank" rel="noreferrer" className="underline truncate inline-block max-w-40" title={user.website}>
+                            {user.website}
+                          </a>
+                        ) : '—'}
+                      </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="max-w-32 truncate" title={user.upi_id}>
                           {user.upi_id}
@@ -1265,6 +1276,15 @@ export default function AdminDashboard() {
                             Google ID: {user.google_id.substring(0, 8)}...
                           </div>
                         )}
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.kyc_status === 'verified' ? 'bg-green-100 text-green-800' :
+                          user.kyc_status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {user.kyc_status ? user.kyc_status.charAt(0).toUpperCase() + user.kyc_status.slice(1) : 'Pending'}
+                        </span>
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                         ₹{Number(user.payout_balance || 0).toFixed(2)}
@@ -1291,6 +1311,27 @@ export default function AdminDashboard() {
                                 Reject
                               </button>
                             )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <label className="text-xs text-gray-500">KYC:</label>
+                              <select
+                                className="border rounded px-2 py-0.5 text-xs"
+                                value={user.kyc_status || 'pending'}
+                                onChange={(e) => {
+                                  const val = e.target.value as 'pending'|'verified'|'rejected';
+                                  fetch('/api/admin/users', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: user.id, kyc_status: val })
+                                  }).then(res => {
+                                    if (res.ok) setUsers(users.map(u => u.id === user.id ? { ...u, kyc_status: val } : u));
+                                  }).catch(() => {});
+                                }}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="verified">Verified</option>
+                                <option value="rejected">Rejected</option>
+                              </select>
+                            </div>
                             <button
                               onClick={() => openEditRecharge(user)}
                               className="text-indigo-600 hover:text-indigo-900 text-xs px-1 py-0.5 bg-indigo-50 hover:bg-indigo-100 rounded"

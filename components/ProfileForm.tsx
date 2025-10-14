@@ -25,6 +25,7 @@ export default function ProfileForm() {
     business_name: '',
     contact_name: '',
     phone: '',
+    website: '',
     upi_id: '',
     bank_name: '',
     bank_account_number: '',
@@ -42,6 +43,7 @@ export default function ProfileForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [kycStatus, setKycStatus] = useState<'pending' | 'verified' | 'rejected'>('pending');
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [qrError, setQrError] = useState('');
@@ -86,6 +88,7 @@ export default function ProfileForm() {
           business_name: data.vendor.business_name || '',
           contact_name: data.vendor.contact_name || '',
           phone: data.vendor.phone || '',
+          website: data.vendor.website || '',
           upi_id: data.vendor.upi_id || '',
           bank_name: data.vendor.bank_name || '',
           bank_account_number: data.vendor.bank_account_number || '',
@@ -99,6 +102,7 @@ export default function ProfileForm() {
           cashfree_payout_client_secret: data.vendor.cashfree_payout_client_secret || '',
           cashfree_env: data.vendor.cashfree_env || 'sandbox'
         });
+        setKycStatus((data.vendor.kyc_status || 'pending').toLowerCase());
       } else {
         setError('Failed to load profile');
       }
@@ -357,14 +361,20 @@ export default function ProfileForm() {
             </div>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-700"><FiGlobe className="text-gray-400" /><span className="truncate">https://ztake.com</span></div>
+            <div className="flex items-center gap-2 text-gray-700"><FiGlobe className="text-gray-400" /><span className="truncate">{formData.website || '—'}</span></div>
             <div className="flex items-center gap-2 text-gray-700"><FiMail className="text-gray-400" /><span className="truncate">{vendor?.email}</span></div>
             <div className="flex items-center gap-2 text-gray-700"><FiPhone className="text-gray-400" /><span>{formData.phone || '—'}</span></div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-gray-700"><FiShield className="text-gray-400" /><span>{formData.business_name || 'Business'}</span></div>
             <div className="flex items-center gap-2 text-gray-700">
-              <span className="text-xs bg-gray-100 px-2 py-1 rounded">KYC Pending</span>
+              <span className={`text-xs px-2 py-1 rounded ${
+                kycStatus === 'verified' ? 'bg-green-100 text-green-800' :
+                kycStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>
+                KYC {kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)}
+              </span>
             </div>
           </div>
         </div>
@@ -389,6 +399,15 @@ export default function ProfileForm() {
                     <FiUser className="h-5 w-5 text-gray-400" />
                   </div>
                   <input id="business_name" name="business_name" type="text" required className="input-field pl-10" placeholder="Enter your business name" value={formData.business_name} onChange={handleChange} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="website" className="form-label">Website (for verification)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiGlobe className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input id="website" name="website" type="url" className="input-field pl-10" placeholder="https://your-business.com" value={formData.website} onChange={handleChange} />
                 </div>
               </div>
               <div className="form-group">

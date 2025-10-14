@@ -28,6 +28,8 @@ export const GET = requirePermission('view_users')(async (request: NextRequest) 
             contact_name,
             phone,
             upi_id,
+            website,
+            kyc_status,
             payout_balance,
             payout_recharge_bank_name,
             payout_recharge_account_number,
@@ -49,6 +51,8 @@ export const GET = requirePermission('view_users')(async (request: NextRequest) 
             contact_name,
             phone,
             upi_id,
+            website,
+            kyc_status,
             payout_balance,
             payout_recharge_bank_name,
             payout_recharge_account_number,
@@ -81,7 +85,8 @@ export const PATCH = requirePermission('manage_users')(async (request: NextReque
       payout_recharge_account_number, 
       payout_recharge_account_holder, 
       payout_recharge_ifsc,
-      is_approved 
+      is_approved,
+      kyc_status 
     } = body || {};
     
     if (!id) {
@@ -115,6 +120,11 @@ export const PATCH = requirePermission('manage_users')(async (request: NextReque
     if (is_approved !== undefined) {
       updates.push('is_approved = ?');
       values.push(is_approved);
+    }
+
+    if (kyc_status !== undefined) {
+      updates.push('kyc_status = ?');
+      values.push(String(kyc_status));
     }
     
     if (updates.length === 0) {

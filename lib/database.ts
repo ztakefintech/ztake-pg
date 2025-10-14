@@ -298,6 +298,13 @@ class Database {
         ADD COLUMN IF NOT EXISTS payout_webhook_url TEXT
       `);
 
+      // Add website and KYC status columns to vendors
+      await client.query(`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS website TEXT,
+        ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(16) DEFAULT 'pending'
+      `);
+
       // Vendor IP allowlist table
       await client.query(`
         CREATE TABLE IF NOT EXISTS vendor_ips (

@@ -130,6 +130,7 @@ export const updateVendorProfileSchema = Joi.object({
   business_name: Joi.string().min(2).max(100).pattern(/^[a-zA-Z0-9\s&.,-]+$/).optional(),
   contact_name: Joi.string().min(2).max(100).pattern(/^[a-zA-Z\s.]+$/).optional(),
   phone: Joi.string().pattern(PHONE_PATTERN).optional(),
+  website: Joi.string().uri({ scheme: [/https?/] }).max(512).optional().allow(''),
   upi_id: Joi.string().pattern(UPI_PATTERN).max(255).optional(),
   bank_name: Joi.string().min(2).max(255).pattern(/^[a-zA-Z0-9\s&.,-]+$/).optional().allow(''),
   bank_account_number: Joi.string().pattern(BANK_ACCOUNT_PATTERN).optional().allow(''),

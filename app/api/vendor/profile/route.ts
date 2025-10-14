@@ -10,7 +10,7 @@ export const revalidate = 0;
 async function getProfile(req: AuthenticatedRequest) {
   try {
     const vendor = await db.get(
-      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, created_at FROM vendors WHERE id = ?',
+      'SELECT id, email, business_name, contact_name, phone, website, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, kyc_status, created_at FROM vendors WHERE id = ?',
       [req.vendor!.id]
     );
 
@@ -25,6 +25,7 @@ async function getProfile(req: AuthenticatedRequest) {
         business_name: vendor.business_name,
         contact_name: vendor.contact_name,
         phone: vendor.phone,
+        website: vendor.website,
         upi_id: vendor.upi_id,
         bank_name: vendor.bank_name,
         bank_account_number: vendor.bank_account_number,
@@ -33,6 +34,7 @@ async function getProfile(req: AuthenticatedRequest) {
         bot_token: vendor.bot_token,
         chat_id: vendor.chat_id,
         vendor_code: vendor.vendor_code,
+        kyc_status: vendor.kyc_status,
         created_at: vendor.created_at
       }
     });
@@ -72,7 +74,7 @@ async function updateProfile(req: AuthenticatedRequest) {
 
     // Fetch updated vendor data
     const updatedVendor = await db.get(
-      'SELECT id, email, business_name, contact_name, phone, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env, updated_at FROM vendors WHERE id = ?',
+      'SELECT id, email, business_name, contact_name, phone, website, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, cashfree_app_id, cashfree_secret_key, cashfree_payout_client_id, cashfree_payout_client_secret, cashfree_env, kyc_status, updated_at FROM vendors WHERE id = ?',
       [req.vendor!.id]
     );
 
