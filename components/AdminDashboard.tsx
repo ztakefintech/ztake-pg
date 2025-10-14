@@ -351,20 +351,42 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-4 py-2 text-sm font-mono">{r.vendor_code}</td>
                     <td className="px-4 py-2 text-right">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await onApprove(r);
-                            await load();
-                            alert('Approved and resubmitted');
-                          } catch (e: any) {
-                            alert(e.message || 'Approve failed');
-                          }
-                        }}
-                        className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md"
-                      >
-                        Approve
-                      </button>
+                      <div className="inline-flex gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await onApprove(r);
+                              await load();
+                              alert('Approved and resubmitted');
+                            } catch (e: any) {
+                              alert(e.message || 'Approve failed');
+                            }
+                          }}
+                          className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/admin/submit-utr`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ utr: r.utr, amount: r.amount, vendor_code: r.vendor_code, action: 'reject' })
+                              });
+                              const j = await res.json().catch(() => ({}));
+                              if (!res.ok) throw new Error(j?.error || 'Reject failed');
+                              await load();
+                              alert('UTR rejected');
+                            } catch (e: any) {
+                              alert(e.message || 'Reject failed');
+                            }
+                          }}
+                          className="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md"
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -875,6 +897,7 @@ export default function AdminDashboard() {
       ...(hasPermission('view_payments') ? [{ id: 'payments', name: 'Payments' }] : []),
       ...(hasPermission('manage_payin') ? [{ id: 'utrSubmit', name: 'UTR Submit' }] : []),
       ...(hasPermission('view_payouts') ? [{ id: 'payouts', name: 'Payouts' }] : []),
+      ...(hasPermission('view_payouts') ? [{ id: 'recharges', name: 'Recharges' }] : []),
       ...(hasPermission('view_settlements') ? [{ id: 'settlements', name: 'Settlements' }] : []),
       ...(hasPermission('manage_admins') ? [{ id: 'admins', name: 'Admin Users' }] : [])
     ];
@@ -1489,14 +1512,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Recharge Requests */}
-            <div className="border rounded-md">
-              <div className="flex items-center justify-between px-3 py-2 border-b">
-                <div className="font-medium">Recharge Requests</div>
-                <button onClick={() => loadPayouts(payoutStatusFilter)} className="text-sm text-indigo-600 hover:underline">Refresh</button>
-              </div>
-              <AdminRechargeRequests />
-            </div>
+            {/* Recharges removed from Payouts; now a separate tab */}
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -1599,6 +1615,19 @@ export default function AdminDashboard() {
                 <div className="p-6 text-center text-sm text-gray-500">No payouts found.</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recharges Tab */}
+      {activeTab === 'recharges' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Recharge Requests</h3>
+              <button onClick={() => window.dispatchEvent(new CustomEvent('rechargeEvent', { detail: { type: 'manual_refresh' } }))} className="text-sm text-indigo-600 hover:underline">Refresh</button>
+            </div>
+            <AdminRechargeRequests />
           </div>
         </div>
       )}
