@@ -195,6 +195,10 @@ class Database {
         ADD COLUMN IF NOT EXISTS checked_status BOOLEAN DEFAULT FALSE,
         ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP
       `);
+      // Ensure UTR on orders is unique when present
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS orders_utr_key ON orders(utr) WHERE utr IS NOT NULL
+      `);
       await client.query(`
         DO $$
         BEGIN
@@ -376,6 +380,10 @@ class Database {
       await client.query(`
         ALTER TABLE payout_recharges 
         ADD COLUMN IF NOT EXISTS utr VARCHAR(64)
+      `);
+      // Ensure UTR on payout_recharges is unique when present
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS payout_recharges_utr_key ON payout_recharges(utr) WHERE utr IS NOT NULL
       `);
 
       // Create settlements table
