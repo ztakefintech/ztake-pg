@@ -84,6 +84,18 @@ export async function POST(
 
     console.log(`[SUBMIT-UTR] Authentication successful for order ${params.qpayOrderId}`);
 
+    // Prevent duplicate UTR across different orders
+    const existingWithSameUtr = await db.get(
+      `SELECT ztake_order_id FROM orders WHERE utr = ? AND ztake_order_id <> ?`,
+      [utr, params.qpayOrderId]
+    );
+    if (existingWithSameUtr) {
+      return NextResponse.json({ 
+        error: 'UTR already used for another order', 
+        code: 'UTR_ALREADY_USED' 
+      }, { status: 409 });
+    }
+
     // Always accept UTR: set order status to 'Pending' and send Pending callback
     await db.run(
       `UPDATE orders SET utr = ?, status = 'Pending', updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
