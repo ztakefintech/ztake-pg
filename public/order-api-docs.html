@@ -241,7 +241,7 @@
 
     <h2>6) Vendor Payouts API</h2>
     
-    <p>Create payout requests (UPI or Bank) and list your payout history. Requires API key + vendor code authentication: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>.</p>
+    <p>Create payout requests (Bank only) and list your payout history. Requires API key + vendor code authentication: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>.</p>
 
     <div class="new-feature">
         <strong>🆕 Security Update:</strong> Payouts now require API key + vendor code authentication for enhanced security.
@@ -258,11 +258,9 @@
   "amount": 1500.00,
   "currency": "INR",
   "beneficiary_name": "Jane Doe",
-  // Option A: Bank transfer
+  // Bank transfer
   "beneficiary_account": "1234567890",
   "beneficiary_ifsc": "HDFC0001234",
-  // Option B: UPI transfer (use either bank OR UPI)
-  // "beneficiary_upi": "jane@upi",
   "reference_id": "PYT13947473",
   "remarks": "Vendor settlement",
   "vendorCode": "AA4563"  // REQUIRED - must match API key vendor
@@ -280,7 +278,6 @@
       "beneficiary_name": "Jane Doe",
       "beneficiary_account": "1234567890",
       "beneficiary_ifsc": "HDFC0001234",
-      "beneficiary_upi": null,
       "reference_id": "PYT13947473",
       "remarks": "Vendor settlement",
       "status": "created",
@@ -341,7 +338,6 @@
   "data": {
     "vendor_code": "AA4563",
     "business_name": "My Store",
-    "upi_id": "mystore@paytm",
     "bank_name": "HDFC Bank",
     "bank_account_number": "1234567890",
     "bank_account_holder": "My Store",
@@ -400,12 +396,11 @@
     "payment_status": "Succeeded",
     "checked_status": true,
     "checked_at": "2025-01-01T12:00:00.000Z",
-    "vendor": {
-      "id": 456,
-      "business_name": "Example Business",
-      "contact_name": "John Doe",
-      "upi_id": "business@upi"
-    }
+      "vendor": {
+        "id": 456,
+        "business_name": "Example Business",
+        "contact_name": "John Doe"
+      }
   },
   "message": "UTR checked successfully"
 }</pre>
