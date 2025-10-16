@@ -3,6 +3,7 @@ import { db } from '@/lib/database'
 import { requirePermission } from '@/lib/admin-middleware'
 import { eventStore } from '@/lib/event-store'
 import { demoCallbackStore } from '@/lib/callback-store'
+import { sendTelegramAdminAlert } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -63,6 +64,16 @@ export const POST = requirePermission('manage_payin')(async (req: NextRequest) =
         timestamp: new Date()
       }
       eventStore.emit(event)
+
+      // Telegram alert (HTML)
+      const rejectAlert = [
+        '<b>🔔 Pay-in UTR Rejected</b>',
+        `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+        `• Amount: ₹${order.amount}`,
+        `• UTR: ${utr}`,
+        `• Status: Failed`
+      ].join('\n')
+      sendTelegramAdminAlert(rejectAlert, vendor.id).catch(() => {})
       demoCallbackStore.append(`vendor-${vendor.vendor_code}`, {
         type: 'payment_status_changed',
         utr,
@@ -110,6 +121,16 @@ export const POST = requirePermission('manage_payin')(async (req: NextRequest) =
       timestamp: new Date()
     }
     eventStore.emit(event)
+
+    // Telegram alert (HTML)
+    const approveAlert = [
+      '<b>🔔 Pay-in UTR Approved</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${finalOrder?.amount ?? order.amount}`,
+      `• UTR: ${utr}`,
+      `• Status: Succeeded`
+    ].join('\n')
+    sendTelegramAdminAlert(approveAlert, vendor.id).catch(() => {})
     demoCallbackStore.append(`vendor-${vendor.vendor_code}`, {
       type: 'payment_status_changed',
       utr,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { eventStore } from '@/lib/event-store';
 import { demoCallbackStore } from '@/lib/callback-store';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -135,6 +136,19 @@ export async function POST(
     eventStore.emit(pendingEvent);
     console.log('Order status changed to Pending event emitted:', pendingEvent);
 
+    // Telegram alert for UTR submission (Pending)
+    const pendingAlert = [
+      '<b>🔔 Pay-in UTR Submitted</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${order.amount} ${order.currency}`,
+      `• Customer: ${order.customer_name}`,
+      `• Merchant Order ID: ${order.merchant_order_id}`,
+      `• Ztake Order ID: ${params.orderId}`,
+      `• UTR: ${utr}`,
+      `• Status: Pending`
+    ].join('\n');
+    sendTelegramAdminAlert(pendingAlert, vendor.id).catch(() => {});
+
     // Store callback for demo purposes (Pending status)
     if (order.callback_url) {
       demoCallbackStore.append(callbackToken, {
@@ -200,6 +214,19 @@ export async function POST(
         
         eventStore.emit(succeededEvent);
         console.log('Order succeeded event emitted:', succeededEvent);
+
+        // Telegram alert for verified success
+        const successAlert = [
+          '<b>🔔 Pay-in Payment Succeeded</b>',
+          `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+          `• Amount: ₹${payment.amount} ${order.currency}`,
+          `• Customer: ${order.customer_name}`,
+          `• Merchant Order ID: ${order.merchant_order_id}`,
+          `• Ztake Order ID: ${params.orderId}`,
+          `• UTR: ${utr}`,
+          `• Status: Succeeded`
+        ].join('\n');
+        sendTelegramAdminAlert(successAlert, vendor.id).catch(() => {});
 
         // Store callback for demo purposes (Succeeded status)
         if (order.callback_url) {

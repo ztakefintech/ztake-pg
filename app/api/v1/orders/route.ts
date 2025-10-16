@@ -6,6 +6,7 @@ import { createOrderSchema, validateRequest, validateBusinessRules, sanitizeInpu
 import { withRateLimit } from '@/lib/middleware';
 import { orderCreationRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 function generateztakeOrderId(): string {
   const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -117,6 +118,18 @@ async function createOrder(req: NextRequest) {
     );
 
     console.log(`[ORDER] Successfully created order ${ztakeOrderId} for vendor ${vendorId} using API key + vendor code authentication`);
+
+    // Telegram alert for admin (HTML)
+    const alert = [
+      '<b>🔔 New Pay-in Order Created</b>',
+      `• Vendor ID: ${vendorId}`,
+      `• Amount: ₹${amount} ${currency}`,
+      `• Customer: ${customerName}`,
+      `• Merchant Order ID: ${merchantOrderId}`,
+      `• Ztake Order ID: ${ztakeOrderId}`,
+      `• Action: Awaiting payment`
+    ].join('\n');
+    sendTelegramAdminAlert(alert, vendorId || undefined).catch(() => {});
 
     // Get vendor code for response
     let vendorCode: string | null = null;

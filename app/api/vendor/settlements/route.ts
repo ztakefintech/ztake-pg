@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/middleware';
 import { db } from '@/lib/database';
 import { eventStore } from '@/lib/event-store';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 export const POST = withAuth(async (req: NextRequest) => {
   try {
@@ -104,6 +105,17 @@ export const POST = withAuth(async (req: NextRequest) => {
     
     eventStore.emit(event);
     console.log('Settlement created event emitted:', event);
+
+    // Telegram alert for admin (HTML)
+    const alert = [
+      '<b>🔔 New Settlement Request</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${amount}`,
+      `• Fee: ${feePercent}% (₹${feeAmount})`,
+      `• Net: ₹${netAmount}`,
+      `• Status: pending`
+    ].join('\n');
+    sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
     return NextResponse.json({
       success: true,

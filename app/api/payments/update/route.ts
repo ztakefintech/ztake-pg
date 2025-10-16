@@ -7,6 +7,7 @@ import { withRateLimit } from '@/lib/middleware';
 import { paymentUpdateRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
 import { eventStore } from '@/lib/event-store';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 async function handler(req: AuthenticatedRequest) {
   if (req.method !== 'POST') {
@@ -151,6 +152,16 @@ async function handler(req: AuthenticatedRequest) {
     
     eventStore.emit(event);
     console.log('Payment event emitted:', event);
+
+    // Telegram alert (HTML) on UTR submission
+    const payinAlert = [
+      '<b>🔔 Pay-in UTR Submitted</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${Number(sanitizedData.amount)}`,
+      `• UTR: ${sanitizedData.utr}`,
+      `• Status: ${paymentStatus}`
+    ].join('\n');
+    sendTelegramAdminAlert(payinAlert, vendor.id).catch(() => {});
 
     return createApiResponse({
       message: 'Payment updated successfully',

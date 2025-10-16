@@ -8,6 +8,7 @@ import { createPayoutSchema, validateRequest, validateBusinessRules, sanitizeInp
 import { withRateLimit } from '@/lib/middleware';
 import { payoutCreationRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -319,6 +320,20 @@ async function createPayout(req: NextRequest) {
     eventStore.emit(event);
     console.log('Payout created event emitted:', event);
     console.log(`[CREATE-PAYOUT] Successfully created payout ${result.lastID} for vendor ${vendor.id} with amount ${amt}`);
+
+    // Telegram alert for admin (HTML)
+    const alert = [
+      '<b>🔔 New Payout Request</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${amt} ${currency}`,
+      beneficiary_name ? `• Beneficiary: ${beneficiary_name}` : undefined,
+      beneficiary_account ? `• Account: ${beneficiary_account}` : undefined,
+      beneficiary_upi ? `• UPI: ${beneficiary_upi}` : undefined,
+      `• Ref: ${payoutReferenceId}`,
+      remarks ? `• Remarks: ${remarks}` : undefined,
+      `• Status: created`
+    ].filter(Boolean).join('\n');
+    sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
     // Also send to callback store for demo purposes
     const callbackToken = `vendor-${vendor.vendor_code || vendor.id}`;

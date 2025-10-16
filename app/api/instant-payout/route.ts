@@ -7,6 +7,7 @@ import { validateRequest, validateBusinessRules, sanitizeInput } from '@/lib/val
 import { withRateLimit } from '@/lib/middleware';
 import { payoutCreationRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 import Joi from 'joi';
 
 export const dynamic = 'force-dynamic';
@@ -199,6 +200,20 @@ async function createInstantPayout(req: NextRequest) {
     
     eventStore.emit(event);
     console.log('Payout created event emitted:', event);
+
+    // Telegram alert for admin (HTML)
+    const alert = [
+      '<b>🔔 New Instant Payout Request</b>',
+      `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+      `• Amount: ₹${amt} ${currency}`,
+      beneficiary_name ? `• Beneficiary: ${beneficiary_name}` : undefined,
+      beneficiary_account ? `• Account: ${beneficiary_account}` : undefined,
+      beneficiary_upi ? `• UPI: ${beneficiary_upi}` : undefined,
+      `• Ref: ${payoutReferenceId}`,
+      remarks ? `• Remarks: ${remarks}` : undefined,
+      `• Status: created`
+    ].filter(Boolean).join('\n');
+    sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
     // Store callback for demo purposes (matching main API structure)
     demoCallbackStore.append(callbackToken, {

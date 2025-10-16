@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
 import { withAuth } from '@/lib/middleware'
 import { eventStore } from '@/lib/event-store'
+import { sendTelegramAdminAlert } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -78,7 +79,7 @@ export const POST = withAuth(async (req: any) => {
   
   // Get vendor information for the event
   const vendor = await db.get(
-    `SELECT business_name, contact_name, email FROM vendors WHERE id = ?`,
+    `SELECT business_name, contact_name, email, vendor_code FROM vendors WHERE id = ?`,
     [vendorId]
   );
   
@@ -102,6 +103,18 @@ export const POST = withAuth(async (req: any) => {
   
   eventStore.emit(event);
   console.log('Recharge event emitted:', event);
+  
+  // Telegram alert for admin
+  const alert = [
+    '<b>🔔 New Payout Recharge Request</b>',
+    `• Vendor: ${vendor?.business_name} (${vendor?.vendor_code})`,
+    `• Amount: ₹${amount}`,
+    `• Fee: ${feePercent}% (${feeAmount})`,
+    `• Net Amount: ₹${netAmount}`,
+    `• UTR: ${utr}`,
+    `• Status: created`
+  ].join('\n');
+  sendTelegramAdminAlert(alert, vendorId).catch(() => {});
   
   return NextResponse.json({ success: true, message: 'Recharge request created' })
 })
