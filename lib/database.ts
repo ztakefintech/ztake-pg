@@ -370,6 +370,10 @@ class Database {
           utr VARCHAR(64),
           status VARCHAR(20) DEFAULT 'created' CHECK (status IN ('created','approved','rejected','paid')),
           admin_notes VARCHAR(255),
+          fee_percent DECIMAL(5,2),
+          fee_amount DECIMAL(12,2),
+          net_amount DECIMAL(12,2),
+          fee_note VARCHAR(64),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (vendor_id) REFERENCES vendors (id)
@@ -385,6 +389,14 @@ class Database {
       await client.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS payout_recharges_utr_key ON payout_recharges(utr) WHERE utr IS NOT NULL
       `);
+      // Ensure fee columns exist on payout_recharges
+      await client.query(`
+        ALTER TABLE payout_recharges 
+        ADD COLUMN IF NOT EXISTS fee_percent DECIMAL(5,2),
+        ADD COLUMN IF NOT EXISTS fee_amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS fee_note VARCHAR(64)
+      `);
 
       // Create settlements table
       await client.query(`
@@ -394,10 +406,22 @@ class Database {
           amount DECIMAL(12,2) NOT NULL,
           status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
           admin_notes VARCHAR(255),
+          fee_percent DECIMAL(5,2),
+          fee_amount DECIMAL(12,2),
+          net_amount DECIMAL(12,2),
+          fee_note VARCHAR(64),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (vendor_id) REFERENCES vendors (id)
         )
+      `);
+      // Ensure fee columns exist on settlements
+      await client.query(`
+        ALTER TABLE settlements 
+        ADD COLUMN IF NOT EXISTS fee_percent DECIMAL(5,2),
+        ADD COLUMN IF NOT EXISTS fee_amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS fee_note VARCHAR(64)
       `);
 
       // Create admin_users table for admin role management

@@ -91,12 +91,13 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
     const wasFinalized = existing?.status === 'approved' || existing?.status === 'paid'
     const isApproved = newStatus === 'approved' || newStatus === 'paid'
     const isRejected = newStatus === 'rejected'
+    const isFailed = newStatus === 'failed'
 
     // Held funds logic: on approval, do nothing (already held on creation). On rejection, add back held amount.
     if (!wasFinalized && existing?.vendor_id && existing?.amount != null) {
       if (isApproved) {
         // no-op: amount already deducted at creation time
-      } else if (isRejected) {
+      } else if (isRejected || isFailed) {
         await db.run(
           `UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?`,
           [Number(existing.amount), Number(existing.vendor_id)]

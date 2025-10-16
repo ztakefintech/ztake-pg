@@ -44,11 +44,12 @@ export const PATCH = requireAdmin(async (req: NextRequest) => {
     // allow editing amount and utr
     await db.run(`UPDATE payout_recharges SET status = ?, admin_notes = ?, amount = COALESCE(?, amount), utr = COALESCE(?, utr), updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [status, admin_notes || null, amount ?? null, utr ?? null, Number(id)])
 
-    // If approved/paid, credit vendor balance
+    // If approved/paid, credit vendor balance with net amount (after fee)
     if (status === 'approved' || status === 'paid') {
-      const r = await db.get(`SELECT vendor_id, amount FROM payout_recharges WHERE id = ?`, [Number(id)])
-      if (r?.vendor_id && r?.amount) {
-        await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) + ? WHERE id = ?`, [Number(r.amount), Number(r.vendor_id)])
+      const r = await db.get(`SELECT vendor_id, net_amount, amount FROM payout_recharges WHERE id = ?`, [Number(id)])
+      if (r?.vendor_id) {
+        const creditAmount = r?.net_amount != null ? Number(r.net_amount) : Number(r.amount)
+        await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) + ? WHERE id = ?`, [creditAmount, Number(r.vendor_id)])
       }
     }
 

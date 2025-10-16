@@ -45,11 +45,45 @@ export const POST = withAuth(async (req: NextRequest) => {
       return NextResponse.json({ error: 'You already have a pending settlement request' }, { status: 400 });
     }
 
-    // Create settlement request
-    const result = await db.run(
-      'INSERT INTO settlements (vendor_id, amount, status) VALUES (?, ?, ?)',
-      [vendor.id, amount, 'pending']
-    );
+    // Fee calculation for settlement (Payin settle to payout): 3.53%
+    const feePercent = 3.53; // 3.53%
+    const feeAmount = Number((Number(amount) * (feePercent / 100)).toFixed(2));
+    const netAmount = Number((Number(amount) - feeAmount).toFixed(2));
+    const feeNote = '2%+GST PAYIN SETTLE';
+
+    // Create settlement request with fee details; fallback if fee columns don't exist yet
+    let result;
+    try {
+      result = await db.run(
+        'INSERT INTO settlements (vendor_id, amount, status, fee_percent, fee_amount, net_amount, fee_note) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [vendor.id, amount, 'pending', feePercent, feeAmount, netAmount, feeNote]
+      );
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      const missingColumn = msg.includes('column') && (msg.includes('fee_percent') || msg.includes('fee_amount') || msg.includes('net_amount') || msg.includes('fee_note'));
+      if (!missingColumn) throw e;
+      // Fallback minimal insert
+      result = await db.run(
+        'INSERT INTO settlements (vendor_id, amount, status) VALUES (?, ?, ?)',
+        [vendor.id, amount, 'pending']
+      );
+      // Try to migrate and backfill
+      try {
+        await db.run(
+          `ALTER TABLE settlements 
+           ADD COLUMN IF NOT EXISTS fee_percent DECIMAL(5,2),
+           ADD COLUMN IF NOT EXISTS fee_amount DECIMAL(12,2),
+           ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12,2),
+           ADD COLUMN IF NOT EXISTS fee_note VARCHAR(64)`
+        );
+        await db.run(
+          'UPDATE settlements SET fee_percent = ?, fee_amount = ?, net_amount = ?, fee_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [feePercent, feeAmount, netAmount, feeNote, result.lastID]
+        );
+      } catch {
+        // ignore
+      }
+    }
 
     // Emit settlement created event via WebSocket
     const event = {
@@ -73,7 +107,7 @@ export const POST = withAuth(async (req: NextRequest) => {
 
     return NextResponse.json({
       success: true,
-      settlement: { id: result.lastID, vendor_id: vendor.id, amount, status: 'pending' }
+      settlement: { id: result.lastID, vendor_id: vendor.id, amount, fee_percent: feePercent, fee_amount: feeAmount, net_amount: netAmount, fee_note: feeNote, status: 'pending' }
     });
 
   } catch (error) {

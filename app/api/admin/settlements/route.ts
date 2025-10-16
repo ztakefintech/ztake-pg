@@ -77,10 +77,11 @@ export const PATCH = requirePermission('manage_settlements')(async (req: NextReq
     );
 
     if (status === 'approved') {
-      // If approved, add the amount to vendor's payout balance
+      // If approved, credit vendor payout balance with net amount (after fee)
+      const creditAmount = settlement.net_amount != null ? Number(settlement.net_amount) : Number(settlement.amount)
       await db.run(
         'UPDATE vendors SET payout_balance = payout_balance + ? WHERE id = ?',
-        [settlement.amount, settlement.vendor_id]
+        [creditAmount, settlement.vendor_id]
       );
     }
     // If rejected, no change to payout balance (settlement is cancelled)

@@ -9,7 +9,12 @@ export const revalidate = 0
 export const GET = withAuth(async (req: any) => {
   const vendorId = req.vendor!.id
   const rows = await db.all(
-    `SELECT id, amount, utr, status, admin_notes, created_at FROM payout_recharges WHERE vendor_id = ? ORDER BY created_at DESC LIMIT 100`,
+    `SELECT id, amount, utr, status, admin_notes, created_at,
+            fee_percent, fee_amount, net_amount, fee_note
+       FROM payout_recharges 
+      WHERE vendor_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 100`,
     [vendorId]
   )
   return NextResponse.json({ success: true, data: { recharges: rows } })
@@ -28,11 +33,46 @@ export const POST = withAuth(async (req: any) => {
     return NextResponse.json({ success: false, error: 'UTR is required' }, { status: 400 })
   }
   
-  // Insert recharge request
-  const result = await db.run(
-    `INSERT INTO payout_recharges (vendor_id, amount, utr, status) VALUES (?, ?, ?, 'created')`,
-    [vendorId, amount, utr]
-  )
+  // Fee calculation for payout recharge: 1.18%
+  const feePercent = 1.18; // 1.18%
+  const feeAmount = Number((amount * (feePercent / 100)).toFixed(2))
+  const netAmount = Number((amount - feeAmount).toFixed(2))
+  const feeNote = '1%+GST PAYOUT RECHARGE'
+
+  // Insert recharge request with fee details; fallback if fee columns don't exist yet
+  let result;
+  try {
+    result = await db.run(
+      `INSERT INTO payout_recharges (vendor_id, amount, utr, status, fee_percent, fee_amount, net_amount, fee_note) VALUES (?, ?, ?, 'created', ?, ?, ?, ?)`,
+      [vendorId, amount, utr, feePercent, feeAmount, netAmount, feeNote]
+    )
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    const missingColumn = msg.includes('column') && (msg.includes('fee_percent') || msg.includes('fee_amount') || msg.includes('net_amount') || msg.includes('fee_note'));
+    if (!missingColumn) throw e;
+    // Fallback insert minimal columns
+    result = await db.run(
+      `INSERT INTO payout_recharges (vendor_id, amount, utr, status) VALUES (?, ?, ?, 'created')`,
+      [vendorId, amount, utr]
+    );
+    // Best-effort add columns for future
+    try {
+      await db.run(
+        `ALTER TABLE payout_recharges 
+         ADD COLUMN IF NOT EXISTS fee_percent DECIMAL(5,2),
+         ADD COLUMN IF NOT EXISTS fee_amount DECIMAL(12,2),
+         ADD COLUMN IF NOT EXISTS net_amount DECIMAL(12,2),
+         ADD COLUMN IF NOT EXISTS fee_note VARCHAR(64)`
+      );
+      // Update the row we just inserted with computed values
+      await db.run(
+        `UPDATE payout_recharges SET fee_percent = ?, fee_amount = ?, net_amount = ?, fee_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [feePercent, feeAmount, netAmount, feeNote, result.lastID]
+      );
+    } catch {
+      // ignore; table will be migrated on next init
+    }
+  }
   
   const rechargeId = result.lastID;
   

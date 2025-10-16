@@ -11,6 +11,10 @@ interface SettlementRecord {
   status: string;
   admin_notes?: string;
   created_at: string;
+  fee_percent?: number;
+  fee_amount?: number;
+  net_amount?: number;
+  fee_note?: string;
 }
 
 interface RechargeRecord {
@@ -19,6 +23,10 @@ interface RechargeRecord {
   utr?: string | null;
   status: string;
   created_at: string;
+  fee_percent?: number;
+  fee_amount?: number;
+  net_amount?: number;
+  fee_note?: string;
 }
 
 export default function SettlementPage() {
@@ -53,7 +61,11 @@ export default function SettlementPage() {
           amount: Number(s.amount),
           status: s.status,
           admin_notes: s.admin_notes,
-          created_at: s.created_at
+          created_at: s.created_at,
+          fee_percent: s.fee_percent != null ? Number(s.fee_percent) : undefined,
+          fee_amount: s.fee_amount != null ? Number(s.fee_amount) : undefined,
+          net_amount: s.net_amount != null ? Number(s.net_amount) : undefined,
+          fee_note: s.fee_note || undefined
         }));
         
         // Sort by date (newest first)
@@ -70,7 +82,11 @@ export default function SettlementPage() {
           amount: Number(r.amount),
           utr: r.utr,
           status: r.status,
-          created_at: r.created_at
+          created_at: r.created_at,
+          fee_percent: r.fee_percent != null ? Number(r.fee_percent) : undefined,
+          fee_amount: r.fee_amount != null ? Number(r.fee_amount) : undefined,
+          net_amount: r.net_amount != null ? Number(r.net_amount) : undefined,
+          fee_note: r.fee_note || undefined
         }));
         rechargeRecords.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setRecharges(rechargeRecords);
@@ -165,6 +181,14 @@ export default function SettlementPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Settlement History</h1>
             <p className="text-gray-600">Track settlements and payout recharges</p>
+            <div className="mt-2 space-y-2">
+              <div className="text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 inline-block">
+                <span className="font-semibold">2%+GST PAYIN SETTLE</span> — Effective fee shown as 3.53% deduction.
+              </div>
+              <div className="text-xs text-gray-700 bg-blue-50 border border-blue-200 rounded px-3 py-2 inline-block ml-2">
+                <span className="font-semibold">1%+GST PAYOUT RECHARGE</span> — Effective fee shown as 1.18% deduction.
+              </div>
+            </div>
           </div>
           <button
             onClick={loadSettlementHistory}
@@ -221,6 +245,8 @@ export default function SettlementPage() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Notes</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -234,6 +260,18 @@ export default function SettlementPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {formatCurrency(record.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {record.fee_amount != null
+                            ? (
+                              <span title={record.fee_percent != null ? `${record.fee_percent}%${record.fee_note ? ` • ${record.fee_note}` : ''}` : (record.fee_note || '')}>
+                                {formatCurrency(record.fee_amount)}
+                              </span>
+                            )
+                            : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {record.net_amount != null ? formatCurrency(record.net_amount) : (record.fee_amount != null ? formatCurrency(record.amount - (record.fee_amount || 0)) : '-')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -278,6 +316,8 @@ export default function SettlementPage() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UTR</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -288,6 +328,18 @@ export default function SettlementPage() {
                       <tr key={r.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{r.id}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(r.amount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {r.fee_amount != null
+                            ? (
+                              <span title={r.fee_percent != null ? `${r.fee_percent}%${r.fee_note ? ` • ${r.fee_note}` : ''}` : (r.fee_note || '')}>
+                                {formatCurrency(r.fee_amount)}
+                              </span>
+                            )
+                            : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {r.net_amount != null ? formatCurrency(r.net_amount) : (r.fee_amount != null ? formatCurrency(r.amount - (r.fee_amount || 0)) : '-')}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">{r.utr || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(r.status)}`}>
