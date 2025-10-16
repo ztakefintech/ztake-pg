@@ -1,40 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { eventStore } from '@/lib/event-store';
-import { AuthService } from '@/lib/auth';
-import { validateRequest, apiKeyValidationSchema } from '@/lib/validation';
 
+/**
+ * Public endpoint - No authentication required
+ * Used by payment page where customers submit UTR
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: { qpayOrderId: string } }
 ) {
   try {
-    // Validate API key from authorization header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authorization header with Bearer token is required' }, { status: 401 });
-    }
-    
-    const apiKey = authHeader.substring(7);
-    try {
-      validateRequest(apiKeyValidationSchema, apiKey);
-    } catch (error) {
-      return NextResponse.json({ error: 'Invalid API key format in Authorization header' }, { status: 401 });
-    }
-
-    console.log(`[SUBMIT-UTR] Attempting authentication for API key: ${apiKey.substring(0, 8)}... for order: ${params.qpayOrderId}`);
-
-    // Verify API key exists in database
-    const apiKeyInfo = await AuthService.verifyApiKeyFromDb(apiKey);
-    if (!apiKeyInfo) {
-      console.log(`[SUBMIT-UTR] API key not found in database: ${apiKey.substring(0, 8)}...`);
-      return NextResponse.json({ 
-        error: 'Invalid API key. The provided API key does not exist.',
-        details: 'Please check your API key and try again'
-      }, { status: 401 });
-    }
-    
-    console.log(`[SUBMIT-UTR] API key verified for key ID: ${apiKeyInfo.keyId}`);
+    console.log(`[SUBMIT-UTR-PUBLIC] Processing UTR submission for order: ${params.qpayOrderId}`);
 
     const body = await req.json();
     const { utr } = body || {};
@@ -44,45 +21,17 @@ export async function POST(
     }
 
     const order = await db.get(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, callback_url 
+      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, callback_url, vendor_id 
        FROM orders WHERE ztake_order_id = ?`,
       [params.qpayOrderId]
     );
 
     if (!order) {
-      console.log(`[SUBMIT-UTR] Order not found: ${params.qpayOrderId}`);
+      console.log(`[SUBMIT-UTR-PUBLIC] Order not found: ${params.qpayOrderId}`);
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Get vendor_id separately for verification
-    const orderWithVendor = await db.get(
-      `SELECT vendor_id FROM orders WHERE ztake_order_id = ?`,
-      [params.qpayOrderId]
-    );
-
-    if (!orderWithVendor) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    console.log(`[SUBMIT-UTR] Order found for vendor ID: ${orderWithVendor.vendor_id}`);
-
-    // Verify that the API key belongs to the same vendor as the order
-    if (apiKeyInfo.vendorId && apiKeyInfo.vendorId !== orderWithVendor.vendor_id) {
-      console.log(`[SUBMIT-UTR] API key vendor mismatch. API key belongs to vendor ${apiKeyInfo.vendorId}, but order belongs to vendor ${orderWithVendor.vendor_id}`);
-      return NextResponse.json({ 
-        error: 'Access denied. You can only submit UTR for orders belonging to your vendor account.',
-        details: 'The provided API key does not belong to the vendor who created this order'
-      }, { status: 403 });
-    }
-
-    // If API key doesn't have vendor association, we need to verify it belongs to the order's vendor
-    if (!apiKeyInfo.vendorId) {
-      console.log(`[SUBMIT-UTR] API key has no vendor association, checking if it can access this vendor's orders`);
-      // For now, we'll allow it, but this could be enhanced with additional validation
-      console.log(`[SUBMIT-UTR] Allowing API key without vendor association to proceed`);
-    }
-
-    console.log(`[SUBMIT-UTR] Authentication successful for order ${params.qpayOrderId}`);
+    console.log(`[SUBMIT-UTR-PUBLIC] Order found for vendor ID: ${order.vendor_id}`);
 
     // Prevent duplicate UTR across different orders
     const existingWithSameUtr = await db.get(
@@ -102,7 +51,7 @@ export async function POST(
       [utr, params.qpayOrderId]
     );
 
-    console.log(`[SUBMIT-UTR] UTR ${utr} submitted for order ${params.qpayOrderId} by vendor ${orderWithVendor.vendor_id}`);
+    console.log(`[SUBMIT-UTR-PUBLIC] UTR ${utr} submitted for order ${params.qpayOrderId} by vendor ${order.vendor_id}`);
 
     if (order.callback_url) {
       const pendingPayload = {
@@ -121,16 +70,16 @@ export async function POST(
     }
 
     // If payment already exists and succeeded, flip now and send SUCCESS callback
-    if (orderWithVendor.vendor_id) {
+    if (order.vendor_id) {
       const paymentRow = await db.get(
         `SELECT id, utr, amount, payment_status, checked_status FROM payments WHERE utr = ? AND vendor_id = ?`,
-        [utr, orderWithVendor.vendor_id]
+        [utr, order.vendor_id]
       );
       if (paymentRow && paymentRow.payment_status === 'Succeeded') {
         await db.run(
           `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
            WHERE utr = ? AND vendor_id = ? AND checked_status = FALSE`,
-          [order.ztake_order_id, utr, orderWithVendor.vendor_id]
+          [order.ztake_order_id, utr, order.vendor_id]
         );
         if (paymentRow.amount != null) {
           await db.run(`UPDATE orders SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`, [paymentRow.amount, params.qpayOrderId]);
@@ -143,7 +92,7 @@ export async function POST(
         // Emit payment verified event via WebSocket
         const vendor = await db.get(
           `SELECT id, business_name, contact_name, upi_id FROM vendors WHERE id = ?`,
-          [orderWithVendor.vendor_id]
+          [order.vendor_id]
         );
         
         if (vendor) {
