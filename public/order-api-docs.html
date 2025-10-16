@@ -285,7 +285,7 @@
 
     <h2>7) Vendor Payouts API</h2>
     
-    <p>Create payout requests (Bank only) and list your payout history. Requires API key + vendor code authentication: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>.</p>
+    <p>Create payout requests and list your payout history. Requires API key + vendor code authentication: <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>.</p>
 
     <div class="new-feature">
         <strong>🆕 Security Update:</strong> Payouts now require API key + vendor code authentication for enhanced security.
@@ -297,18 +297,37 @@
     <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
     <p><strong>Content-Type:</strong> <code>application/json</code></p>
 
+    <div class="new-feature">
+        <strong>🆕 Update:</strong> <code>email</code> and <code>phone</code> are required. 
+       
+    </div>
+
     <h4>Request body</h4>
     <pre>{
   "amount": 1500.00,
   "currency": "INR",
   "beneficiary_name": "Jane Doe",
-  // Bank transfer
   "beneficiary_account": "1234567890",
   "beneficiary_ifsc": "HDFC0001234",
   "reference_id": "PYT13947473",
   "remarks": "Vendor settlement",
-  "vendorCode": "AA4563"  // REQUIRED - must match API key vendor
+  "email": "jane@example.com",        // REQUIRED
+  "phone": "+919999999999",           // REQUIRED
+  "vendorCode": "AA4563"              // REQUIRED - must match API key vendor
 }</pre>
+
+    <h4>Accepted alias fields</h4>
+    <p>The API accepts the following aliases (commonly used in CSV uploads) and maps them internally:</p>
+    <ul>
+        <li><code>transferId</code> → <code>reference_id</code></li>
+        <li><code>bankAccount</code>, <code>accountNumber</code>, <code>account</code> → <code>beneficiary_account</code></li>
+        <li><code>ifsc</code>, <code>bank_ifsc</code> → <code>beneficiary_ifsc</code></li>
+        <li><code>name</code> → <code>beneficiary_name</code></li>
+        <li><code>upi</code> → <code>beneficiary_upi</code></li>
+        <li><code>email</code> → <code>email</code> (required)</li>
+        <li><code>phone</code> → <code>phone</code> (required)</li>
+        <li><code>transferRemarks</code> → <code>remarks</code></li>
+    </ul>
 
     <h4>Response</h4>
     <pre>{
@@ -330,6 +349,34 @@
     }
   }
 }</pre>
+
+    <h4>Errors</h4>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Body</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>400</td>
+                <td><code>{ "error": "Invalid request body", "details": "\u003cvalidation-errors\u003e" }</code></td>
+                <td>Returned when required fields like <code>email</code> or <code>phone</code> are missing or invalid.</td>
+            </tr>
+            <tr>
+                <td>401</td>
+                <td><code>{ "error": "Invalid API key. The provided API key does not exist.", "details": "Please check your API key and try again" }</code></td>
+                <td>Auth failure.</td>
+            </tr>
+            <tr>
+                <td>403</td>
+                <td><code>{ "error": "API key and vendor code mismatch.", "details": "The provided API key does not belong to the specified vendor" }</code></td>
+                <td>Provided API key does not belong to the vendorCode.</td>
+            </tr>
+        </tbody>
+    </table>
 
     <h3>List Payouts</h3>
     
@@ -363,6 +410,25 @@
     ]
   }
 }</pre>
+
+    <h3>Instant Payout (Secret Key)</h3>
+    
+    <p><span class="method post">POST</span> <code>/api/instant-payout</code></p>
+    <p><strong>Headers:</strong> <code>Authorization: Bearer sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code> <span class="muted">(Secret Key)</span></p>
+    <p><strong>Body:</strong></p>
+    <pre>{
+  "amount": 500.00,
+  "currency": "INR",
+  "beneficiary_name": "Jane Doe",
+  "beneficiary_account": "1234567890",
+  "beneficiary_ifsc": "HDFC0001234",
+  "beneficiary_upi": null,
+  "reference_id": "PYT55555555",
+  "remarks": "Instant payout",
+  "email": "jane@example.com",     // REQUIRED
+  "phone": "+919999999999"         // REQUIRED
+}</pre>
+    <p class="muted">Same alias support as above is available for instant payouts.</p>
 
 
     <h2>8) Payment APIs</h2>

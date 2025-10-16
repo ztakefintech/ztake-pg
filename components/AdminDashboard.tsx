@@ -107,6 +107,7 @@ export default function AdminDashboard() {
     remarks?: string | null;
     status: string;
     cashfree_payout_id?: string | null;
+    raw_request?: any;
     admin_notes?: string | null;
     created_at: string;
   }>>([]);
@@ -124,6 +125,9 @@ export default function AdminDashboard() {
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedPayoutIds, setSelectedPayoutIds] = useState<Set<number>>(new Set());
+  const [exportTransferMode, setExportTransferMode] = useState<string>('');
+  const [exportRemarks, setExportRemarks] = useState<string>('');
 
   // WebSocket connection for real-time updates
   const ws = useAdminWebSocket({
@@ -474,6 +478,7 @@ export default function AdminDashboard() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch payouts');
       setPayouts((json.data && json.data.payouts) || []);
+      setSelectedPayoutIds(new Set());
     } catch (e) {
       // best-effort error surface via alert in UI controls
     }
@@ -1515,9 +1520,91 @@ export default function AdminDashboard() {
             {/* Recharges removed from Payouts; now a separate tab */}
 
             <div className="overflow-x-auto">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    className="px-2 py-1 text-sm border rounded"
+                    value={exportTransferMode}
+                    onChange={(e) => setExportTransferMode(e.target.value)}
+                  >
+                    <option value="">Select transfer mode</option>
+                    <option value="imps">IMPS</option>
+                    <option value="neft">NEFT</option>
+                    <option value="rtgs">RTGS</option>
+                  </select>
+                  <input
+                    className="px-2 py-1 text-sm border rounded"
+                    placeholder="Remarks for export"
+                    value={exportRemarks}
+                    onChange={(e) => setExportRemarks(e.target.value)}
+                  />
+                  <button
+                    className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded"
+                    onClick={() => {
+                      // Export selected or all (if none selected), but only those in created (pending) state
+                      const base = payouts.filter(p => p.status === 'created');
+                      const toExport = base.filter(p => selectedPayoutIds.size === 0 || selectedPayoutIds.has(p.id));
+                      const rows = toExport.map((p) => {
+                        const raw = (() => { try { return typeof p.raw_request === 'string' ? JSON.parse(p.raw_request) : p.raw_request || {}; } catch { return {}; } })();
+                        const aliases = raw?.aliases || {};
+                        const transferId = p.reference_id || aliases.transferId || raw?.original?.transferId || '';
+                        const bankAccount = p.beneficiary_account || aliases.bankAccount || '';
+                        const ifsc = p.beneficiary_ifsc || aliases.ifsc || '';
+                        const name = p.beneficiary_name || aliases.name || '';
+                        const email = aliases.email || raw?.original?.email || '';
+                        const phone = aliases.phone || raw?.original?.phone || '';
+                        const amount = Number(p.amount || 0).toString();
+                        const remarks = (exportRemarks || p.remarks || raw?.original?.remarks || aliases.transferRemarks || '').toString();
+                        const transferMode = exportTransferMode || aliases.transferMode || raw?.original?.transferMode || '';
+                        const adminRemarks = p.admin_notes || '';
+                        return { transferId, bankAccount, ifsc, name, email, phone, amount, remarks, transferMode, adminRemarks };
+                      });
+                      const headers = ['transferId','bankAccount','ifsc','name','email','phone','amount','remarks','transferMode','adminRemarks'];
+                      const escape = (val: any) => {
+                        const s = (val ?? '').toString();
+                        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                          return '"' + s.replace(/"/g, '""') + '"';
+                        }
+                        return s;
+                      };
+                      const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => escape((r as any)[h])).join(','))).join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `payouts_export_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >Export CSV</button>
+                  <button
+                    className="px-3 py-1.5 text-sm bg-gray-100 rounded"
+                    onClick={() => {
+                      if (selectedPayoutIds.size === payouts.length) {
+                        setSelectedPayoutIds(new Set());
+                      } else {
+                        setSelectedPayoutIds(new Set(payouts.map(p => p.id)));
+                      }
+                    }}
+                  >{selectedPayoutIds.size === payouts.length && payouts.length > 0 ? 'Clear Selection' : 'Select All'}</button>
+                </div>
+                {selectedPayoutIds.size > 0 && (
+                  <div className="text-xs text-gray-600">Selected: {selectedPayoutIds.size}</div>
+                )}
+              </div>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={payouts.length > 0 && selectedPayoutIds.size === payouts.length}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedPayoutIds(new Set(payouts.map(p => p.id)));
+                          else setSelectedPayoutIds(new Set());
+                        }}
+                      />
+                    </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
@@ -1530,24 +1617,45 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {payouts.map((p) => (
-                    <tr key={p.id}>
+                  {payouts.map((p) => {
+                    const raw = (() => { try { return typeof p.raw_request === 'string' ? JSON.parse(p.raw_request) : p.raw_request || {}; } catch { return {}; } })();
+                    const aliases = raw?.aliases || {};
+                    const email = aliases.email || raw?.original?.email || '-';
+                    const phone = aliases.phone || raw?.original?.phone || '-';
+                    const bankAccount = p.beneficiary_account || aliases.bankAccount || '-';
+                    const ifsc = p.beneficiary_ifsc || aliases.ifsc || '-';
+                    const name = p.beneficiary_name || aliases.name || '-';
+                    return (
+                    <tr key={p.id} className="align-top">
+                      <td className="px-2 py-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedPayoutIds.has(p.id)}
+                          onChange={(e) => {
+                            setSelectedPayoutIds(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(p.id); else next.delete(p.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-2 text-sm font-mono">{p.id}</td>
                       <td className="px-4 py-2 text-sm">{p.business_name || `Vendor #${p.vendor_id}`}</td>
                       <td className="px-4 py-2 text-sm">{p.currency} {Number(p.amount).toFixed(2)}</td>
                       <td className="px-4 py-2 text-sm">
                         <div className="space-y-0.5">
-                          <div className="font-medium">{p.beneficiary_name || '-'}</div>
+                          <div className="font-medium">{name}</div>
                         </div>
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        {p.beneficiary_account && p.beneficiary_ifsc ? (
+                        {bankAccount !== '-' && ifsc !== '-' ? (
                           <div className="space-y-0.5">
-                            <div className="font-mono">A/C: {p.beneficiary_account}</div>
-                            <div className="font-mono">IFSC: {p.beneficiary_ifsc}</div>
+                            <div className="font-mono">A/C: {bankAccount}</div>
+                            <div className="font-mono">IFSC: {ifsc}</div>
                           </div>
-                        ) : p.beneficiary_upi ? (
-                          <div className="font-mono">UPI: {p.beneficiary_upi}</div>
+                        ) : (p.beneficiary_upi || aliases.upi) ? (
+                          <div className="font-mono">UPI: {p.beneficiary_upi || aliases.upi}</div>
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
@@ -1571,7 +1679,21 @@ export default function AdminDashboard() {
                           <span className="text-gray-500">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-2 text-right space-y-2">
+                        <details className="text-left">
+                          <summary className="cursor-pointer text-xs text-indigo-600">View details</summary>
+                          <div className="mt-2 text-xs space-y-1">
+                            <div><span className="text-gray-500">Name:</span> {name}</div>
+                            <div><span className="text-gray-500">Email:</span> {email}</div>
+                            <div><span className="text-gray-500">Phone:</span> {phone}</div>
+                            <div><span className="text-gray-500">Amount:</span> {p.currency} {Number(p.amount).toFixed(2)}</div>
+                            <div><span className="text-gray-500">Bank A/C:</span> {bankAccount}</div>
+                            <div><span className="text-gray-500">IFSC:</span> {ifsc}</div>
+                            {p.beneficiary_upi || aliases.upi ? (<div><span className="text-gray-500">UPI:</span> {p.beneficiary_upi || aliases.upi}</div>) : null}
+                            {p.reference_id ? (<div><span className="text-gray-500">Reference:</span> {p.reference_id}</div>) : null}
+                            {p.remarks ? (<div><span className="text-gray-500">Remarks:</span> {p.remarks}</div>) : null}
+                          </div>
+                        </details>
                         {hasPermission('manage_payout') ? (
                           p.status === 'created' ? (
                             <div className="inline-flex gap-2">
@@ -1608,7 +1730,7 @@ export default function AdminDashboard() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
               {payouts.length === 0 && (

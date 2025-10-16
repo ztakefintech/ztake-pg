@@ -33,6 +33,8 @@ export default function DemoPage() {
   const [beneficiaryName, setBeneficiaryName] = useState<string>('');
   const [beneficiaryAccount, setBeneficiaryAccount] = useState<string>('');
   const [beneficiaryIfsc, setBeneficiaryIfsc] = useState<string>('');
+  const [beneficiaryEmail, setBeneficiaryEmail] = useState<string>('');
+  const [beneficiaryPhone, setBeneficiaryPhone] = useState<string>('');
   const [payoutMsg, setPayoutMsg] = useState<string>('');
   const [payoutErr, setPayoutErr] = useState<string>('');
   const [payoutBalance, setPayoutBalance] = useState<number>(0);
@@ -183,6 +185,8 @@ export default function DemoPage() {
   const createPayout = async () => {
     setPayoutErr(''); setPayoutMsg('');
     if (!secretKey) { setPayoutErr('Enter secret key'); return; }
+    if (!beneficiaryEmail) { setPayoutErr('Enter beneficiary email'); return; }
+    if (!beneficiaryPhone) { setPayoutErr('Enter beneficiary phone'); return; }
     try {
       const res = await fetch('/api/instant-payout', {
         method: 'POST',
@@ -195,7 +199,9 @@ export default function DemoPage() {
           currency: 'INR',
           beneficiary_name: beneficiaryName || null,
           beneficiary_account: beneficiaryAccount || null,
-          beneficiary_ifsc: beneficiaryIfsc || null
+          beneficiary_ifsc: beneficiaryIfsc || null,
+          email: beneficiaryEmail,
+          phone: beneficiaryPhone
         })
       });
       const json = await res.json();
@@ -423,6 +429,8 @@ export default function DemoPage() {
               <input className="border rounded px-3 py-2" value={beneficiaryName} onChange={(e) => setBeneficiaryName(e.target.value)} placeholder="Beneficiary Name" />
               <input className="border rounded px-3 py-2 md:col-span-2" value={beneficiaryAccount} onChange={(e) => setBeneficiaryAccount(e.target.value)} placeholder="Account Number" />
               <input className="border rounded px-3 py-2" value={beneficiaryIfsc} onChange={(e) => setBeneficiaryIfsc(e.target.value.toUpperCase())} placeholder="IFSC" />
+              <input className="border rounded px-3 py-2" type="email" value={beneficiaryEmail} onChange={(e) => setBeneficiaryEmail(e.target.value)} placeholder="Beneficiary Email" />
+              <input className="border rounded px-3 py-2" type="tel" value={beneficiaryPhone} onChange={(e) => setBeneficiaryPhone(e.target.value)} placeholder="Beneficiary Phone" />
             </div>
             <div className="flex gap-2 mt-4">
               <button onClick={createPayout} className="bg-indigo-600 text-white px-4 py-2 rounded">Create Payout</button>

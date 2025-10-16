@@ -190,9 +190,32 @@ async function createPayout(req: NextRequest) {
     console.log(`[CREATE-PAYOUT] API key verified for key ID: ${apiKeyInfo.keyId}`);
 
     const body = await req.json();
-    
+
+    // Support alias params from clients (transferId, bankAccount, ifsc, name, email, phone, transferMode)
+    const aliasEmail = body?.email ?? null;
+    const aliasPhone = body?.phone ?? null;
+    const normalizedBody = {
+      ...body,
+      beneficiary_name: body?.beneficiary_name ?? body?.name ?? body?.beneficiaryName,
+      beneficiary_account: body?.beneficiary_account ?? body?.bankAccount ?? body?.accountNumber ?? body?.account,
+      beneficiary_ifsc: body?.beneficiary_ifsc ?? body?.ifsc ?? body?.bank_ifsc,
+      beneficiary_upi: body?.beneficiary_upi ?? body?.upi ?? null,
+      reference_id: body?.reference_id ?? body?.transferId ?? body?.transfer_id,
+      remarks: body?.remarks ?? body?.transferRemarks ?? body?.transfer_remarks,
+      email: body?.email ?? null,
+      phone: body?.phone ?? null
+    };
+
     // Validate request body using comprehensive schema
-    const validatedData = validateRequest(createPayoutSchema, body);
+    let validatedData: any;
+    try {
+      validatedData = validateRequest(createPayoutSchema, normalizedBody);
+    } catch (e: any) {
+      return NextResponse.json({
+        error: 'Invalid request body',
+        details: e?.message || 'Validation failed'
+      }, { status: 400 });
+    }
     
     // Apply business rules validation
     validateBusinessRules(validatedData, 'payout');
@@ -281,10 +304,34 @@ async function createPayout(req: NextRequest) {
     // Hold funds immediately by subtracting from balance and storing held_amount
     await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) - ? WHERE id = ?`, [amt, vendor.id]);
 
+    const rawRequest = {
+      original: body,
+      aliases: {
+        transferId: body?.transferId ?? body?.transfer_id ?? null,
+        bankAccount: body?.bankAccount ?? body?.accountNumber ?? body?.account ?? null,
+        ifsc: body?.ifsc ?? body?.bank_ifsc ?? null,
+        name: body?.name ?? null,
+        email: aliasEmail,
+        phone: aliasPhone
+      }
+    };
+
     const result = await db.run(
-      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?)`,
-      [vendor.id, amt, currency, beneficiary_name || null, beneficiary_account || null, beneficiary_ifsc || null, beneficiary_upi || null, payoutReferenceId, remarks || null, amt]
+      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?)`,
+      [
+        vendor.id,
+        amt,
+        currency,
+        beneficiary_name || null,
+        beneficiary_account || null,
+        beneficiary_ifsc || null,
+        beneficiary_upi || null,
+        payoutReferenceId,
+        remarks || null,
+        amt,
+        JSON.stringify(rawRequest)
+      ]
     );
 
     const payout = await db.get(

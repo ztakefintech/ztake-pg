@@ -94,35 +94,24 @@ export const createPayoutSchema = Joi.object({
     }),
   currency: Joi.string().valid('INR').default('INR'),
   beneficiary_name: Joi.string().min(2).max(100).pattern(/^[a-zA-Z\s.]+$/).required(),
-  beneficiary_account: Joi.string().pattern(BANK_ACCOUNT_PATTERN).optional()
+  beneficiary_account: Joi.string().pattern(BANK_ACCOUNT_PATTERN).allow('', null).optional()
     .messages({
       'string.pattern.base': 'Bank account number must be 6-18 digits'
     }),
-  beneficiary_ifsc: Joi.string().pattern(IFSC_PATTERN).optional()
+  beneficiary_ifsc: Joi.string().pattern(IFSC_PATTERN).allow('', null).optional()
     .messages({
       'string.pattern.base': 'IFSC code must be in format: ABCD0123456'
     }),
-  beneficiary_upi: Joi.string().pattern(UPI_PATTERN).optional(),
+  beneficiary_upi: Joi.string().pattern(UPI_PATTERN).allow('', null).optional(),
   reference_id: Joi.string().pattern(ORDER_ID_PATTERN).optional(),
   remarks: Joi.string().max(500).optional(),
+  email: Joi.string().email().required(),
+  phone: Joi.string().pattern(PHONE_PATTERN).required(),
   vendorCode: Joi.string().pattern(VENDOR_CODE_PATTERN).required()
     .messages({
       'string.pattern.base': 'Vendor code must be in format: 2 uppercase letters followed by 4 digits (e.g., AB1234)',
       'any.required': 'Vendor code is required'
     })
-}).custom((value, helpers) => {
-  // At least one payment method must be provided
-  if (!value.beneficiary_account && !value.beneficiary_upi) {
-    return helpers.error('custom.paymentMethod');
-  }
-  // If bank account is provided, IFSC is required
-  if (value.beneficiary_account && !value.beneficiary_ifsc) {
-    return helpers.error('custom.ifscRequired');
-  }
-  return value;
-}).messages({
-  'custom.paymentMethod': 'Either bank account or UPI ID must be provided',
-  'custom.ifscRequired': 'IFSC code is required when bank account is provided'
 });
 
 // Update vendor profile validation

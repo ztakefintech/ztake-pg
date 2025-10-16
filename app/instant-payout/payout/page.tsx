@@ -17,6 +17,8 @@ export default function PayoutDemoPage() {
   const [beneficiaryUpi, setBeneficiaryUpi] = useState<string>('');
   const [referenceId, setReferenceId] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -110,7 +112,9 @@ export default function PayoutDemoPage() {
           beneficiary_ifsc: beneficiaryIfsc || null,
           beneficiary_upi: beneficiaryUpi || null,
           reference_id: referenceId || null,
-          remarks: remarks || null
+          remarks: remarks || null,
+          email: email || null,
+          phone: phone || null
         })
       });
 
@@ -308,6 +312,25 @@ export default function PayoutDemoPage() {
                 onChange={(e) => setRemarks(e.target.value)}
                 className="border rounded px-3 py-2"
                 placeholder="Remarks (optional)"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="border rounded px-3 py-2"
+                placeholder="Beneficiary Email"
+                required
+              />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="border rounded px-3 py-2"
+                placeholder="Beneficiary Phone"
+                required
               />
             </div>
 

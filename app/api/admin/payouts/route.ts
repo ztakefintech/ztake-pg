@@ -49,6 +49,7 @@ export const GET = requirePermission('view_payouts')(async (req: NextRequest) =>
          p.remarks,
          p.status,
          p.cashfree_payout_id,
+         p.raw_request,
          p.admin_notes,
          p.created_at,
          p.updated_at

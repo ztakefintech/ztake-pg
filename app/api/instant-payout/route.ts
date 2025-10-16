@@ -22,30 +22,17 @@ const instantPayoutSchema = Joi.object({
     }),
   currency: Joi.string().valid('INR').default('INR'),
   beneficiary_name: Joi.string().min(2).max(100).pattern(/^[a-zA-Z\s.]+$/).required(),
-  beneficiary_account: Joi.string().pattern(/^[0-9]{6,18}$/).optional()
+  beneficiary_account: Joi.string().pattern(/^[0-9]{6,18}$/).allow('', null).optional()
     .messages({
       'string.pattern.base': 'Bank account number must be 6-18 digits'
     }),
-  beneficiary_ifsc: Joi.string().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).optional()
+  beneficiary_ifsc: Joi.string().pattern(/^[A-Z]{4}0[A-Z0-9]{6}$/).allow('', null).optional()
     .messages({
       'string.pattern.base': 'IFSC code must be in format: ABCD0123456'
     }),
-  beneficiary_upi: Joi.string().pattern(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/).optional(),
+  beneficiary_upi: Joi.string().pattern(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/).allow('', null).optional(),
   reference_id: Joi.string().pattern(/^[a-zA-Z0-9_-]{3,255}$/).optional(),
   remarks: Joi.string().max(500).optional()
-}).custom((value, helpers) => {
-  // At least one payment method must be provided
-  if (!value.beneficiary_account && !value.beneficiary_upi) {
-    return helpers.error('custom.paymentMethod');
-  }
-  // If bank account is provided, IFSC is required
-  if (value.beneficiary_account && !value.beneficiary_ifsc) {
-    return helpers.error('custom.ifscRequired');
-  }
-  return value;
-}).messages({
-  'custom.paymentMethod': 'Either bank account or UPI ID must be provided',
-  'custom.ifscRequired': 'IFSC code is required when bank account is provided'
 });
 
 async function createInstantPayout(req: NextRequest) {
@@ -82,9 +69,22 @@ async function createInstantPayout(req: NextRequest) {
     console.log(`[INSTANT-PAYOUT] Secret key verified for vendor ID: ${vendor.id} (${vendor.vendor_code})`);
 
     const body = await req.json();
-    
+
+    // Support alias params (transferId, bankAccount, ifsc, name, email, phone, transferMode)
+    const normalizedBody = {
+      ...body,
+      beneficiary_name: body?.beneficiary_name ?? body?.name ?? body?.beneficiaryName,
+      beneficiary_account: body?.beneficiary_account ?? body?.bankAccount ?? body?.accountNumber ?? body?.account,
+      beneficiary_ifsc: body?.beneficiary_ifsc ?? body?.ifsc ?? body?.bank_ifsc,
+      beneficiary_upi: body?.beneficiary_upi ?? body?.upi ?? null,
+      reference_id: body?.reference_id ?? body?.transferId ?? body?.transfer_id,
+      remarks: body?.remarks ?? body?.transferRemarks ?? body?.transfer_remarks,
+      email: body?.email ?? null,
+      phone: body?.phone ?? null
+    };
+
     // Validate request body using instant payout schema
-    const validatedData = validateRequest(instantPayoutSchema, body);
+    const validatedData = validateRequest(instantPayoutSchema, normalizedBody);
     
     // Apply business rules validation
     validateBusinessRules(validatedData, 'payout');
@@ -151,11 +151,23 @@ async function createInstantPayout(req: NextRequest) {
     await db.run(`UPDATE vendors SET payout_balance = COALESCE(payout_balance,0) - ? WHERE id = ?`, [amt, vendor.id]);
 
     // Insert payout into database (matching main API structure)
+    const rawRequest = {
+      original: body,
+      aliases: {
+        transferId: body?.transferId ?? body?.transfer_id ?? null,
+        bankAccount: body?.bankAccount ?? body?.accountNumber ?? body?.account ?? null,
+        ifsc: body?.ifsc ?? body?.bank_ifsc ?? null,
+        name: body?.name ?? null,
+        email: body?.email ?? null,
+        phone: body?.phone ?? null
+      }
+    };
+
     const result = await db.run(
       `INSERT INTO payouts (
         vendor_id, amount, currency, beneficiary_name, beneficiary_account, 
-        beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         vendor.id,
         amt,
@@ -166,7 +178,8 @@ async function createInstantPayout(req: NextRequest) {
         beneficiary_upi,
         payoutReferenceId,
         remarks,
-        amt // held_amount
+        amt,
+        JSON.stringify(rawRequest)
       ]
     );
 
