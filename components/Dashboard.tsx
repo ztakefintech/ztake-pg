@@ -377,7 +377,12 @@ export default function Dashboard() {
       return;
     }
     
-    if (!confirm(`Are you sure you want to process settlement for ${formatCurrency(totalReceived)}? This will send the request to admin for approval.`)) {
+    // Calculate fee for settlement (3.53%)
+    const feePercent = 3.53;
+    const feeAmount = Number((totalReceived * feePercent / 100).toFixed(2));
+    const netAmount = Number((totalReceived - feeAmount).toFixed(2));
+    
+    if (!confirm(`Are you sure you want to process settlement for ₹${totalReceived.toFixed(2)}?\n\nFee: 2% + GST (₹${feeAmount})\nNet amount: ₹${netAmount}\n\nThis will send the request to admin for approval.`)) {
       return;
     }
 
@@ -615,6 +620,12 @@ export default function Dashboard() {
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Amount</label>
               <input value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="e.g. 5000" />
+              {rechargeAmount && !isNaN(Number(rechargeAmount)) && Number(rechargeAmount) > 0 && (
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                  <div>Fee: 1% + GST (₹{Number((Number(rechargeAmount) * 0.0118).toFixed(2))})</div>
+                  <div>Net amount: ₹{Number((Number(rechargeAmount) - Number(rechargeAmount) * 0.0118).toFixed(2))}</div>
+                </div>
+              )}
             </div>
             <div className="space-y-2 mt-3">
               <label className="block text-sm font-medium text-gray-700">UTR</label>
