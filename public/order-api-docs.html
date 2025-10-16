@@ -189,10 +189,10 @@
   }
 }</pre>
 
-    <h2>3) Get Order</h2>
+    <h2>3) Get Order (Public)</h2>
     
-    <p><span class="method get">GET</span> <code>/api/v1/orders/{ztakeOrderId}?vendorCode=AA4563</code></p>
-    <p><strong>Headers:</strong> <code>Authorization: Bearer pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
+    <p><span class="method get">GET</span> <code>/api/v1/orders/{ztakeOrderId}</code></p>
+    <p><strong>Authentication:</strong> None required (public endpoint for payment page)</p>
     
     <h3>Response</h3>
     <pre>{
@@ -532,9 +532,8 @@
     <pre>curl -X GET 'https://ztake.in/api/v1/orders?vendorCode=AA4563&limit=50&offset=0' \
   -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef"</pre>
 
-    <h3>Get Order</h3>
-    <pre>curl -X GET 'https://ztake.in/api/v1/orders/ZTKXXXX?vendorCode=AA4563' \
-  -H "Authorization: Bearer pk_1234567890abcdef1234567890abcdef"</pre>
+    <h3>Get Order (Public - No Auth Required)</h3>
+    <pre>curl -X GET 'https://ztake.in/api/v1/orders/ZTKXXXX'</pre>
 
     <h3>Submit UTR</h3>
     <pre>curl -X POST https://ztake.in/api/v1/orders/ZTKXXXX/submit-utr?vendorCode=AA4563 \
