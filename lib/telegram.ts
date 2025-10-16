@@ -12,6 +12,12 @@ function getEnv(name: string): string | undefined {
 
 export async function sendTelegramAdminAlert(message: string, vendorId?: number): Promise<void> {
   try {
+    // Skip sending in test mode if configured
+    const disableSends = getEnv('TELEGRAM_DISABLE_SENDING');
+    if (disableSends && disableSends.toLowerCase() === 'true') {
+      return;
+    }
+
     // Prefer global admin bot credentials from env
     const adminBotToken = getEnv('TELEGRAM_ADMIN_BOT_TOKEN');
     const adminChatId = getEnv('TELEGRAM_ADMIN_CHAT_ID');

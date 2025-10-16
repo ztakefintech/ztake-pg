@@ -116,6 +116,10 @@ export default function AdminDashboard() {
     vendor_id: number;
     business_name?: string;
     amount: number;
+    net_amount?: number | null;
+    fee_amount?: number | null;
+    fee_percent?: number | null;
+    fee_note?: string | null;
     status: string;
     admin_notes?: string | null;
     created_at: string;
@@ -1608,6 +1612,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Net</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beneficiary</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bank / UPI</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ref</th>
@@ -1780,6 +1785,7 @@ export default function AdminDashboard() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Net</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Admin Notes</th>
@@ -1797,6 +1803,18 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-2 text-sm font-medium">₹{Number(s.amount).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm">
+                        {s.net_amount != null ? (
+                          <div className="text-gray-700">
+                            ₹{Number(s.net_amount).toFixed(2)}
+                            <span className="ml-2 text-xs text-gray-500">
+                              {s.fee_amount != null ? `(−₹${Number(s.fee_amount).toFixed(2)} fee${s.fee_percent != null ? `, ${Number(s.fee_percent).toFixed(2)}%` : ''})` : ''}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-sm">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           s.status === 'approved' ? 'bg-green-100 text-green-800' :
@@ -2331,7 +2349,7 @@ export default function AdminDashboard() {
 }
 
 function AdminRechargeRequests() {
-  const [rows, setRows] = React.useState<Array<{ id:number; vendor_id:number; business_name:string; amount:number; utr?: string | null; status:string; created_at:string }>>([])
+  const [rows, setRows] = React.useState<Array<{ id:number; vendor_id:number; business_name:string; amount:number; utr?: string | null; status:string; created_at:string; fee_percent?: number | null; fee_amount?: number | null; net_amount?: number | null; fee_note?: string | null }>>([])
   const [loading, setLoading] = React.useState(false)
   const [err, setErr] = React.useState<string | null>(null)
   const [updatingId, setUpdatingId] = React.useState<number | null>(null)
@@ -2434,6 +2452,7 @@ function AdminRechargeRequests() {
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Net</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">UTR</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
             <th className="px-4 py-2"></th>
@@ -2453,6 +2472,18 @@ function AdminRechargeRequests() {
                     className="w-28 border rounded-md px-2 py-1"
                   />
                 </div>
+              </td>
+              <td className="px-4 py-2 text-sm">
+                {typeof r.net_amount === 'number' ? (
+                  <div className="text-gray-700">
+                    ₹{Number(r.net_amount).toFixed(2)}
+                    <span className="ml-2 text-xs text-gray-500">
+                      {r.fee_amount != null ? `(−₹${Number(r.fee_amount).toFixed(2)} fee${r.fee_percent != null ? `, ${Number(r.fee_percent).toFixed(2)}%` : ''})` : ''}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-500">—</span>
+                )}
               </td>
               <td className="px-4 py-2 text-sm">
                 <input
