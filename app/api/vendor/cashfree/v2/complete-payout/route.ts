@@ -264,16 +264,14 @@ async function handler(req: AuthenticatedRequest) {
     const beneficiaryPayload = {
       beneficiary_id: beneficiaryId,
       beneficiary_name: beneficiary_name,
-      ...(email ? { email } : {}),
       beneficiary_instrument_details: { 
-        bank_account: { 
-          account_number: bank_account_number, 
-          ifsc: bank_ifsc 
-        } 
+        bank_account_number: bank_account_number, 
+        bank_ifsc: bank_ifsc 
       },
-      ...(phone ? { 
+      ...(email || phone ? { 
         beneficiary_contact_details: { 
-          beneficiary_phone: phone 
+          ...(email ? { beneficiary_email: email } : {}),
+          ...(phone ? { beneficiary_phone: phone } : {})
         } 
       } : {})
     };
