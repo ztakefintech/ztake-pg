@@ -348,7 +348,13 @@ class Database {
       await client.query(`
         ALTER TABLE payouts 
         ADD COLUMN IF NOT EXISTS held_amount DECIMAL(12,2),
-        ADD COLUMN IF NOT EXISTS admin_notes TEXT
+        ADD COLUMN IF NOT EXISTS admin_notes TEXT,
+        ADD COLUMN IF NOT EXISTS utr VARCHAR(64),
+        ADD COLUMN IF NOT EXISTS failure_reason TEXT,
+        ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS webhook_data JSONB,
+        ADD COLUMN IF NOT EXISTS external_callback_url TEXT
       `);
 
       // Add payout balance to vendors

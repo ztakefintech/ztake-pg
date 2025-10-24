@@ -310,6 +310,9 @@ async function handler(req: AuthenticatedRequest) {
     // Step 2: Initiate Transfer using V2 API
     console.log(`[CF-V2] Initiating transfer for vendor ${vendor.id}, amount: ${amount}`);
     
+    // Always use internal webhook for status updates
+    const internalWebhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://www.ztake.in'}/api/webhooks/cashfree-payout`;
+    
     const transferPayload: any = {
       transfer_id: payoutReferenceId,
       transfer_amount: amount,
@@ -317,8 +320,14 @@ async function handler(req: AuthenticatedRequest) {
         beneficiary_id: beneficiaryId
       },
       ...(remarks ? { transfer_remarks: remarks } : {}),
-      ...(callback_url ? { callback_url } : {})
+      callback_url: internalWebhookUrl
     };
+    
+    // If external callback_url is provided, add it as additional callback
+    if (callback_url && callback_url !== internalWebhookUrl) {
+      transferPayload.external_callback_url = callback_url;
+      console.log(`[CF-V2] External callback URL provided: ${callback_url}`);
+    }
 
     // Decide mode: default banktransfer for bank beneficiaries; allow override
     const resolvedMode = transfer_mode || 'banktransfer';
@@ -330,6 +339,10 @@ async function handler(req: AuthenticatedRequest) {
       transferPayload.transfer_mode_subtype = resolvedSubtype;
     }
 
+    console.log(`[CF-V2] Using internal webhook URL: ${internalWebhookUrl}`);
+    if (callback_url && callback_url !== internalWebhookUrl) {
+      console.log(`[CF-V2] External callback URL: ${callback_url}`);
+    }
     console.log('[CF-V2] Transfer payload:', JSON.stringify(transferPayload, null, 2));
 
     let transferResp = await callCashfree(base, '/transfers', 'POST', headers, transferPayload);
@@ -365,17 +378,18 @@ async function handler(req: AuthenticatedRequest) {
     // Step 4: Create payout record in database
     const rawRequest = {
       original: body,
-      beneficiary: beneficiaryPayload,
-      transfer: transferPayload,
-      timestamp: new Date().toISOString()
+        beneficiary: beneficiaryPayload,
+        transfer: transferPayload,
+        external_callback_url: callback_url && callback_url !== internalWebhookUrl ? callback_url : null,
+        timestamp: new Date().toISOString()
     };
 
     const result = await db.run(
       `INSERT INTO payouts (
         vendor_id, amount, currency, beneficiary_name, beneficiary_account, 
         beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, 
-        cashfree_payout_id, held_amount, raw_request, raw_response, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'initiated', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        cashfree_payout_id, held_amount, raw_request, raw_response, external_callback_url, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'initiated', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         vendor.id,
         amount,
@@ -389,7 +403,8 @@ async function handler(req: AuthenticatedRequest) {
         transferResp.json?.cf_transfer_id || null,
         null, // held_amount is not used when relying on Cashfree fund source
         JSON.stringify(rawRequest),
-        JSON.stringify(transferResp.json || null)
+        JSON.stringify(transferResp.json || null),
+        callback_url && callback_url !== internalWebhookUrl ? callback_url : null
       ]
     );
 
@@ -433,11 +448,57 @@ async function handler(req: AuthenticatedRequest) {
       `• IFSC: ${bank_ifsc}`,
       `• Ref: ${payoutReferenceId}`,
       `• CF Transfer ID: ${transferResp.json?.cf_transfer_id || 'N/A'}`,
+      `• Internal Webhook: ${internalWebhookUrl}`,
+      ...(callback_url && callback_url !== internalWebhookUrl ? [`• External Callback: ${callback_url}`] : []),
       remarks ? `• Remarks: ${remarks}` : undefined,
       `• Status: initiated`
     ].filter(Boolean).join('\n');
     
     sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
+
+    // Step 7: Send immediate callback to external URL if provided
+    if (callback_url && callback_url !== internalWebhookUrl) {
+      try {
+        const immediateCallbackPayload = {
+          id: payoutId,
+          reference_id: payoutReferenceId,
+          status: 'initiated',
+          amount: amount,
+          currency: currency,
+          beneficiary_name: beneficiary_name,
+          beneficiary_account: bank_account_number,
+          beneficiary_ifsc: bank_ifsc,
+          utr: null,
+          failure_reason: null,
+          status_code: null,
+          status_description: null,
+          cf_transfer_id: transferResp.json?.cf_transfer_id || null,
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          event_type: 'payout_initiated'
+        };
+        
+        console.log(`[CF-V2] Sending immediate callback to: ${callback_url}`);
+        
+        const immediateResponse = await fetch(callback_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ZTake-Payout/1.0'
+          },
+          body: JSON.stringify(immediateCallbackPayload)
+        });
+        
+        if (immediateResponse.ok) {
+          console.log(`[CF-V2] Immediate callback successful: ${immediateResponse.status}`);
+        } else {
+          console.warn(`[CF-V2] Immediate callback failed: ${immediateResponse.status} ${immediateResponse.statusText}`);
+        }
+      } catch (immediateError) {
+        console.error(`[CF-V2] Immediate callback error:`, immediateError);
+        // Don't fail the payout creation if immediate callback fails
+      }
+    }
 
     return createApiResponse({
       message: 'Payout initiated successfully',
@@ -445,7 +506,14 @@ async function handler(req: AuthenticatedRequest) {
         payoutId: payoutId,
         cashfreeTransferId: transferResp.json?.cf_transfer_id,
         referenceId: payoutReferenceId,
-        status: 'initiated'
+        status: 'initiated',
+        callbackUrl: callback_url || null,
+        amount: amount,
+        currency,
+        beneficiaryName: beneficiary_name,
+        beneficiaryAccount: bank_account_number,
+        beneficiaryIfsc: bank_ifsc,
+        createdAt: new Date().toISOString()
       }
     });
 

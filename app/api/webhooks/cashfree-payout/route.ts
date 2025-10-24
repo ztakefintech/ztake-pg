@@ -142,6 +142,8 @@ export async function POST(req: NextRequest) {
     
     console.log(`[CF-Webhook] Processing ${type} event for transfer ${transfer_id}`);
     console.log(`[CF-Webhook] Event time: ${event_time}, Status: ${status}`);
+    console.log(`[CF-Webhook] Payout record fields:`, Object.keys(payout));
+    console.log(`[CF-Webhook] External callback URL from DB:`, payout.external_callback_url);
     
     // Map Cashfree status to internal status
     const newStatus = mapCashfreeStatus(status);
@@ -228,6 +230,59 @@ export async function POST(req: NextRequest) {
     
     console.log(`[CF-Webhook] Emitted WebSocket event for payout ${payout.id}`);
     
+    // Debug: Check if external callback URL exists
+    console.log(`[CF-Webhook] External callback URL check:`, {
+      hasExternalCallback: !!payout.external_callback_url,
+      externalCallbackUrl: payout.external_callback_url
+    });
+    
+    // Forward status update to external callback URL if provided
+    if (payout.external_callback_url) {
+      try {
+        const externalCallbackPayload = {
+          id: payout.id,
+          reference_id: payout.reference_id,
+          status: newStatus,
+          amount: payout.amount,
+          currency: payout.currency,
+          beneficiary_name: payout.beneficiary_name,
+          beneficiary_account: payout.beneficiary_account,
+          beneficiary_ifsc: payout.beneficiary_ifsc,
+          utr: utr || null,
+          failure_reason: finalFailureReason || null,
+          status_code: status_code || null,
+          status_description: status_description || null,
+          cf_transfer_id: cf_transfer_id || null,
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          event_type: 'status_changed',
+          old_status: payout.status,
+          new_status: newStatus
+        };
+        
+        console.log(`[CF-Webhook] Forwarding to external callback: ${payout.external_callback_url}`);
+        console.log(`[CF-Webhook] External callback payload:`, JSON.stringify(externalCallbackPayload, null, 2));
+        
+        const externalResponse = await fetch(payout.external_callback_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ZTake-Webhook/1.0'
+          },
+          body: JSON.stringify(externalCallbackPayload)
+        });
+        
+        if (externalResponse.ok) {
+          console.log(`[CF-Webhook] External callback successful: ${externalResponse.status}`);
+        } else {
+          console.warn(`[CF-Webhook] External callback failed: ${externalResponse.status} ${externalResponse.statusText}`);
+        }
+      } catch (externalError) {
+        console.error(`[CF-Webhook] External callback error:`, externalError);
+        // Don't fail the webhook if external callback fails
+      }
+    }
+    
     // Send Telegram notification to admins (optional)
     if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_ADMIN_CHAT_ID) {
       try {
@@ -271,9 +326,11 @@ export async function POST(req: NextRequest) {
     
   } catch (error) {
     console.error('[CF-Webhook] Error processing webhook:', error);
+    console.error('[CF-Webhook] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ 
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }
