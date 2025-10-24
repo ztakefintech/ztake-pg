@@ -52,6 +52,11 @@ interface User {
   is_approved?: boolean;
   kyc_status?: 'pending' | 'verified' | 'rejected';
   google_id?: string | null;
+  cashfree_app_id?: string | null;
+  cashfree_secret_key?: string | null;
+  cashfree_payout_client_id?: string | null;
+  cashfree_payout_client_secret?: string | null;
+  cashfree_env?: 'sandbox' | 'prod' | null;
   created_at: string;
   updated_at: string;
 }
@@ -283,6 +288,14 @@ export default function AdminDashboard() {
   const [allVendors, setAllVendors] = useState<Array<{id: number; business_name: string; contact_name: string; email: string}>>([]);
   const [assignedVendors, setAssignedVendors] = useState<number[]>([]);
   const [loadingVendorAssignments, setLoadingVendorAssignments] = useState(false);
+  // Cashfree credentials management
+  const [editingCashfreeCredentials, setEditingCashfreeCredentials] = useState<number | null>(null);
+  const [cashfreeAppId, setCashfreeAppId] = useState('');
+  const [cashfreeSecretKey, setCashfreeSecretKey] = useState('');
+  const [cashfreePayoutClientId, setCashfreePayoutClientId] = useState('');
+  const [cashfreePayoutClientSecret, setCashfreePayoutClientSecret] = useState('');
+  const [cashfreeEnv, setCashfreeEnv] = useState<'sandbox' | 'prod'>('sandbox');
+  const [savingCashfreeCredentials, setSavingCashfreeCredentials] = useState(false);
 
   function PendingUtrList({ onApprove }: { onApprove: (p: { id?: number; utr: string; amount: number; vendor_code: string }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; vendor_code: string; business_name?: string; created_at: string }>>([]);
@@ -663,6 +676,55 @@ export default function AdminDashboard() {
     }
   };
 
+  const openEditCashfreeCredentials = (u: User) => {
+    setEditingCashfreeCredentials(u.id);
+    setCashfreeAppId(u.cashfree_app_id || '');
+    setCashfreeSecretKey(u.cashfree_secret_key || '');
+    setCashfreePayoutClientId(u.cashfree_payout_client_id || '');
+    setCashfreePayoutClientSecret(u.cashfree_payout_client_secret || '');
+    setCashfreeEnv(u.cashfree_env || 'sandbox');
+  };
+
+  const saveCashfreeCredentials = async () => {
+    if (!editingCashfreeCredentials) return;
+    setSavingCashfreeCredentials(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingCashfreeCredentials,
+          cashfree_app_id: cashfreeAppId || null,
+          cashfree_secret_key: cashfreeSecretKey || null,
+          cashfree_payout_client_id: cashfreePayoutClientId || null,
+          cashfree_payout_client_secret: cashfreePayoutClientSecret || null,
+          cashfree_env: cashfreeEnv || 'sandbox',
+        })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error || 'Failed to save Cashfree credentials');
+      // reload users
+      const usersRes = await fetch('/api/admin/users');
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData.users);
+      }
+      setEditingCashfreeCredentials(null);
+      toast({
+        title: "Success",
+        description: "Cashfree credentials updated successfully",
+      });
+    } catch (e: any) {
+      toast({
+        title: "Error",
+        description: e.message || 'Failed to save Cashfree credentials',
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCashfreeCredentials(false);
+    }
+  };
+
   const createAdminUser = async () => {
     if (!newAdminEmail || !newAdminPassword || !newAdminName) {
       alert('Please fill in all fields');
@@ -903,6 +965,7 @@ export default function AdminDashboard() {
     return [
       ...(hasPermission('view_overview') ? [{ id: 'overview', name: 'Overview' }] : []),
       ...(hasPermission('view_users') ? [{ id: 'users', name: 'Users' }] : []),
+      ...(hasPermission('view_users') ? [{ id: 'vendors', name: 'Vendors' }] : []),
       ...(hasPermission('view_payments') ? [{ id: 'payments', name: 'Payments' }] : []),
       ...(hasPermission('manage_payin') ? [{ id: 'utrSubmit', name: 'UTR Submit' }] : []),
       ...(hasPermission('view_payouts') ? [{ id: 'payouts', name: 'Payouts' }] : []),
@@ -1371,12 +1434,104 @@ export default function AdminDashboard() {
                               Edit
                             </button>
                             <button
+                              onClick={() => openEditCashfreeCredentials(user)}
+                              className="text-purple-600 hover:text-purple-900 text-xs px-1 py-0.5 bg-purple-50 hover:bg-purple-100 rounded"
+                            >
+                              Cashfree
+                            </button>
+                            <button
                               onClick={() => deleteUser(user.id)}
                               className="text-red-600 hover:text-red-900 text-xs px-1 py-0.5 bg-red-50 hover:bg-red-100 rounded"
                             >
                               Delete
                             </button>
                           </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">View Only</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vendors Tab */}
+      {activeTab === 'vendors' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Vendor Cashfree Credentials</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business Name</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">App ID</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payout Client ID</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Environment</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="max-w-36 truncate" title={user.business_name}>
+                          {user.business_name}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-32 truncate" title={user.contact_name}>
+                          {user.contact_name}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-40 truncate" title={user.email}>
+                          {user.email}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-32 truncate" title={user.cashfree_app_id || 'Not set'}>
+                          {user.cashfree_app_id ? `${user.cashfree_app_id.substring(0, 8)}...` : '—'}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-32 truncate" title={user.cashfree_payout_client_id || 'Not set'}>
+                          {user.cashfree_payout_client_id ? `${user.cashfree_payout_client_id.substring(0, 8)}...` : '—'}
+                        </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.cashfree_env === 'prod' ? 'bg-green-100 text-green-800' :
+                          user.cashfree_env === 'sandbox' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {user.cashfree_env || 'Not set'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          user.cashfree_app_id && user.cashfree_secret_key && user.cashfree_payout_client_id && user.cashfree_payout_client_secret
+                            ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.cashfree_app_id && user.cashfree_secret_key && user.cashfree_payout_client_id && user.cashfree_payout_client_secret
+                            ? 'Configured' : 'Not Configured'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                        {hasPermission('manage_users') ? (
+                          <button
+                            onClick={() => openEditCashfreeCredentials(user)}
+                            className="text-indigo-600 hover:text-indigo-900 text-xs px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded"
+                          >
+                            {user.cashfree_app_id ? 'Edit' : 'Configure'}
+                          </button>
                         ) : (
                           <span className="text-xs text-gray-400">View Only</span>
                         )}
@@ -2030,6 +2185,87 @@ export default function AdminDashboard() {
               <button onClick={saveRechargeDetails} disabled={savingUser} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50">Save</button>
             </div>
             <p className="text-xs text-gray-500 mt-3">These details are shown to the vendor in the Recharge popup.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Cashfree Credentials Modal */}
+      {editingCashfreeCredentials !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Edit Cashfree Credentials</h3>
+              <button onClick={() => setEditingCashfreeCredentials(null)} className="text-gray-500">✕</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">App ID</label>
+                <input 
+                  value={cashfreeAppId} 
+                  onChange={(e) => setCashfreeAppId(e.target.value)} 
+                  className="w-full border rounded-md px-3 py-2" 
+                  placeholder="e.g. 1234567890abcdef" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                <input 
+                  type="password"
+                  value={cashfreeSecretKey} 
+                  onChange={(e) => setCashfreeSecretKey(e.target.value)} 
+                  className="w-full border rounded-md px-3 py-2" 
+                  placeholder="Enter secret key" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payout Client ID</label>
+                <input 
+                  value={cashfreePayoutClientId} 
+                  onChange={(e) => setCashfreePayoutClientId(e.target.value)} 
+                  className="w-full border rounded-md px-3 py-2" 
+                  placeholder="e.g. 1234567890abcdef" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payout Client Secret</label>
+                <input 
+                  type="password"
+                  value={cashfreePayoutClientSecret} 
+                  onChange={(e) => setCashfreePayoutClientSecret(e.target.value)} 
+                  className="w-full border rounded-md px-3 py-2" 
+                  placeholder="Enter payout client secret" 
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                <select 
+                  value={cashfreeEnv} 
+                  onChange={(e) => setCashfreeEnv(e.target.value as 'sandbox' | 'prod')} 
+                  className="w-full border rounded-md px-3 py-2"
+                >
+                  <option value="sandbox">Sandbox (Testing)</option>
+                  <option value="prod">Production (Live)</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button 
+                onClick={() => setEditingCashfreeCredentials(null)} 
+                className="px-3 py-1.5 text-sm border rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveCashfreeCredentials} 
+                disabled={savingCashfreeCredentials} 
+                className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
+              >
+                {savingCashfreeCredentials ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              These credentials are used for Cashfree payout operations. Make sure to use the correct environment (sandbox for testing, production for live).
+            </p>
           </div>
         </div>
       )}

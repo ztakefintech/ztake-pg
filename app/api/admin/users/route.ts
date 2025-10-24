@@ -37,6 +37,11 @@ export const GET = requirePermission('view_users')(async (request: NextRequest) 
             payout_recharge_ifsc,
             is_approved,
             google_id,
+            cashfree_app_id,
+            cashfree_secret_key,
+            cashfree_payout_client_id,
+            cashfree_payout_client_secret,
+            cashfree_env,
             created_at,
             updated_at
           FROM vendors 
@@ -60,6 +65,11 @@ export const GET = requirePermission('view_users')(async (request: NextRequest) 
             payout_recharge_ifsc,
             is_approved,
             google_id,
+            cashfree_app_id,
+            cashfree_secret_key,
+            cashfree_payout_client_id,
+            cashfree_payout_client_secret,
+            cashfree_env,
             created_at,
             updated_at
           FROM vendors 
@@ -86,7 +96,12 @@ export const PATCH = requirePermission('manage_users')(async (request: NextReque
       payout_recharge_account_holder, 
       payout_recharge_ifsc,
       is_approved,
-      kyc_status 
+      kyc_status,
+      cashfree_app_id,
+      cashfree_secret_key,
+      cashfree_payout_client_id,
+      cashfree_payout_client_secret,
+      cashfree_env
     } = body || {};
     
     if (!id) {
@@ -125,6 +140,31 @@ export const PATCH = requirePermission('manage_users')(async (request: NextReque
     if (kyc_status !== undefined) {
       updates.push('kyc_status = ?');
       values.push(String(kyc_status));
+    }
+
+    if (cashfree_app_id !== undefined) {
+      updates.push('cashfree_app_id = ?');
+      values.push(cashfree_app_id || null);
+    }
+
+    if (cashfree_secret_key !== undefined) {
+      updates.push('cashfree_secret_key = ?');
+      values.push(cashfree_secret_key || null);
+    }
+
+    if (cashfree_payout_client_id !== undefined) {
+      updates.push('cashfree_payout_client_id = ?');
+      values.push(cashfree_payout_client_id || null);
+    }
+
+    if (cashfree_payout_client_secret !== undefined) {
+      updates.push('cashfree_payout_client_secret = ?');
+      values.push(cashfree_payout_client_secret || null);
+    }
+
+    if (cashfree_env !== undefined) {
+      updates.push('cashfree_env = ?');
+      values.push(cashfree_env || 'sandbox');
     }
     
     if (updates.length === 0) {
