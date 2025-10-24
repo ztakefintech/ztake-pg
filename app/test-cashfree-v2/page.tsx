@@ -34,7 +34,9 @@ export default function TestCashfreeV2Page() {
       const data = await response.json();
       setResponse({ status: response.status, data });
     } catch (error) {
-      setResponse({ error: error.message });
+      setResponse({ 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      });
     } finally {
       setLoading(false);
     }
