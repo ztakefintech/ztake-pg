@@ -67,12 +67,26 @@ export async function POST(req: NextRequest) {
     
     console.log('[CF-Webhook] Webhook data:', JSON.stringify(webhookData, null, 2));
     
+    // Handle test webhooks from Cashfree
+    if (webhookData.type === 'test' || webhookData.event_type === 'test' || webhookData.test === true) {
+      console.log('[CF-Webhook] Received test webhook, responding with success');
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Test webhook received successfully',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // Extract transfer details from Cashfree webhook format
     const { data, event_time, type } = webhookData;
     
     if (!data || !data.transfer_id) {
       console.error('[CF-Webhook] Missing transfer_id in payload');
-      return NextResponse.json({ error: 'Missing transfer_id' }, { status: 400 });
+      console.error('[CF-Webhook] Payload structure:', Object.keys(webhookData));
+      return NextResponse.json({ 
+        error: 'Missing transfer_id in payload',
+        received_keys: Object.keys(webhookData)
+      }, { status: 400 });
     }
     
     const {
@@ -98,7 +112,20 @@ export async function POST(req: NextRequest) {
     
     if (!payout) {
       console.warn(`[CF-Webhook] Payout not found for transfer_id: ${transfer_id}`);
-      return NextResponse.json({ error: 'Payout not found' }, { status: 404 });
+      // For test webhooks or unknown transfers, return success to avoid webhook failures
+      if (transfer_id.includes('TEST') || transfer_id.includes('test')) {
+        console.log('[CF-Webhook] Test transfer detected, returning success');
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Test transfer processed (payout not found in database)',
+          transfer_id 
+        });
+      }
+      return NextResponse.json({ 
+        error: 'Payout not found',
+        transfer_id,
+        message: 'This transfer_id does not exist in our database'
+      }, { status: 404 });
     }
     
     console.log(`[CF-Webhook] Processing ${type} event for transfer ${transfer_id}`);
@@ -241,11 +268,30 @@ export async function POST(req: NextRequest) {
 
 // Handle GET requests for webhook verification/testing
 export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const test = url.searchParams.get('test');
+  
+  if (test === 'webhook') {
+    // Simulate a test webhook response
+    return NextResponse.json({
+      message: 'Cashfree Payout Webhook Endpoint',
+      status: 'active',
+      timestamp: new Date().toISOString(),
+      methods: ['POST'],
+      description: 'This endpoint receives payout status updates from Cashfree',
+      test_response: {
+        success: true,
+        message: 'Test webhook would be processed successfully'
+      }
+    });
+  }
+  
   return NextResponse.json({
     message: 'Cashfree Payout Webhook Endpoint',
     status: 'active',
     timestamp: new Date().toISOString(),
     methods: ['POST'],
-    description: 'This endpoint receives payout status updates from Cashfree'
+    description: 'This endpoint receives payout status updates from Cashfree',
+    test_url: `${req.nextUrl.origin}${req.nextUrl.pathname}?test=webhook`
   });
 }
