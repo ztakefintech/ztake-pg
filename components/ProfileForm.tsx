@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield } from 'react-icons/fi';
+import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface PaymentInfo {
@@ -53,12 +53,31 @@ export default function ProfileForm() {
   const [ips, setIps] = useState<Array<{ id?: number; ip: string; enabled: boolean }>>([]);
   const [newIp, setNewIp] = useState('');
   const [isSavingIp, setIsSavingIp] = useState(false);
+  // Bank Accounts state
+  const [bankAccounts, setBankAccounts] = useState<Array<{
+    id: number;
+    bank_name: string;
+    account_holder_name: string;
+    account_number: string;
+    ifsc_code: string;
+    is_active: boolean;
+  }>>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [showAddAccountForm, setShowAddAccountForm] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
+  const [accountFormData, setAccountFormData] = useState({
+    bank_name: '',
+    account_holder_name: '',
+    account_number: '',
+    ifsc_code: ''
+  });
 
   useEffect(() => {
     if (token) {
       fetchProfile();
       fetchPaymentInfo();
       fetchCredentialsConfig();
+      fetchBankAccounts();
       // Refresh vendor data from API to get latest vendor_code
       refreshVendorData();
     }
@@ -286,6 +305,110 @@ export default function ProfileForm() {
     } catch (_) {}
   };
 
+  // Bank Accounts functions
+  const fetchBankAccounts = async () => {
+    if (!token) return;
+    try {
+      setIsLoadingAccounts(true);
+      const response = await fetch('/api/vendor/bank-accounts', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBankAccounts(data.accounts || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch bank accounts:', err);
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  };
+
+  const handleAddAccount = () => {
+    setAccountFormData({
+      bank_name: '',
+      account_holder_name: '',
+      account_number: '',
+      ifsc_code: ''
+    });
+    setEditingAccountId(null);
+    setShowAddAccountForm(true);
+  };
+
+  const handleEditAccount = (account: any) => {
+    setAccountFormData({
+      bank_name: account.bank_name,
+      account_holder_name: account.account_holder_name,
+      account_number: account.account_number,
+      ifsc_code: account.ifsc_code
+    });
+    setEditingAccountId(account.id);
+    setShowAddAccountForm(true);
+  };
+
+  const handleSaveAccount = async () => {
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const url = editingAccountId 
+        ? `/api/vendor/bank-accounts/${editingAccountId}`
+        : '/api/vendor/bank-accounts';
+      const method = editingAccountId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(accountFormData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(editingAccountId ? 'Bank account updated successfully' : 'Bank account added successfully');
+        setShowAddAccountForm(false);
+        fetchBankAccounts();
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.error || 'Failed to save bank account');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this bank account?')) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/vendor/bank-accounts/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setSuccess('Bank account deleted successfully');
+        fetchBankAccounts();
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError('Failed to delete bank account');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -345,7 +468,7 @@ export default function ProfileForm() {
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
-        <p className="text-gray-600">Manage your account information and payment details</p>
+        <p className="text-gray-600 dark:text-gray-400">Manage your account information and payment details</p>
       </div>
 
       {/* Summary header */}
@@ -356,22 +479,22 @@ export default function ProfileForm() {
               <FiUser className="w-7 h-7 text-gray-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Vendor Code</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Vendor Code</p>
               <p className="font-mono font-semibold">{vendor?.vendor_code || '—'}</p>
             </div>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-700"><FiGlobe className="text-gray-400" /><span className="truncate">{formData.website || '—'}</span></div>
-            <div className="flex items-center gap-2 text-gray-700"><FiMail className="text-gray-400" /><span className="truncate">{vendor?.email}</span></div>
-            <div className="flex items-center gap-2 text-gray-700"><FiPhone className="text-gray-400" /><span>{formData.phone || '—'}</span></div>
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><FiGlobe className="text-gray-400 dark:text-gray-500" /><span className="truncate">{formData.website || '—'}</span></div>
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><FiMail className="text-gray-400 dark:text-gray-500" /><span className="truncate">{vendor?.email}</span></div>
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><FiPhone className="text-gray-400 dark:text-gray-500" /><span>{formData.phone || '—'}</span></div>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gray-700"><FiShield className="text-gray-400" /><span>{formData.business_name || 'Business'}</span></div>
-            <div className="flex items-center gap-2 text-gray-700">
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300"><FiShield className="text-gray-400 dark:text-gray-500" /><span>{formData.business_name || 'Business'}</span></div>
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
               <span className={`text-xs px-2 py-1 rounded ${
-                kycStatus === 'verified' ? 'bg-green-100 text-green-800' :
-                kycStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
+                kycStatus === 'verified' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' :
+                kycStatus === 'rejected' ? 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200' :
+                'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200'
               }`}>
                 KYC {kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)}
               </span>
@@ -381,11 +504,12 @@ export default function ProfileForm() {
       </div>
 
       <Tabs defaultValue="details" className="card">
-        <TabsList className="mb-4 bg-gray-100 border rounded-lg p-1 text-gray-700">
-          <TabsTrigger className="data-[state=active]:bg-white" value="details">Personal / Business Details</TabsTrigger>
-          <TabsTrigger className="data-[state=active]:bg-white" value="credentials">Credentials Manager</TabsTrigger>
-          <TabsTrigger className="data-[state=active]:bg-white" value="accounts">My Accounts</TabsTrigger>
-          <TabsTrigger className="data-[state=active]:bg-white" value="upi">UPI Credentials</TabsTrigger>
+        <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1 text-gray-700 dark:text-gray-300">
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="details">Personal / Business Details</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="credentials">Credentials Manager</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="accounts">Recharge Account</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="bank-accounts">Bank Accounts</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="upi">UPI Credentials</TabsTrigger>
         </TabsList>
 
         {/* Details */}
@@ -512,8 +636,159 @@ export default function ProfileForm() {
                 <input id="bank_ifsc" name="bank_ifsc" type="text" className="input-field uppercase" placeholder="e.g., HDFC0001234" value={formData.bank_ifsc} onChange={handleChange} disabled readOnly />
               </div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-sm text-yellow-800">These bank account details are managed by the admin team. Contact support to update.</div>
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 text-sm text-yellow-800 dark:text-yellow-200">These bank account details are managed by the admin team. Contact support to update.</div>
           </form>
+        </TabsContent>
+
+        {/* Bank Accounts */}
+        <TabsContent value="bank-accounts" className="space-y-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Your Bank Accounts</h3>
+            <button
+              onClick={handleAddAccount}
+              className="btn-primary flex items-center gap-2"
+              disabled={showAddAccountForm}
+            >
+              <FiPlus /> Add Bank Account
+            </button>
+          </div>
+
+          {error && <div className="error-message text-center">{error}</div>}
+          {success && <div className="success-message text-center">{success}</div>}
+
+          {showAddAccountForm && (
+            <div className="card mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-semibold">{editingAccountId ? 'Edit Bank Account' : 'Add New Bank Account'}</h4>
+                <button
+                  onClick={() => setShowAddAccountForm(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label">Bank Name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g., HDFC Bank"
+                    value={accountFormData.bank_name}
+                    onChange={(e) => setAccountFormData({ ...accountFormData, bank_name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Holder Name</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g., Rahul Sharma"
+                    value={accountFormData.account_holder_name}
+                    onChange={(e) => setAccountFormData({ ...accountFormData, account_holder_name: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Number</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="e.g., 123456789012"
+                    value={accountFormData.account_number}
+                    onChange={(e) => setAccountFormData({ ...accountFormData, account_number: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">IFSC Code</label>
+                  <input
+                    type="text"
+                    className="input-field uppercase"
+                    placeholder="e.g., HDFC0001234"
+                    value={accountFormData.ifsc_code}
+                    onChange={(e) => setAccountFormData({ ...accountFormData, ifsc_code: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={handleSaveAccount}
+                  disabled={isSaving}
+                  className="btn-primary"
+                >
+                  {isSaving ? 'Saving...' : 'Save Account'}
+                </button>
+                <button
+                  onClick={() => setShowAddAccountForm(false)}
+                  className="btn-secondary"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isLoadingAccounts ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+              <p className="mt-4 text-gray-500">Loading bank accounts...</p>
+            </div>
+          ) : bankAccounts.length === 0 ? (
+            <div className="card text-center py-12">
+              <FiCreditCard className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-4 text-gray-500">No bank accounts added yet. Click "Add Bank Account" to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {bankAccounts.map((account) => (
+                <div key={account.id} className="card">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FiCreditCard className="text-gray-400" />
+                        <h4 className="font-semibold">{account.bank_name}</h4>
+                        {account.is_active && (
+                          <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Account Holder:</span>
+                          <p className="font-medium">{account.account_holder_name}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Account Number:</span>
+                          <p className="font-mono font-medium">{account.account_number}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">IFSC Code:</span>
+                          <p className="font-mono font-medium">{account.ifsc_code}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEditAccount(account)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Edit Account"
+                      >
+                        <FiEdit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAccount(account.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete Account"
+                      >
+                        <FiTrash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* UPI */}
@@ -538,15 +813,15 @@ export default function ProfileForm() {
             ) : paymentInfo ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-2">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">UPI ID</h3>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">UPI ID</h3>
                   <div className="flex items-center space-x-2">
                     <p className="text-lg font-mono bg-gray-100 p-3 rounded flex-1">{paymentInfo.upi_id}</p>
-                    <button onClick={() => copyToClipboard(paymentInfo.upi_id || '')} className="p-2 text-gray-500 hover:text-gray-700" title="Copy UPI ID"><FiCopy className="h-4 w-4" /></button>
+                    <button onClick={() => copyToClipboard(paymentInfo.upi_id || '')} className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-300" title="Copy UPI ID"><FiCopy className="h-4 w-4" /></button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Click the copy icon to copy UPI ID</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">QR Code</h3>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">QR Code</h3>
                   <div className="flex justify-center">
                     <div className="relative">
                       <img src={paymentInfo.qr_code_url} alt="Payment QR Code" className="w-40 h-40 border-2 border-gray-200 rounded-lg shadow-sm" onError={() => setQrError('Failed to load QR code image')} />

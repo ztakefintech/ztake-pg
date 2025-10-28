@@ -472,6 +472,22 @@ class Database {
         )
       `);
 
+      // Create vendor_bank_accounts table for multiple bank accounts
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS vendor_bank_accounts (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER NOT NULL,
+          bank_name VARCHAR(255) NOT NULL,
+          account_holder_name VARCHAR(255) NOT NULL,
+          account_number VARCHAR(64) NOT NULL,
+          ifsc_code VARCHAR(20) NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE
+        )
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);
