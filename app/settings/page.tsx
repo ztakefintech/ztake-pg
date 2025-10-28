@@ -40,7 +40,7 @@ export default function SettingsPage() {
     <Layout>
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="text-gray-600">Manage your API keys and check payment status</p>
         </div>
 

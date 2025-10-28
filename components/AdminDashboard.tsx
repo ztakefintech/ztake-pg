@@ -2157,7 +2157,7 @@ export default function AdminDashboard() {
 
       {editUserId !== null && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-lg p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-lg p-5 border border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Edit Recharge Bank Details</h3>
               <button onClick={() => setEditUserId(null)} className="text-gray-500">✕</button>
@@ -2192,7 +2192,7 @@ export default function AdminDashboard() {
       {/* Edit Cashfree Credentials Modal */}
       {editingCashfreeCredentials !== null && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-2xl p-5 border border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Edit Cashfree Credentials</h3>
               <button onClick={() => setEditingCashfreeCredentials(null)} className="text-gray-500">✕</button>
@@ -2273,7 +2273,7 @@ export default function AdminDashboard() {
       {/* Create Admin Modal */}
       {showCreateAdmin && hasPermission('manage_admins') && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-lg p-5">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-lg p-5 border border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gray-900">Create Admin User</h3>
               <button onClick={() => setShowCreateAdmin(false)} className="text-gray-500">✕</button>
@@ -2388,7 +2388,7 @@ export default function AdminDashboard() {
       {/* Permission Editor Modal */}
       {editingPermissions !== null && hasPermission('manage_admins') && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Edit Permissions
@@ -2478,7 +2478,7 @@ export default function AdminDashboard() {
       {/* Vendor Assignment Modal */}
       {editingVendorAssignments !== null && hasPermission('manage_admins') && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-2xl p-6 max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Manage Vendor Assignments

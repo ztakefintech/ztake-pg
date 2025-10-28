@@ -224,7 +224,7 @@ export default function DemoPage() {
   // Defer auth-based returns until after all hooks are declared
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
@@ -235,13 +235,13 @@ export default function DemoPage() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Instant Payout</h1>
-          <p className="text-gray-600">Test payment and payout functionality with real-time callbacks.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Instant Payout</h1>
+          <p className="text-gray-600 dark:text-gray-400">Test payment and payout functionality with real-time callbacks.</p>
         </div>
 
         {/* Common Secret Key (PK) Section for both Pay-in and Payout */}
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key (PK)</label>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secret Key (PK)</label>
           <div className="relative">
             <input 
               className="border rounded px-3 py-2 w-full font-mono text-sm pr-10" 
@@ -253,13 +253,13 @@ export default function DemoPage() {
             <button
               type="button"
               onClick={() => setShowSecretKey(!showSecretKey)}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             >
               {showSecretKey ? '🙈' : '👁️'}
             </button>
           </div>
           <div className="flex flex-wrap gap-3 items-center mt-2">
-            <div className="flex items-center gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               {secretKey ? <span className="text-green-600">✓</span> : <span className="text-orange-600">⚠</span>}
               <span>{secretKey ? 'Secret key entered' : 'Enter secret key to create orders and payouts'}</span>
             </div>
@@ -341,16 +341,16 @@ export default function DemoPage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pay-in Card */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
             <h2 className="text-xl font-semibold mb-4">Pay-in</h2>
-            <p className="text-gray-600 mb-4">Create order, submit UTR, and observe callback events.</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Create order, submit UTR, and observe callback events.</p>
             <div className="mb-4 text-center">
               {qrCode ? (
                 <img src={qrCode} alt="Payment QR" className="w-48 h-48 inline-block border rounded" />
               ) : (
-                <div className="w-48 h-48 inline-flex items-center justify-center bg-gray-100 rounded">No QR</div>
+                <div className="w-48 h-48 inline-flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded">No QR</div>
               )}
-              <div className="text-sm text-gray-700 mt-2">{businessName}</div>
+              <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">{businessName}</div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input className="border rounded px-3 py-2" value={merchantOrderId} onChange={(e) => setMerchantOrderId(e.target.value)} placeholder="Merchant Order ID" />
@@ -366,14 +366,14 @@ export default function DemoPage() {
             </div>
             {orderId && (
               <div className="mt-2 text-sm">
-                <span className="text-gray-600">Order ID:</span> <span className="font-mono">{orderId}</span>
+                <span className="text-gray-600 dark:text-gray-400">Order ID:</span> <span className="font-mono">{orderId}</span>
               </div>
             )}
             {(payinMsg || payinErr) && (
               <div className={`mt-3 p-2 rounded ${payinErr ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>{payinErr || payinMsg}</div>
             )}
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">UTR</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UTR</label>
               <div className="flex gap-2">
                 <input className="border rounded px-3 py-2 flex-1" value={utr} onChange={(e) => setUtr(e.target.value)} placeholder="Enter UTR" />
               </div>
@@ -381,15 +381,15 @@ export default function DemoPage() {
             <div className="mt-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold">Callback Events</h3>
-                <span className="text-xs text-gray-500">token: {callbackToken}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">token: {callbackToken}</span>
               </div>
-              <div className="border rounded p-2 h-56 overflow-auto bg-gray-50 text-xs">
+              <div className="border rounded p-2 h-56 overflow-auto bg-gray-50 dark:bg-gray-800 text-xs">
                 {events.length === 0 ? (
-                  <div className="text-gray-500">No callbacks yet</div>
+                  <div className="text-gray-500 dark:text-gray-400">No callbacks yet</div>
                 ) : (
                   events.map((e, idx) => (
                     <div key={idx} className="mb-2">
-                      <div className="text-gray-600">{new Date(e.receivedAt).toLocaleString()}</div>
+                      <div className="text-gray-600 dark:text-gray-400">{new Date(e.receivedAt).toLocaleString()}</div>
                       <pre className="overflow-auto">{JSON.stringify(e.payload, null, 2)}</pre>
                     </div>
                   ))
@@ -399,14 +399,14 @@ export default function DemoPage() {
           </div>
 
           {/* Payout Card */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
             <h2 className="text-xl font-semibold mb-4">Payout</h2>
-            <p className="text-gray-600 mb-4">Create a payout to bank account (transfer).</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Create a payout to bank account (transfer).</p>
             
             {/* Balance Display */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Available Balance:</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Available Balance:</span>
                 <div className="flex items-center gap-2">
                   {balanceLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
@@ -442,15 +442,15 @@ export default function DemoPage() {
             <div className="mt-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold">Callback Events</h3>
-                <span className="text-xs text-gray-500">token: {callbackToken}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">token: {callbackToken}</span>
               </div>
-              <div className="border rounded p-2 h-56 overflow-auto bg-gray-50 text-xs">
+              <div className="border rounded p-2 h-56 overflow-auto bg-gray-50 dark:bg-gray-800 text-xs">
                 {payoutEvents.length === 0 ? (
-                  <div className="text-gray-500">No callbacks yet</div>
+                  <div className="text-gray-500 dark:text-gray-400">No callbacks yet</div>
                 ) : (
                   payoutEvents.map((e, idx) => (
                     <div key={idx} className="mb-2">
-                      <div className="text-gray-600">{new Date(e.receivedAt).toLocaleString()}</div>
+                      <div className="text-gray-600 dark:text-gray-400">{new Date(e.receivedAt).toLocaleString()}</div>
                       <pre className="overflow-auto">{JSON.stringify(e.payload, null, 2)}</pre>
                     </div>
                   ))

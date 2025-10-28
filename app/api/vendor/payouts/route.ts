@@ -9,6 +9,7 @@ import { withRateLimit } from '@/lib/middleware';
 import { payoutCreationRateLimit } from '@/lib/rate-limit';
 import { apiCors } from '@/lib/cors';
 import { sendTelegramAdminAlert } from '@/lib/telegram';
+import { processPayoutToCashfree } from '@/lib/cashfree-payout';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -403,10 +404,31 @@ async function createPayout(req: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
+    // Process payout automatically
+    console.log(`[PAYOUT] Processing payout ${result.lastID}...`);
+    const cashfreeResult = await processPayoutToCashfree(result.lastID);
+    
+    if (!cashfreeResult.success) {
+      console.error(`[PAYOUT] Payout processing failed: ${cashfreeResult.error}`);
+      // Update payout status to failed
+      await db.run(
+        `UPDATE payouts SET status = 'failed', failure_reason = ? WHERE id = ?`,
+        [cashfreeResult.error || 'Payout processing failed', result.lastID]
+      );
+    }
+
+    // Get updated payout details
+    const updatedPayout = await db.get(
+      `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, created_at
+       FROM payouts WHERE id = ?`,
+      [result.lastID]
+    );
+
     return NextResponse.json({ 
       success: true,
-      message: 'Payout request created', 
-      payout,
+      message: cashfreeResult.success ? 'Payout request processed successfully' : 'Payout created but processing failed',
+      payout: updatedPayout,
+      details: cashfreeResult.success ? { processed: true, transferId: cashfreeResult.transferId } : { error: cashfreeResult.error },
       authMethod: 'api_key_vendor_code'
     });
   } catch (error) {

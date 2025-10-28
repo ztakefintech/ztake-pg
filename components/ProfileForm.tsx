@@ -344,7 +344,7 @@ export default function ProfileForm() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
         <p className="text-gray-600">Manage your account information and payment details</p>
       </div>
 
@@ -563,7 +563,7 @@ export default function ProfileForm() {
             ) : (
               <div className="text-center py-8">
                 <FiRefreshCw className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Loading payment info...</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Loading payment info...</h3>
                 <p className="mt-1 text-sm text-gray-500">Please wait while we fetch your UPI details.</p>
               </div>
             )}

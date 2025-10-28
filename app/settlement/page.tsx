@@ -179,8 +179,8 @@ export default function SettlementPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Settlement History</h1>
-            <p className="text-gray-600">Track settlements and payout recharges</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settlement History</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track settlements and payout recharges</p>
             <div className="mt-2 space-y-2">
               <div className="text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 inline-block">
                 <span className="font-semibold">2%+GST PAYIN SETTLE</span> — Effective fee shown as 3.53% deduction.
@@ -200,7 +200,7 @@ export default function SettlementPage() {
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-gray-800">
           <nav className="-mb-px flex space-x-8">
             {[
               { id: 'settlements', name: 'Settlement Requests' },
@@ -212,7 +212,7 @@ export default function SettlementPage() {
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.name}
@@ -228,40 +228,40 @@ export default function SettlementPage() {
         )}
 
         {activeTab === 'settlements' && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Settlement Requests</h3>
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Settlement Requests</h3>
             
             {records.length === 0 ? (
               <div className="text-center py-8">
                 <FiDollarSign className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No settlement requests yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Your settlement history will appear here.</p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No settlement requests yet</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Your settlement history will appear here.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin Notes</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Net</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Admin Notes</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {records.map((record) => (
                       <tr key={record.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           #{record.id}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {formatCurrency(record.amount)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {record.fee_amount != null
                             ? (
                               <span title={record.fee_percent != null ? `${record.fee_percent}%${record.fee_note ? ` • ${record.fee_note}` : ''}` : (record.fee_note || '')}>
@@ -270,7 +270,7 @@ export default function SettlementPage() {
                             )
                             : '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {record.net_amount != null ? formatCurrency(record.net_amount) : (record.fee_amount != null ? formatCurrency(record.amount - (record.fee_amount || 0)) : '-')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -281,10 +281,10 @@ export default function SettlementPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                           {record.admin_notes || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           {formatDate(record.created_at)}
                         </td>
                       </tr>
@@ -299,36 +299,36 @@ export default function SettlementPage() {
 
         {/* Recharge History */}
         {activeTab === 'recharges' && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white dark:bg-gray-900 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Recharge Requests</h3>
+            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Recharge Requests</h3>
 
             {recharges.length === 0 ? (
               <div className="text-center py-8">
                 <FiDollarSign className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No recharge requests yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Your recharge history will appear here.</p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No recharge requests yet</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Your recharge history will appear here.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UTR</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Net</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">UTR</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {recharges.map((r) => (
                       <tr key={r.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{r.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(r.amount)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#{r.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(r.amount)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {r.fee_amount != null
                             ? (
                               <span title={r.fee_percent != null ? `${r.fee_percent}%${r.fee_note ? ` • ${r.fee_note}` : ''}` : (r.fee_note || '')}>
@@ -337,7 +337,7 @@ export default function SettlementPage() {
                             )
                             : '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {r.net_amount != null ? formatCurrency(r.net_amount) : (r.fee_amount != null ? formatCurrency(r.amount - (r.fee_amount || 0)) : '-')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">{r.utr || '-'}</td>
@@ -346,7 +346,7 @@ export default function SettlementPage() {
                             {getStatusText(r.status)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(r.created_at)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatDate(r.created_at)}</td>
                       </tr>
                     ))}
                   </tbody>

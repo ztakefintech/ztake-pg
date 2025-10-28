@@ -234,8 +234,8 @@ export default function TransactionsPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Transaction History</h1>
-              <p className="text-gray-600">View all your payment transactions</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transaction History</h1>
+              <p className="text-gray-600 dark:text-gray-400">View all your payment transactions</p>
             </div>
             <button
               onClick={handleRefresh}
@@ -249,7 +249,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Search and Filter Controls */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
@@ -261,7 +261,7 @@ export default function TransactionsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by UTR or amount..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="md:w-48">
@@ -272,7 +272,7 @@ export default function TransactionsPage() {
                 id="status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
                 <option value="Success">Success</option>
@@ -285,56 +285,56 @@ export default function TransactionsPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
                 <FiCheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Successful</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {statusCounts.Success}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <div className="p-2 bg-yellow-100 rounded-lg">
                 <FiClock className="h-6 w-6 text-yellow-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {statusCounts.Pending}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <div className="p-2 bg-red-100 rounded-lg">
                 <FiXCircle className="h-6 w-6 text-red-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Failed</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {statusCounts.Failed}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <FiCheckCircle className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Checked</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {checkedCount}
                 </p>
               </div>
@@ -343,9 +343,9 @@ export default function TransactionsPage() {
         </div>
 
         {/* Transactions Table */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">All Transactions</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">All Transactions</h2>
           </div>
 
           {isLoading ? (
@@ -380,7 +380,7 @@ export default function TransactionsPage() {
             <>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Order ID
@@ -402,21 +402,21 @@ export default function TransactionsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((transaction) => (
-                      <tr key={transaction.id} className="hover:bg-gray-50">
+                      <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm text-gray-900 dark:text-white">
                             {transaction.ztake_order_id || '-'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {transaction.utr || '-'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
                             {transaction.currency || '₹'} {formatAmount(transaction.amount)}
                           </div>
                         </td>
@@ -446,7 +446,7 @@ export default function TransactionsPage() {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-gray-200">
+                <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-700">
                       Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
@@ -455,7 +455,7 @@ export default function TransactionsPage() {
                       <button
                         onClick={() => handlePageChange(pagination.page - 1)}
                         disabled={pagination.page === 1 || isLoading}
-                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FiChevronLeft className="h-4 w-4" />
                         Previous
@@ -476,7 +476,7 @@ export default function TransactionsPage() {
                               className={`px-3 py-2 text-sm font-medium rounded-lg ${
                                 1 === currentPage
                                   ? 'bg-blue-600 text-white'
-                                  : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                  : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50'
                               } disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                               1
@@ -506,7 +506,7 @@ export default function TransactionsPage() {
                                   className={`px-3 py-2 text-sm font-medium rounded-lg ${
                                     page === currentPage
                                       ? 'bg-blue-600 text-white'
-                                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                      : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50'
                                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                   {page}
@@ -534,7 +534,7 @@ export default function TransactionsPage() {
                                 className={`px-3 py-2 text-sm font-medium rounded-lg ${
                                   totalPages === currentPage
                                     ? 'bg-blue-600 text-white'
-                                    : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                    : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50'
                                 } disabled:opacity-50 disabled:cursor-not-allowed`}
                               >
                                 {totalPages}
@@ -549,7 +549,7 @@ export default function TransactionsPage() {
                       <button
                         onClick={() => handlePageChange(pagination.page + 1)}
                         disabled={pagination.page === pagination.totalPages || isLoading}
-                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Next
                         <FiChevronRight className="h-4 w-4" />
