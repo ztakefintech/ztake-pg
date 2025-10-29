@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
 import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import MaskedText from '@/components/ui/masked-text';
 
 interface PaymentInfo {
   qr_code_url: string;
@@ -480,7 +481,7 @@ export default function ProfileForm() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Vendor Code</p>
-              <p className="font-mono font-semibold">{vendor?.vendor_code || '—'}</p>
+              <MaskedText value={vendor?.vendor_code} />
             </div>
           </div>
           <div className="space-y-2">
@@ -507,7 +508,6 @@ export default function ProfileForm() {
         <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1 text-gray-700 dark:text-gray-300">
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="details">Personal / Business Details</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="credentials">Credentials Manager</TabsTrigger>
-          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="accounts">Recharge Account</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="bank-accounts">Bank Accounts</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="upi">UPI Credentials</TabsTrigger>
         </TabsList>
@@ -615,30 +615,7 @@ export default function ProfileForm() {
           </div>
         </TabsContent>
 
-        {/* Accounts */}
-        <TabsContent value="accounts" className="space-y-6">
-          <form className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="form-group">
-                <label htmlFor="bank_name" className="form-label">Bank Name</label>
-                <input id="bank_name" name="bank_name" type="text" className="input-field" placeholder="e.g., HDFC Bank" value={formData.bank_name} onChange={handleChange} disabled readOnly />
-              </div>
-              <div className="form-group">
-                <label htmlFor="bank_account_holder" className="form-label">Account Holder Name</label>
-                <input id="bank_account_holder" name="bank_account_holder" type="text" className="input-field" placeholder="e.g., Rahul Sharma" value={formData.bank_account_holder} onChange={handleChange} disabled readOnly />
-              </div>
-              <div className="form-group">
-                <label htmlFor="bank_account_number" className="form-label">Account Number</label>
-                <input id="bank_account_number" name="bank_account_number" type="text" className="input-field" placeholder="e.g., 123456789012" value={formData.bank_account_number} onChange={handleChange} disabled readOnly />
-              </div>
-              <div className="form-group">
-                <label htmlFor="bank_ifsc" className="form-label">IFSC Code</label>
-                <input id="bank_ifsc" name="bank_ifsc" type="text" className="input-field uppercase" placeholder="e.g., HDFC0001234" value={formData.bank_ifsc} onChange={handleChange} disabled readOnly />
-              </div>
-            </div>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 text-sm text-yellow-800 dark:text-yellow-200">These bank account details are managed by the admin team. Contact support to update.</div>
-          </form>
-        </TabsContent>
+        
 
         {/* Bank Accounts */}
         <TabsContent value="bank-accounts" className="space-y-6">

@@ -181,7 +181,7 @@ export default function SettlementPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settlement History</h1>
             <p className="text-gray-600 dark:text-gray-400">Track settlements and payout recharges</p>
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 space-y-2 hidden">
               <div className="text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 inline-block">
                 <span className="font-semibold">2%+GST PAYIN SETTLE</span> — Effective fee shown as 3.53% deduction.
               </div>

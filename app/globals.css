@@ -30,6 +30,12 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Subtle gradient background for glassmorphism */
+    background-image:
+      radial-gradient(1200px 600px at -10% -10%, rgba(59,130,246,0.15), transparent 40%),
+      radial-gradient(1000px 500px at 110% 0%, rgba(168,85,247,0.12), transparent 45%),
+      radial-gradient(800px 400px at 50% 120%, rgba(16,185,129,0.10), transparent 40%);
+    background-color: hsl(var(--background));
   }
 
   html {
@@ -51,7 +57,7 @@
   }
   
   .card {
-    @apply bg-white dark:bg-gray-900 rounded-lg shadow-md dark:shadow-lg p-6 border border-gray-200 dark:border-gray-800;
+    @apply bg-white dark:bg-gray-900 rounded-lg shadow-md dark:shadow-lg p-6 border border-gray-200 dark:border-gray-800 relative overflow-hidden;
   }
 
   .white-card {
@@ -132,5 +138,104 @@
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 0.8; }
+  }
+}
+
+@layer utilities {
+  /* Reusable glassmorphism utilities */
+  .glass {
+    @apply backdrop-blur-md bg-white/30 dark:bg-gray-900/30 border border-white/40 dark:border-white/10 shadow-md shadow-black/5;
+  }
+
+  .glass-strong {
+    @apply backdrop-blur-lg bg-white/20 dark:bg-gray-900/20 border border-white/40 dark:border-white/10 shadow-lg shadow-black/10;
+  }
+
+  /* Higher-contrast glass for large content areas */
+  .glass-content {
+    @apply backdrop-blur-xl bg-white/55 dark:bg-gray-900/45 border border-white/50 dark:border-white/10 shadow-xl shadow-black/10;
+  }
+
+  .glass-card {
+    @apply glass rounded-xl;
+  }
+
+  .glass-hover {
+    @apply transition-colors hover:bg-white/40 dark:hover:bg-gray-900/40;
+  }
+
+  /* Always-on subtle gloss for cards */
+  .card::after, .glass-card::after, .shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.06) 0%,
+      rgba(255,255,255,0.00) 40%,
+      rgba(255,255,255,0.00) 60%,
+      rgba(255,255,255,0.08) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+  .dark .card::after, .dark .glass-card::after, .dark .shine::after {
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.04) 0%,
+      rgba(255,255,255,0.00) 45%,
+      rgba(255,255,255,0.00) 60%,
+      rgba(255,255,255,0.06) 100%
+    );
+  }
+
+  /* Hover shine sweep effect */
+  .shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine::before, .card::before, .glass-card::before {
+    content: "";
+    position: absolute;
+    top: -30%;
+    left: -70%;
+    width: 55%;
+    height: 160%;
+    transform: rotate(25deg);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.10) 45%,
+      rgba(255, 255, 255, 0.35) 50%,
+      rgba(255, 255, 255, 0.10) 55%,
+      transparent 100%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 200ms ease;
+    z-index: 1;
+  }
+  .dark .shine::before, .dark .card::before, .dark .glass-card::before {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 45%,
+      rgba(255, 255, 255, 0.28) 50%,
+      rgba(255, 255, 255, 0.08) 55%,
+      transparent 100%
+    );
+  }
+  .shine:hover::before, .card:hover::before, .glass-card:hover::before {
+    opacity: 1;
+    animation: shine-sweep 900ms ease-out;
+  }
+
+  @keyframes shine-sweep {
+    0% { left: -80%; }
+    100% { left: 130%; }
+  }
+
+  /* Elevation bump on hover for visibility */
+  .card:hover, .glass-card:hover {
+    box-shadow: 0 10px 25px -10px rgba(0,0,0,0.25);
+    border-color: rgba(255,255,255,0.5);
   }
 }

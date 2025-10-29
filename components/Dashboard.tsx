@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
 import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiShield, FiInfo, FiCpu, FiAlertTriangle, FiArchive } from 'react-icons/fi';
 import { useVendorWebSocket } from '@/hooks/use-websocket';
+import MaskedText from '@/components/ui/masked-text';
 import { toast } from '@/hooks/use-toast';
 
 interface Payment {
@@ -429,7 +430,7 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back, {vendor?.business_name || 'User'}</h1>
         {vendor?.vendor_code && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Vendor ID: <span className="font-mono font-semibold text-gray-900 dark:text-white">{vendor.vendor_code}</span>
+            Vendor ID: <MaskedText value={vendor.vendor_code} className="align-middle" />
           </p>
         )}
       </div>
