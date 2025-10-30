@@ -122,8 +122,8 @@ export default function AccessDeniedPage() {
                 <FiMail className="w-5 h-5 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Email Support</p>
-                  <a href="mailto:support@ztake.com" className="text-sm text-blue-600 hover:text-blue-500">
-                    support@ztake.com
+                  <a href="mailto:support@ztake.in" className="text-sm text-blue-600 hover:text-blue-500">
+                    support@ztake.in
                   </a>
                 </div>
               </div>
@@ -132,8 +132,8 @@ export default function AccessDeniedPage() {
                 <FiPhone className="w-5 h-5 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Phone Support</p>
-                  <a href="tel:+91-9876543210" className="text-sm text-blue-600 hover:text-blue-500">
-                    +91-9876543210
+                  <a href="tel:+91-9220592512" className="text-sm text-blue-600 hover:text-blue-500">
+                    +91-9220592512
                   </a>
                 </div>
               </div>
@@ -151,7 +151,7 @@ export default function AccessDeniedPage() {
             </button>
             
             <button
-              onClick={() => window.open('mailto:support@ztake.com?subject=Account Approval Request', '_blank')}
+              onClick={() => window.open('mailto:support@ztake.in?subject=Account Approval Request', '_blank')}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
               Request Approval

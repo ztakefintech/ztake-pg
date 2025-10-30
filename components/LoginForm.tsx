@@ -268,7 +268,8 @@ export default function LoginForm() {
           <div className="flex flex-col items-center">
             <div className="mb-6">
               <div className="w-20 h-20 rounded-3xl bg-white shadow-[8px_8px_24px_rgba(0,0,0,0.06),-8px_-8px_24px_rgba(255,255,255,0.9)] flex items-center justify-center">
-                <img src="/logo.png" alt="ZTAKE" className="w-12 h-12 object-contain" />
+                <img src="/logo.png" alt="ZTAKE" className="w-12 h-12 object-contain dark:hidden" />
+                <img src="/logo-white.png" alt="ZTAKE" className="w-12 h-12 object-contain hidden dark:block" />
               </div>
             </div>
             <h1 className="text-xl font-semibold tracking-wide text-slate-800 mb-6">ZTAKE</h1>

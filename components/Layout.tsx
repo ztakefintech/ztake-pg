@@ -38,7 +38,11 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 {/* <FiZap className="w-6 h-6 text-blue-600 dark:text-blue-500" /> */}
-                <Image src="/logo.png" alt="ZTake" width={40} height={40} />
+                {mounted ? (
+                  <Image src={theme === 'dark' ? '/logo-white.png' : '/logo.png'} alt="ZTake" width={40} height={40} />
+                ) : (
+                  <Image src="/logo.png" alt="ZTake" width={40} height={40} />
+                )}
                 <Link href="/dashboard" className="text-xl font-bold text-gray-900 dark:text-white">
                   ZTAKE
                 </Link>

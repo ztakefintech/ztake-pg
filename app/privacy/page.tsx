@@ -124,7 +124,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="bg-gray-900 p-4 rounded-lg">
                 <p className="text-gray-300">
-                  Email: privacy@ztake.com<br />
+                  Email: privacy@ztake.in<br />
                   Phone: +1 (555) 123-4567<br />
                   Address: 123 Business St, Suite 100, San Francisco, CA 94105
                 </p>
