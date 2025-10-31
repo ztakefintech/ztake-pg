@@ -33,9 +33,9 @@ export default function OrderPaymentPage({ params }: { params: { qpayOrderId: st
         if (!res.ok) throw new Error('Order not found');
         const json = await res.json();
         setOrder(json.data);
-        // Fetch QR + UPI if vendor is known
+        // Fetch QR + UPI if vendor is known (public endpoint)
         if (json.data?.vendor_id) {
-          const pd = await fetch(`/api/vendor/payment-details?vendor_id=${json.data.vendor_id}`);
+          const pd = await fetch(`/api/public/payment-details?vendor_id=${json.data.vendor_id}`);
           const pdJson = await pd.json();
           if (pd.ok && pdJson?.success) {
             setQr(pdJson.data?.qr_code || null);
