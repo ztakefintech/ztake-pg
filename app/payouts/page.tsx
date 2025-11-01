@@ -126,17 +126,17 @@ export default function PayoutsPage() {
       (payout.reference_id && payout.reference_id.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'Success' && (payout.status === 'paid' || payout.status === 'approved' || payout.status === 'success')) ||
-      (statusFilter === 'Pending' && (payout.status === 'created' || payout.status === 'pending')) ||
-      (statusFilter === 'Failed' && (payout.status === 'rejected' || payout.status === 'failed'));
+      (statusFilter === 'Success' && (payout.status === 'paid' || payout.status === 'approved' || payout.status === 'success' || payout.status === 'completed')) ||
+      (statusFilter === 'Pending' && (payout.status === 'created' || payout.status === 'pending' || payout.status === 'processing')) ||
+      (statusFilter === 'Failed' && (payout.status === 'rejected' || payout.status === 'failed' || payout.status === 'reversed'));
     
     return matchesSearch && matchesStatus;
   });
 
   const getStatusIcon = (status: string) => {
-    if (status === 'paid' || status === 'approved' || status === 'success') {
+    if (status === 'paid' || status === 'approved' || status === 'success' || status === 'completed') {
       return <FiCheckCircle className="text-green-500" />;
-    } else if (status === 'rejected' || status === 'failed') {
+    } else if (status === 'rejected' || status === 'failed' || status === 'reversed') {
       return <FiXCircle className="text-red-500" />;
     } else {
       return <FiClock className="text-yellow-500" />;
@@ -148,12 +148,15 @@ export default function PayoutsPage() {
       case 'paid':
       case 'approved':
       case 'success':
+      case 'completed':
         return 'bg-green-100 text-green-800';
       case 'rejected':
       case 'failed':
+      case 'reversed':
         return 'bg-red-100 text-red-800';
       case 'created':
       case 'pending':
+      case 'processing':
         return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -169,15 +172,19 @@ export default function PayoutsPage() {
       case 'created':
         return 'Pending';
       case 'success':
+      case 'completed':
         return 'Success';
       case 'failed':
         return 'Failed';
+      case 'reversed':
+        return 'Reversed';
       case 'pending':
+      case 'processing':
         return 'Pending';
       case 'paid':
         return 'Success';
       default:
-        return status;
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 

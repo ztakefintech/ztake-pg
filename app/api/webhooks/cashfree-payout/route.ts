@@ -4,23 +4,11 @@ import { db } from '@/lib/database';
 // Note: This webhook receives status updates from Cashfree and updates payouts accordingly.
 // Authentication is handled via IP whitelisting configured in Cashfree.
 
-// Map Cashfree status to internal status
-function mapCashfreeStatus(cfStatus: string): string {
-  const statusMap: Record<string, string> = {
-    'SUCCESS': 'completed',
-    'COMPLETED': 'completed',
-    'FAILED': 'failed',
-    'PENDING': 'pending',
-    'CANCELLED': 'cancelled',
-    'REJECTED': 'failed',
-    'PROCESSING': 'processing',
-    'QUEUED': 'pending',
-    'INITIATED': 'pending',
-    'RECEIVED': 'pending',
-    'APPROVAL_PENDING': 'pending'
-  };
-  
-  return statusMap[cfStatus] || 'pending';
+// Use Cashfree status directly from callback (normalize to lowercase)
+function getCashfreeStatus(cfStatus: string): string {
+  if (!cfStatus) return 'pending';
+  // Return Cashfree status as-is, normalized to lowercase for consistency
+  return cfStatus.toLowerCase();
 }
 
 export async function POST(req: NextRequest) {
@@ -94,13 +82,23 @@ export async function POST(req: NextRequest) {
     }
     
     console.log(`[CF-Webhook] Processing ${type} event for transfer ${transfer_id}`);
-    console.log(`[CF-Webhook] Status: ${status}, Status Code: ${status_code}`);
+    console.log(`[CF-Webhook] Raw Cashfree Status: "${status}" (type: ${typeof status})`);
+    console.log(`[CF-Webhook] Status Code: ${status_code}, Status Description: ${status_description}`);
     
-    // Map Cashfree status to internal status
-    const newStatus = mapCashfreeStatus(status);
+    // Use Cashfree status directly from callback (normalize to lowercase)
+    // Important: Check both uppercase and original case for REVERSED
+    const statusUpper = typeof status === 'string' ? status.toUpperCase() : String(status).toUpperCase();
+    const newStatus = getCashfreeStatus(status);
+    console.log(`[CF-Webhook] Normalized Status: "${newStatus}"`);
+    console.log(`[CF-Webhook] Current DB Status: "${payout.status}"`);
+    console.log(`[CF-Webhook] Full webhook data.status value:`, JSON.stringify(status));
     
-    // Use status_description as failure_reason if status is failed/rejected
-    const finalFailureReason = (status === 'REJECTED' || status === 'FAILED') ? status_description : null;
+    // Use status_description as failure_reason if status is failed/rejected/reversed
+    const finalFailureReason = (statusUpper === 'REJECTED' || statusUpper === 'FAILED' || statusUpper === 'REVERSED') ? status_description : null;
+    
+    if (statusUpper === 'REVERSED') {
+      console.log(`[CF-Webhook] ⚠️ REVERSED STATUS DETECTED - Updating payout status to 'reversed'`);
+    }
     
     // Update payout status
     const updateQuery = `
@@ -117,35 +115,85 @@ export async function POST(req: NextRequest) {
       WHERE id = ?
     `;
     
-    await db.run(updateQuery, [
+    console.log(`[CF-Webhook] About to update payout ${payout.id} with status: "${newStatus}"`);
+    console.log(`[CF-Webhook] Update parameters:`, {
       newStatus,
-      transfer_utr || null,
+      transfer_utr: transfer_utr || null,
       finalFailureReason,
-      updated_on || null,
-      added_on || null,
-      JSON.stringify(webhookData),
-      cf_transfer_id || payout.cashfree_payout_id,
-      payout.id
-    ]);
+      updated_on: updated_on || null,
+      added_on: added_on || null,
+      cf_transfer_id: cf_transfer_id || payout.cashfree_payout_id,
+      payout_id: payout.id
+    });
     
-    console.log(`[CF-Webhook] Updated payout ${payout.id} status: ${payout.status} -> ${newStatus}`);
-    
-    // If payout is completed, release held funds (if any)
-    if (newStatus === 'completed' && payout.held_amount) {
-      console.log(`[CF-Webhook] Payout completed with held amount: ${payout.held_amount}`);
-      await db.run(
-        'UPDATE payouts SET held_amount = NULL WHERE id = ?',
+    try {
+      const updateResult = await db.run(updateQuery, [
+        newStatus,
+        transfer_utr || null,
+        finalFailureReason,
+        updated_on || null,
+        added_on || null,
+        JSON.stringify(webhookData),
+        cf_transfer_id || payout.cashfree_payout_id,
+        payout.id
+      ]);
+      
+      console.log(`[CF-Webhook] Update result:`, updateResult);
+      console.log(`[CF-Webhook] Updated payout ${payout.id} status: ${payout.status} -> ${newStatus}`);
+      
+      // Verify the update succeeded by reading back the status
+      const verifyPayout = await db.get(
+        'SELECT id, status, reference_id FROM payouts WHERE id = ?',
         [payout.id]
       );
+      
+      if (verifyPayout) {
+        console.log(`[CF-Webhook] Verified payout ${payout.id} status after update: "${verifyPayout.status}"`);
+        if (verifyPayout.status !== newStatus) {
+          console.error(`[CF-Webhook] ⚠️ STATUS MISMATCH! Expected: "${newStatus}", Got: "${verifyPayout.status}"`);
+        }
+      } else {
+        console.error(`[CF-Webhook] ⚠️ Could not verify payout ${payout.id} after update`);
+      }
+    } catch (updateError) {
+      console.error(`[CF-Webhook] ⚠️ Error updating payout status:`, updateError);
+      throw updateError;
     }
     
-    // If payout failed, release held funds back to vendor balance
-    if (newStatus === 'failed' && payout.held_amount) {
-      console.log(`[CF-Webhook] Refunding held amount: ${payout.held_amount}`);
+    // Handle status-specific fund management
+    const wasSuccessful = payout.status === 'success' || payout.status === 'completed' || payout.status === 'SUCCESS' || payout.status === 'COMPLETED';
+    const isReversed = newStatus === 'reversed' || statusUpper === 'REVERSED';
+    const isFailed = newStatus === 'failed' || newStatus === 'rejected' || isReversed;
+    const isCompleted = newStatus === 'completed' || newStatus === 'success';
+    
+    // If payout is reversed or failed, refund the amount back to vendor payout wallet
+    // Only refund if status was not already failed/reversed (to avoid double refunding)
+    const wasAlreadyFailed = payout.status === 'failed' || payout.status === 'reversed' || payout.status === 'rejected' || 
+                              payout.status === 'FAILED' || payout.status === 'REVERSED' || payout.status === 'REJECTED';
+    
+    if (isFailed && !wasAlreadyFailed && payout.vendor_id && payout.amount) {
+      const refundAmount = payout.held_amount ? payout.held_amount : Number(payout.amount);
+      console.log(`[CF-Webhook] Payout ${newStatus} - refunding ${refundAmount} to vendor ${payout.vendor_id} payout wallet`);
+      
       await db.run(
         'UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?',
-        [payout.held_amount, payout.vendor_id]
+        [refundAmount, payout.vendor_id]
       );
+      
+      // Clear held_amount if it exists
+      if (payout.held_amount) {
+        await db.run(
+          'UPDATE payouts SET held_amount = NULL WHERE id = ?',
+          [payout.id]
+        );
+      }
+      
+      console.log(`[CF-Webhook] Successfully refunded ${refundAmount} to vendor payout wallet`);
+    }
+    
+    // If payout is completed/success, release held funds (if any) - no refund needed as payout succeeded
+    if (isCompleted && payout.held_amount) {
+      console.log(`[CF-Webhook] Payout completed with held amount: ${payout.held_amount}`);
       await db.run(
         'UPDATE payouts SET held_amount = NULL WHERE id = ?',
         [payout.id]
@@ -231,7 +279,10 @@ export async function POST(req: NextRequest) {
         
         const statusEmoji = {
           'completed': '✅',
+          'success': '✅',
           'failed': '❌',
+          'rejected': '❌',
+          'reversed': '↩️',
           'pending': '⏳',
           'processing': '🔄',
           'cancelled': '🚫'
