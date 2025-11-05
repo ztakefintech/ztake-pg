@@ -305,11 +305,51 @@ async function createInstantPayout(req: NextRequest) {
     
     if (!cashfreeResult.success) {
       console.error(`[INSTANT-PAYOUT] Payout processing failed: ${cashfreeResult.error}`);
+      const failureReason = cashfreeResult.error || 'Payout processing failed';
       // Update payout status to failed
       await db.run(
         `UPDATE payouts SET status = 'failed', failure_reason = ? WHERE id = ?`,
-        [cashfreeResult.error || 'Payout processing failed', payoutId_db]
+        [failureReason, payoutId_db]
       );
+      // Refund the amount back to vendor balance since processing failed
+      await db.run(
+        'UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?',
+        [amt, vendor.id]
+      );
+      // Clear held_amount if it exists
+      await db.run(
+        'UPDATE payouts SET held_amount = NULL WHERE id = ?',
+        [payoutId_db]
+      );
+      console.log(`[INSTANT-PAYOUT] Refunded ${amt} to vendor ${vendor.id} payout wallet due to processing failure`);
+      
+      // Send callback for failed status
+      if (externalCallbackUrl) {
+        try {
+          const failedCallbackPayload = {
+            id: payoutId_db,
+            reference_id: payoutReferenceId,
+            status: 'failed',
+            amount: amt,
+            currency,
+            beneficiary_name: beneficiary_name,
+            beneficiary_account: beneficiary_account,
+            beneficiary_ifsc: beneficiary_ifsc,
+            utr: null,
+            failure_reason: failureReason,
+            updated_at: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
+            event_type: 'status_changed',
+            old_status: 'created',
+            new_status: 'failed'
+          };
+          fetch(externalCallbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'ZTake-Webhook/1.0' },
+            body: JSON.stringify(failedCallbackPayload)
+          }).catch(() => {});
+        } catch {}
+      }
     }
 
     // Get updated payout details

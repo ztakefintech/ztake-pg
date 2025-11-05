@@ -99,10 +99,20 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
       if (isApproved) {
         // no-op: amount already deducted at creation time
       } else if (isRejected || isFailed) {
+        // Get held_amount if available, otherwise use amount
+        const payoutDetails = await db.get(
+          'SELECT held_amount FROM payouts WHERE id = ?',
+          [Number(id)]
+        );
+        const refundAmount = payoutDetails?.held_amount ? Number(payoutDetails.held_amount) : Number(existing.amount);
         await db.run(
           `UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?`,
-          [Number(existing.amount), Number(existing.vendor_id)]
-        )
+          [refundAmount, Number(existing.vendor_id)]
+        );
+        // Clear held_amount if it exists
+        if (payoutDetails?.held_amount) {
+          await db.run('UPDATE payouts SET held_amount = NULL WHERE id = ?', [Number(id)]);
+        }
       }
     }
 
@@ -176,7 +186,7 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
           beneficiary_account: payout.beneficiary_account,
           beneficiary_ifsc: payout.beneficiary_ifsc,
           utr: payout.utr || null,
-          failure_reason: null,
+          failure_reason: (isFailed || isRejected) ? (payout.failure_reason || 'Payout failed') : null,
           updated_at: new Date().toISOString(),
           timestamp: new Date().toISOString(),
           event_type: 'status_changed',

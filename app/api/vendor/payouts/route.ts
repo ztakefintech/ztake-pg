@@ -520,11 +520,52 @@ async function createPayout(req: NextRequest) {
     
     if (!cashfreeResult.success) {
       console.error(`[PAYOUT] Payout processing failed: ${cashfreeResult.error}`);
+      const failureReason = cashfreeResult.error || 'Payout processing failed';
       // Update payout status to failed
       await db.run(
         `UPDATE payouts SET status = 'failed', failure_reason = ? WHERE id = ?`,
-        [cashfreeResult.error || 'Payout processing failed', result.lastID]
+        [failureReason, result.lastID]
       );
+      // Refund the amount back to vendor balance since processing failed
+      await db.run(
+        'UPDATE vendors SET payout_balance = COALESCE(payout_balance, 0) + ? WHERE id = ?',
+        [amt, vendor.id]
+      );
+      // Clear held_amount if it exists
+      await db.run(
+        'UPDATE payouts SET held_amount = NULL WHERE id = ?',
+        [result.lastID]
+      );
+      console.log(`[PAYOUT] Refunded ${amt} to vendor ${vendor.id} payout wallet due to processing failure`);
+      
+      // Send callback for failed status
+      const finalCallbackUrl = external_callback_url || vendor.payout_webhook_url || null;
+      if (finalCallbackUrl) {
+        try {
+          const failedCallbackPayload = {
+            id: payout.id,
+            reference_id: payout.reference_id,
+            status: 'failed',
+            amount: payout.amount,
+            currency: payout.currency,
+            beneficiary_name: payout.beneficiary_name,
+            beneficiary_account: payout.beneficiary_account,
+            beneficiary_ifsc: payout.beneficiary_ifsc,
+            utr: null,
+            failure_reason: failureReason,
+            updated_at: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
+            event_type: 'status_changed',
+            old_status: 'created',
+            new_status: 'failed'
+          };
+          fetch(finalCallbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'ZTake-Webhook/1.0' },
+            body: JSON.stringify(failedCallbackPayload)
+          }).catch(() => {});
+        } catch {}
+      }
     }
 
     // Get updated payout details
