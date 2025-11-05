@@ -15,6 +15,7 @@ interface PayoutRow {
   beneficiary_ifsc?: string | null;
   beneficiary_upi?: string | null;
   reference_id?: string | null;
+  utr?: string | null;
   remarks?: string | null;
   status: string;
   created_at: string;
@@ -123,7 +124,8 @@ export default function PayoutsPage() {
       (payout.beneficiary_name && payout.beneficiary_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (payout.beneficiary_account && payout.beneficiary_account.includes(searchTerm)) ||
       (payout.beneficiary_upi && payout.beneficiary_upi.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (payout.reference_id && payout.reference_id.toLowerCase().includes(searchTerm.toLowerCase()));
+      (payout.reference_id && payout.reference_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (payout.utr && payout.utr.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'Success' && (payout.status === 'paid' || payout.status === 'approved' || payout.status === 'success' || payout.status === 'completed')) ||
@@ -375,6 +377,9 @@ export default function PayoutsPage() {
                         Reference ID
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        UTR
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date
                       </th>
                     </tr>
@@ -408,6 +413,9 @@ export default function PayoutsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-white">{payout.reference_id || '-'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 dark:text-white">{payout.utr || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(payout.created_at)}

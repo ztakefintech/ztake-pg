@@ -26,7 +26,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     // Get payouts with webhook_data for status fallback
     const rows = await db.all(
-      `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id AS provider_payout_id, admin_notes, created_at, updated_at, webhook_data
+      `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id AS provider_payout_id, admin_notes, utr, created_at, updated_at, webhook_data
        FROM payouts
        WHERE vendor_id = ?
        ORDER BY created_at DESC
