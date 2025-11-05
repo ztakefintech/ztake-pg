@@ -107,7 +107,7 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
     }
 
     const payout = await db.get(
-      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, admin_notes, created_at, updated_at FROM payouts WHERE id = ?`,
+      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, admin_notes, utr, created_at, updated_at FROM payouts WHERE id = ?`,
       [Number(id)]
     )
 
@@ -155,6 +155,7 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
         contactName: vendor?.contact_name,
         email: vendor?.email,
         amount: existing?.amount,
+        utr: payout?.utr || null,
         status: newStatus,
         adminNotes: admin_notes,
         previousStatus: existing?.status,

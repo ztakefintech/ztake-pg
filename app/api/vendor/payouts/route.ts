@@ -473,6 +473,7 @@ async function createPayout(req: NextRequest) {
       beneficiaryIfsc: beneficiary_ifsc,
       beneficiaryUpi: beneficiary_upi,
       referenceId: payoutReferenceId,
+      utr: null,
       remarks,
       status: 'created',
       timestamp: new Date().toISOString()
