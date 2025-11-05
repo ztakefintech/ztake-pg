@@ -55,7 +55,7 @@ async function createInstantPayout(req: NextRequest) {
 
     // Verify secret key exists in database and get vendor info
     const vendor = await db.get(
-      'SELECT id, vendor_code, business_name, payout_balance FROM vendors WHERE secret_key = ?',
+      'SELECT id, vendor_code, business_name, payout_balance, payout_webhook_url FROM vendors WHERE secret_key = ?',
       [secretKey]
     );
 
@@ -163,7 +163,7 @@ async function createInstantPayout(req: NextRequest) {
         phone: body?.phone ?? null
       }
     };
-    const externalCallbackUrl = body?.external_callback_url ?? body?.callback_url ?? body?.callbackUrl ?? null;
+    const externalCallbackUrl = (body?.external_callback_url ?? body?.callback_url ?? body?.callbackUrl ?? null) || vendor.payout_webhook_url || null;
 
     const result = await db.run(
       `INSERT INTO payouts (

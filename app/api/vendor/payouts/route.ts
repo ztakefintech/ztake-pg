@@ -318,7 +318,7 @@ async function createPayout(req: NextRequest) {
 
     // Get vendor by vendor code
     const vendor = await db.get(
-      'SELECT id, vendor_code, business_name, contact_name, email, payout_balance FROM vendors WHERE vendor_code = ?',
+      'SELECT id, vendor_code, business_name, contact_name, email, payout_balance, payout_webhook_url FROM vendors WHERE vendor_code = ?',
       [vendorCodeFromBody]
     );
 
@@ -408,7 +408,7 @@ async function createPayout(req: NextRequest) {
         remarks || null,
         amt,
         JSON.stringify(rawRequest),
-        external_callback_url || null
+        (external_callback_url || vendor.payout_webhook_url || null)
       ]
     );
 
@@ -461,7 +461,8 @@ async function createPayout(req: NextRequest) {
     sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
     // If an external callback URL was provided, notify immediately with created status
-    if (external_callback_url) {
+    const finalCallbackUrl = external_callback_url || vendor.payout_webhook_url || null;
+    if (finalCallbackUrl) {
       try {
         const externalCallbackPayload = {
           id: payout.id,
@@ -480,7 +481,7 @@ async function createPayout(req: NextRequest) {
           old_status: null,
           new_status: 'created'
         };
-        fetch(external_callback_url, {
+        fetch(finalCallbackUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
