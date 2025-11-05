@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalReceived, setTotalReceived] = useState<number>(0);
   const [payoutBalance, setPayoutBalance] = useState<number>(0);
+  const [heldAmount, setHeldAmount] = useState<number>(0);
   const [rechargeAccount, setRechargeAccount] = useState<{ bank_name?: string | null; account_number?: string | null; account_holder?: string | null; ifsc?: string | null } | null>(null);
   const [rechargeRequests, setRechargeRequests] = useState<RechargeRequest[]>([]);
   const [showRecharge, setShowRecharge] = useState(false);
@@ -229,6 +230,7 @@ export default function Dashboard() {
       if (balanceRes.ok) {
         const balJson = await balanceRes.json();
         setPayoutBalance(Number(balJson?.data?.balance || 0));
+        setHeldAmount(Number(balJson?.data?.held_amount || 0));
         setRechargeAccount(balJson?.data?.recharge_account || null);
       }
 
@@ -474,6 +476,11 @@ export default function Dashboard() {
             <FiDollarSign className="text-primary-600" />
           </div>
           <div className="text-2xl font-bold">{formatCurrency(payoutBalance)}</div>
+          {/* {heldAmount > 0 && ( */}
+            <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+              <span className="font-medium">Amount on Hold:</span> {formatCurrency(heldAmount) || 0}
+            </div>
+          {/* )} */}
           <div className="mt-3 flex items-center justify-between">
             <span className="text-xs text-gray-500">Use for vendor payouts</span>
             <div className="flex items-center gap-2">
