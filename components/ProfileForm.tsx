@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield, FiEdit2, FiTrash2, FiPlus, FiX, FiLock } from 'react-icons/fi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import MaskedText from '@/components/ui/masked-text';
 
@@ -72,6 +72,15 @@ export default function ProfileForm() {
     account_number: '',
     ifsc_code: ''
   });
+  // Password management state
+  const [isGoogleOAuthUser, setIsGoogleOAuthUser] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true);
+  const [passwordData, setPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+    currentPassword: ''
+  });
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -123,6 +132,8 @@ export default function ProfileForm() {
           cashfree_env: data.vendor.cashfree_env || 'sandbox'
         });
         setKycStatus((data.vendor.kyc_status || 'pending').toLowerCase());
+        setIsGoogleOAuthUser(data.vendor.is_google_oauth_user || false);
+        setHasPassword(data.vendor.has_password !== false);
       } else {
         setError('Failed to load profile');
       }
@@ -457,6 +468,68 @@ export default function ProfileForm() {
     });
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPassword(true);
+    setError('');
+    setSuccess('');
+
+    // Validate passwords match
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('Passwords do not match');
+      setIsSavingPassword(false);
+      return;
+    }
+
+    // Validate password strength
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])/;
+    if (passwordData.newPassword.length < 8 || !passwordRegex.test(passwordData.newPassword)) {
+      setError('Password must be at least 8 characters and contain uppercase, lowercase, number, and special character');
+      setIsSavingPassword(false);
+      return;
+    }
+
+    try {
+      const requestBody: any = {
+        password: passwordData.newPassword
+      };
+
+      // Only include currentPassword if user already has a password
+      if (hasPassword) {
+        requestBody.currentPassword = passwordData.currentPassword;
+      }
+
+      const response = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(data.message || 'Password updated successfully');
+        setPasswordData({
+          newPassword: '',
+          confirmPassword: '',
+          currentPassword: ''
+        });
+        setHasPassword(true); // User now has a password
+        setIsGoogleOAuthUser(false); // No longer a Google OAuth-only user
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.error || 'Failed to update password');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -507,6 +580,7 @@ export default function ProfileForm() {
       <Tabs defaultValue="details" className="card">
         <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1 text-gray-700 dark:text-gray-300">
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="details">Personal / Business Details</TabsTrigger>
+          <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="password">Password</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="credentials">Credentials Manager</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="bank-accounts">Bank Accounts</TabsTrigger>
           <TabsTrigger className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white" value="upi">UPI Credentials</TabsTrigger>
@@ -557,6 +631,98 @@ export default function ProfileForm() {
             {success && (<div className="success-message text-center">{success}</div>)}
             <div className="flex justify-end"><button type="submit" disabled={isSaving} className="btn-primary flex items-center space-x-2"><FiSave /><span>{isSaving ? 'Saving...' : 'Save Changes'}</span></button></div>
           </form>
+        </TabsContent>
+
+        {/* Password */}
+        <TabsContent value="password" className="space-y-6">
+          <div className="card">
+            <h3 className="text-lg font-semibold mb-4">Password Management</h3>
+            
+            {isGoogleOAuthUser && !hasPassword ? (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                <p className="text-blue-800 dark:text-blue-200">
+                  <strong>You registered with Google.</strong> Set a password to enable email/password login.
+                </p>
+              </div>
+            ) : null}
+
+            <form onSubmit={handlePasswordChange} className="space-y-6">
+              {hasPassword && (
+                <div className="form-group">
+                  <label htmlFor="currentPassword" className="form-label">Current Password</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiLock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="currentPassword"
+                      type="password"
+                      className="input-field pl-10"
+                      placeholder="Enter your current password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      required={hasPassword}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="newPassword" className="form-label">
+                  {hasPassword ? 'New Password' : 'Set Password'}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiLock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="newPassword"
+                    type="password"
+                    className="input-field pl-10"
+                    placeholder={hasPassword ? 'Enter your new password' : 'Enter a password'}
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Password must be at least 8 characters and contain uppercase, lowercase, number, and special character
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiLock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    className="input-field pl-10"
+                    placeholder="Confirm your password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && <div className="error-message text-center">{error}</div>}
+              {success && <div className="success-message text-center">{success}</div>}
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSavingPassword}
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <FiSave />
+                  <span>{isSavingPassword ? 'Saving...' : hasPassword ? 'Update Password' : 'Set Password'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </TabsContent>
 
         {/* Credentials */}

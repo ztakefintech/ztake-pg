@@ -10,13 +10,16 @@ export const revalidate = 0;
 async function getProfile(req: AuthenticatedRequest) {
   try {
     const vendor = await db.get(
-      'SELECT id, email, business_name, contact_name, phone, website, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, kyc_status, created_at FROM vendors WHERE id = ?',
+      'SELECT id, email, business_name, contact_name, phone, website, upi_id, bank_name, bank_account_number, bank_account_holder, bank_ifsc, bot_token, chat_id, vendor_code, kyc_status, google_id, password_hash, created_at FROM vendors WHERE id = ?',
       [req.vendor!.id]
     );
 
     if (!vendor) {
       return createErrorResponse('Vendor not found', 404);
     }
+
+    // Check if user is a Google OAuth user with placeholder password
+    const isGoogleOAuthUser = vendor.google_id && vendor.password_hash === 'google_oauth_user';
 
     return createApiResponse({
       vendor: {
@@ -35,7 +38,9 @@ async function getProfile(req: AuthenticatedRequest) {
         chat_id: vendor.chat_id,
         vendor_code: vendor.vendor_code,
         kyc_status: vendor.kyc_status,
-        created_at: vendor.created_at
+        created_at: vendor.created_at,
+        is_google_oauth_user: isGoogleOAuthUser,
+        has_password: !isGoogleOAuthUser
       }
     });
   } catch (error) {

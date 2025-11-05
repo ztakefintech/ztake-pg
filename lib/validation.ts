@@ -12,7 +12,7 @@ const ORDER_ID_PATTERN = /^[a-zA-Z0-9_-]{3,255}$/;
 // Vendor registration validation
 export const vendorRegistrationSchema = Joi.object({
   email: Joi.string().email().max(255).required(),
-  password: Joi.string().min(8).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/).required()
+  password: Joi.string().min(8).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])/).required()
     .messages({
       'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'
     }),
@@ -184,7 +184,7 @@ export const adminLoginSchema = Joi.object({
 // Admin user creation validation
 export const createAdminSchema = Joi.object({
   email: Joi.string().email().max(255).required(),
-  password: Joi.string().min(8).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/).required()
+  password: Joi.string().min(8).max(128).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])/).required()
     .messages({
       'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'
     }),

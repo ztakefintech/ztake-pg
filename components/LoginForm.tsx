@@ -143,6 +143,11 @@ export default function LoginForm() {
       const data = await response.json();
 
       if (response.ok) {
+        // Show success message if password was set (for Google OAuth users)
+        if (data.message && data.message.includes('Password set successfully')) {
+          setError(''); // Clear any previous errors
+          // Password was set automatically, proceed with login
+        }
         login(data.vendor, data.token);
         router.push('/dashboard');
       } else {
@@ -284,7 +289,7 @@ export default function LoginForm() {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`w-full rounded-2xl px-5 py-3.5 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 ${
+                  className={`w-full rounded-2xl px-5 py-3.5 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 text-slate-800 ${
                     emailStatus.checking
                       ? 'ring-2 ring-amber-300/60'
                       : ''
@@ -307,7 +312,7 @@ export default function LoginForm() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="w-full rounded-2xl px-5 py-3.5 pr-12 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60"
+                  className="w-full rounded-2xl px-5 py-3.5 pr-12 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 text-slate-800"
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
