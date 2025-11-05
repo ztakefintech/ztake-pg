@@ -105,6 +105,7 @@ export const createPayoutSchema = Joi.object({
   beneficiary_upi: Joi.string().pattern(UPI_PATTERN).allow('', null).optional(),
   reference_id: Joi.string().pattern(ORDER_ID_PATTERN).optional(),
   remarks: Joi.string().max(500).optional(),
+  external_callback_url: Joi.string().uri({ scheme: [/https?/] }).max(1024).optional(),
   email: Joi.string().email().required(),
   phone: Joi.string().pattern(PHONE_PATTERN).required(),
   vendorCode: Joi.string().pattern(VENDOR_CODE_PATTERN).required()

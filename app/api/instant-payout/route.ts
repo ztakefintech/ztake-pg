@@ -163,12 +163,13 @@ async function createInstantPayout(req: NextRequest) {
         phone: body?.phone ?? null
       }
     };
+    const externalCallbackUrl = body?.external_callback_url ?? body?.callback_url ?? body?.callbackUrl ?? null;
 
     const result = await db.run(
       `INSERT INTO payouts (
         vendor_id, amount, currency, beneficiary_name, beneficiary_account, 
-        beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request, external_callback_url, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         vendor.id,
         amt,
@@ -180,7 +181,8 @@ async function createInstantPayout(req: NextRequest) {
         payoutReferenceId,
         remarks,
         amt,
-        JSON.stringify(rawRequest)
+        JSON.stringify(rawRequest),
+        externalCallbackUrl || null
       ]
     );
 

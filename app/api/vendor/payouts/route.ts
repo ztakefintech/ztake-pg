@@ -277,6 +277,7 @@ async function createPayout(req: NextRequest) {
       beneficiary_upi: body?.beneficiary_upi ?? body?.upi ?? null,
       reference_id: body?.reference_id ?? body?.transferId ?? body?.transfer_id,
       remarks: body?.remarks ?? body?.transferRemarks ?? body?.transfer_remarks,
+      external_callback_url: body?.external_callback_url ?? body?.callback_url ?? body?.callbackUrl ?? null,
       email: body?.email ?? null,
       phone: body?.phone ?? null
     };
@@ -305,6 +306,7 @@ async function createPayout(req: NextRequest) {
       beneficiary_upi,
       reference_id,
       remarks,
+      external_callback_url,
       vendorCode: vendorCodeFromBody
     } = {
       ...validatedData,
@@ -392,8 +394,8 @@ async function createPayout(req: NextRequest) {
     };
 
     const result = await db.run(
-      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?)`,
+      `INSERT INTO payouts (vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, held_amount, raw_request, external_callback_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?)`,
       [
         vendor.id,
         amt,
@@ -405,7 +407,8 @@ async function createPayout(req: NextRequest) {
         payoutReferenceId,
         remarks || null,
         amt,
-        JSON.stringify(rawRequest)
+        JSON.stringify(rawRequest),
+        external_callback_url || null
       ]
     );
 
