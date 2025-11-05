@@ -477,8 +477,8 @@ export default function Dashboard() {
           </div>
           <div className="text-2xl font-bold">{formatCurrency(payoutBalance)}</div>
           {/* {heldAmount > 0 && ( */}
-            <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-              <span className="font-medium">Amount on Hold:</span> {formatCurrency(heldAmount) || 0}
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <span className="font-medium">Funds on Hold:</span> {formatCurrency(heldAmount) || 0}
             </div>
           {/* )} */}
           <div className="mt-3 flex items-center justify-between">
