@@ -231,6 +231,37 @@ async function createInstantPayout(req: NextRequest) {
     ].filter(Boolean).join('\n');
     sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
+    // If an external callback URL was provided, notify immediately with created status (instant payout)
+    if (externalCallbackUrl) {
+      try {
+        const createdPayload = {
+          id: payoutId_db,
+          reference_id: payoutReferenceId,
+          status: 'created',
+          amount: amt,
+          currency,
+          beneficiary_name: beneficiary_name,
+          beneficiary_account: beneficiary_account,
+          beneficiary_ifsc: beneficiary_ifsc,
+          utr: null,
+          failure_reason: null,
+          status_code: null,
+          status_description: null,
+          cf_transfer_id: null,
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          event_type: 'status_changed',
+          old_status: null,
+          new_status: 'created'
+        };
+        fetch(externalCallbackUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'ZTake-Webhook/1.0' },
+          body: JSON.stringify(createdPayload)
+        }).catch(() => {});
+      } catch {}
+    }
+
     // Store callback for demo purposes (matching main API structure)
     demoCallbackStore.append(callbackToken, {
       type: 'payout_status_changed',

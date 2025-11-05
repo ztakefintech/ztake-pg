@@ -460,6 +460,40 @@ async function createPayout(req: NextRequest) {
     ].filter(Boolean).join('\n');
     sendTelegramAdminAlert(alert, vendor.id).catch(() => {});
 
+    // If an external callback URL was provided, notify immediately with created status
+    if (external_callback_url) {
+      try {
+        const externalCallbackPayload = {
+          id: payout.id,
+          reference_id: payout.reference_id,
+          status: 'created',
+          amount: payout.amount,
+          currency: payout.currency,
+          beneficiary_name: payout.beneficiary_name,
+          beneficiary_account: payout.beneficiary_account,
+          beneficiary_ifsc: payout.beneficiary_ifsc,
+          utr: null,
+          failure_reason: null,
+          status_code: null,
+          status_description: null,
+          cf_transfer_id: null,
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          event_type: 'status_changed',
+          old_status: null,
+          new_status: 'created'
+        };
+        fetch(external_callback_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ZTake-Webhook/1.0'
+          },
+          body: JSON.stringify(externalCallbackPayload)
+        }).catch(() => {});
+      } catch {}
+    }
+
     // Also send to callback store for demo purposes
     const callbackToken = `vendor-${vendor.vendor_code || vendor.id}`;
     demoCallbackStore.append(callbackToken, {

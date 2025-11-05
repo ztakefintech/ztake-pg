@@ -107,7 +107,7 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
     }
 
     const payout = await db.get(
-      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, admin_notes, utr, created_at, updated_at FROM payouts WHERE id = ?`,
+      `SELECT id, vendor_id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id, admin_notes, utr, external_callback_url, created_at, updated_at FROM payouts WHERE id = ?`,
       [Number(id)]
     )
 
@@ -161,6 +161,37 @@ export const PATCH = requirePermission('manage_payout')(async (req: NextRequest)
         previousStatus: existing?.status,
         timestamp: new Date().toISOString()
       });
+    }
+
+    // Forward status update to external callback URL if provided
+    if (payout?.external_callback_url) {
+      try {
+        const externalCallbackPayload = {
+          id: payout.id,
+          reference_id: payout.reference_id,
+          status: newStatus,
+          amount: payout.amount,
+          currency: payout.currency,
+          beneficiary_name: payout.beneficiary_name,
+          beneficiary_account: payout.beneficiary_account,
+          beneficiary_ifsc: payout.beneficiary_ifsc,
+          utr: payout.utr || null,
+          failure_reason: null,
+          status_code: null,
+          status_description: null,
+          cf_transfer_id: payout.cashfree_payout_id || null,
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          event_type: 'status_changed',
+          old_status: existing?.status,
+          new_status: newStatus
+        };
+        fetch(payout.external_callback_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'ZTake-Webhook/1.0' },
+          body: JSON.stringify(externalCallbackPayload)
+        }).catch(() => {});
+      } catch {}
     }
 
     return NextResponse.json({ success: true, data: { payout } })
