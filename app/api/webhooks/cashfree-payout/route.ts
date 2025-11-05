@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
+import { demoCallbackStore } from '@/lib/callback-store';
 
 // Note: This webhook receives status updates from Cashfree and updates payouts accordingly.
 // Authentication is handled via IP whitelisting configured in Cashfree.
@@ -226,6 +227,37 @@ export async function POST(req: NextRequest) {
     wsManager.broadcastToAll(event);
     
     console.log(`[CF-Webhook] Emitted WebSocket event for payout ${payout.id}`);
+
+    // Also append to demo callback store (used by vendor UI/testing)
+    try {
+      const vendorInfo = await db.get(
+        `SELECT vendor_code, business_name, contact_name, email FROM vendors WHERE id = ?`,
+        [payout.vendor_id]
+      );
+      const callbackToken = `vendor-${vendorInfo?.vendor_code || payout.vendor_id}`;
+      demoCallbackStore.append(callbackToken, {
+        type: 'payout_status_changed',
+        payoutId: payout.id,
+        vendorId: payout.vendor_id,
+        businessName: vendorInfo?.business_name || `Vendor #${payout.vendor_id}`,
+        contactName: vendorInfo?.contact_name,
+        email: vendorInfo?.email,
+        amount: payout.amount,
+        currency: payout.currency,
+        beneficiaryName: payout.beneficiary_name,
+        beneficiaryAccount: payout.beneficiary_account,
+        beneficiaryIfsc: payout.beneficiary_ifsc,
+        beneficiaryUpi: payout.beneficiary_upi || null,
+        referenceId: payout.reference_id,
+        utr: transfer_utr || null,
+        status: newStatus,
+        previousStatus: payout.status,
+        failure_reason: finalFailureReason || null,
+        timestamp: new Date().toISOString()
+      });
+    } catch (cbErr) {
+      console.warn('[CF-Webhook] Failed to append to demo callback store:', cbErr);
+    }
     
     // Forward status update to external callback URL if provided
     if (payout.external_callback_url) {
@@ -241,9 +273,6 @@ export async function POST(req: NextRequest) {
           beneficiary_ifsc: payout.beneficiary_ifsc,
           utr: transfer_utr || null,
           failure_reason: finalFailureReason || null,
-          status_code: status_code || null,
-          status_description: status_description || null,
-          cf_transfer_id: cf_transfer_id || null,
           updated_at: new Date().toISOString(),
           timestamp: new Date().toISOString(),
           event_type: 'status_changed',
