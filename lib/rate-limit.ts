@@ -96,18 +96,18 @@ export function rateLimit(options: RateLimitOptions) {
   };
 }
 
-// Predefined rate limiters with enhanced security
+// Predefined rate limiters with enhanced security - Optimized for gaming platform with high traffic
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  max: 20, // 20 attempts per window (increased from 5 for gaming platform)
   message: 'Too many authentication attempts',
   blockDurationMs: 30 * 60 * 1000, // 30 minutes block
-  maxViolations: 2 // Block after 2 violations
+  maxViolations: 3 // Block after 3 violations (increased from 2)
 });
 
 export const apiRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: 1000, // 1000 requests per minute (increased from 100 for gaming platform)
   message: 'Too many API requests',
   blockDurationMs: 10 * 60 * 1000, // 10 minutes block
   maxViolations: 5 // Block after 5 violations
@@ -115,40 +115,40 @@ export const apiRateLimit = rateLimit({
 
 export const paymentUpdateRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 payment updates per minute
+  max: 100, // 100 payment updates per minute (increased from 10 for gaming platform)
   message: 'Too many payment update requests',
   blockDurationMs: 15 * 60 * 1000, // 15 minutes block
-  maxViolations: 3 // Block after 3 violations
+  maxViolations: 5 // Block after 5 violations (increased from 3)
 });
 
 export const orderCreationRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 20, // 20 orders per minute
+  max: 200, // 200 orders per minute (increased from 20 for gaming platform)
   message: 'Too many order creation requests',
   blockDurationMs: 10 * 60 * 1000, // 10 minutes block
-  maxViolations: 3 // Block after 3 violations
+  maxViolations: 5 // Block after 5 violations (increased from 3)
 });
 
 export const payoutCreationRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 5, // 5 payouts per minute
+  max: 100, // 100 payouts per minute (increased from 30 for gaming platform)
   message: 'Too many payout creation requests',
   blockDurationMs: 20 * 60 * 1000, // 20 minutes block
-  maxViolations: 2 // Block after 2 violations
+  maxViolations: 3 // Block after 3 violations (increased from 2)
 });
 
 export const adminActionRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 30, // 30 admin actions per minute
+  max: 200, // 200 admin actions per minute (increased from 30 for gaming platform)
   message: 'Too many admin action requests',
   blockDurationMs: 15 * 60 * 1000, // 15 minutes block
-  maxViolations: 3 // Block after 3 violations
+  maxViolations: 5 // Block after 5 violations (increased from 3)
 });
 
 export const sensitiveOperationRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 3, // 3 sensitive operations per 5 minutes
+  max: 10, // 10 sensitive operations per 5 minutes (increased from 3 for gaming platform)
   message: 'Too many sensitive operation requests',
   blockDurationMs: 30 * 60 * 1000, // 30 minutes block
-  maxViolations: 2 // Block after 2 violations
+  maxViolations: 3 // Block after 3 violations (increased from 2)
 });

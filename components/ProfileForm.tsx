@@ -785,6 +785,9 @@ export default function ProfileForm() {
 
         {/* Bank Accounts */}
         <TabsContent value="bank-accounts" className="space-y-6">
+            <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-300 text-yellow-900 text-sm">
+              <strong>Note:</strong> Recharges will be accepted from the below bank accounts only. Write to <a href="mailto:support@ztake.in" className="underline font-medium">support@ztake.in</a> to register your bank details. Any recharges made from other accounts will be refunded to the source account within 7 business days.
+            </div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Your Bank Accounts</h3>
             <button

@@ -615,6 +615,7 @@ export default function Dashboard() {
               <button onClick={() => setShowRecharge(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">✕</button>
             </div>
             {rechargeAccount ? (
+              <>
               <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4 space-y-1 mb-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400">Transfer to:</div>
                 {rechargeAccount.bank_name && <div className="text-sm"><span className="text-gray-600 dark:text-gray-400">Bank:</span> <span className="font-medium text-gray-900 dark:text-white">{rechargeAccount.bank_name}</span></div>}
@@ -622,6 +623,9 @@ export default function Dashboard() {
                 {rechargeAccount.account_number && <div className="text-sm font-mono"><span className="text-gray-600 dark:text-gray-400 not-italic font-sans">Account Number:</span> <span className="text-gray-900 dark:text-white">{rechargeAccount.account_number}</span></div>}
                 {rechargeAccount.ifsc && <div className="text-sm"><span className="text-gray-600 dark:text-gray-400">IFSC:</span> <span className="font-medium text-gray-900 dark:text-white">{rechargeAccount.ifsc}</span></div>}
               </div>
+                <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-300 text-yellow-900 text-sm">
+                <strong>Note:</strong> To add funds to your Payouts A/c, transfer funds via RTGS/NEFT/IMPS to either of the account above.
+              </div></>
             ) : (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-4 text-sm text-yellow-800 dark:text-yellow-200 mb-4">Recharge account details not configured. Please contact support.</div>
             )}
