@@ -62,7 +62,18 @@ export default function PayoutsPage() {
     if (isAuthenticated) {
       fetchPayouts(1);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  // Refetch when search or status changes (debounced), reset to page 1
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const timer = setTimeout(() => {
+      fetchPayouts(1);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, isAuthenticated]);
 
   const fetchPayouts = async (page: number) => {
     if (!token) return;
@@ -71,7 +82,13 @@ export default function PayoutsPage() {
     setError('');
     
     try {
-      const response = await fetch(`/api/vendor/payouts/jwt?page=${page}&limit=${ITEMS_PER_PAGE}`, {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(ITEMS_PER_PAGE));
+      if (searchTerm.trim()) params.set('search', searchTerm.trim());
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+
+      const response = await fetch(`/api/vendor/payouts/jwt?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -119,23 +136,7 @@ export default function PayoutsPage() {
     }
   };
 
-  // Filter payouts based on search term and status
-  const filteredPayouts = payouts.filter(payout => {
-    const matchesSearch = searchTerm === '' || 
-      payout.amount.toString().includes(searchTerm) ||
-      (payout.beneficiary_name && payout.beneficiary_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (payout.beneficiary_account && payout.beneficiary_account.includes(searchTerm)) ||
-      (payout.beneficiary_upi && payout.beneficiary_upi.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (payout.reference_id && payout.reference_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (payout.utr && payout.utr.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'Success' && (payout.status === 'paid' || payout.status === 'approved' || payout.status === 'success' || payout.status === 'completed')) ||
-      (statusFilter === 'Pending' && (payout.status === 'created' || payout.status === 'pending' || payout.status === 'processing')) ||
-      (statusFilter === 'Failed' && (payout.status === 'rejected' || payout.status === 'failed' || payout.status === 'reversed'));
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Server-side filtering is applied; just render returned payouts
 
   const getStatusIcon = (status: string) => {
     if (status === 'paid' || status === 'approved' || status === 'success' || status === 'completed') {
@@ -344,7 +345,7 @@ export default function PayoutsPage() {
                 Try Again
               </button>
             </div>
-          ) : filteredPayouts.length === 0 ? (
+          ) : payouts.length === 0 ? (
             <div className="p-6 text-center">
               <FiDollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
@@ -387,7 +388,7 @@ export default function PayoutsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredPayouts.map((payout) => (
+                    {payouts.map((payout) => (
                       <tr key={payout.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-white">{payout.beneficiary_name || '-'}</div>

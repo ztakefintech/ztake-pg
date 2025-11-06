@@ -15,13 +15,49 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const validatedParams = validateQueryParams(paginationSchema, searchParams);
     const { page, limit } = validatedParams;
     const offset = (page - 1) * limit;
+    
+    // Extract optional filters
+    const rawSearch = (searchParams.get('search') || '').trim();
+    const statusCategory = (searchParams.get('status') || '').trim(); // 'Success' | 'Pending' | 'Failed'
+    
+    // Build WHERE clause
+    const whereParts: string[] = ['vendor_id = ?'];
+    const whereParams: any[] = [vendorId];
+    
+    // Map status category to concrete statuses
+    if (statusCategory === 'Success') {
+      whereParts.push("(status = 'paid' OR status = 'approved' OR status = 'success' OR status = 'completed')");
+    } else if (statusCategory === 'Pending') {
+      whereParts.push("(status = 'created' OR status = 'pending' OR status = 'processing')");
+    } else if (statusCategory === 'Failed') {
+      whereParts.push("(status = 'rejected' OR status = 'failed' OR status = 'reversed')");
+    }
+    
+    // Search across multiple columns when provided
+    if (rawSearch) {
+      const likeTerm = `%${rawSearch}%`;
+      const numericAmount = Number(rawSearch);
+      const searchParts: string[] = [
+        'utr LIKE ?',
+        'reference_id LIKE ?',
+        'LOWER(beneficiary_name) LIKE LOWER(?)',
+        'beneficiary_account LIKE ?',
+        'LOWER(beneficiary_upi) LIKE LOWER(?)'
+      ];
+      whereParams.push(likeTerm, likeTerm, likeTerm, likeTerm, likeTerm);
+      if (!Number.isNaN(numericAmount)) {
+        searchParts.push('amount = ?');
+        whereParams.push(numericAmount);
+      }
+      whereParts.push(`(${searchParts.join(' OR ')})`);
+    }
 
     console.log(`[JWT-PAYOUTS] Fetching payouts for vendor ID: ${vendorId}`);
 
-    // Get total count
+    // Get total count with filters
     const totalRow = await db.get(
-      'SELECT COUNT(*) as total FROM payouts WHERE vendor_id = ?',
-      [vendorId]
+      `SELECT COUNT(*) as total FROM payouts WHERE ${whereParts.join(' AND ')}`,
+      whereParams
     );
     const total = totalRow?.total || 0;
 
@@ -29,10 +65,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const rows = await db.all(
       `SELECT id, amount, currency, beneficiary_name, beneficiary_account, beneficiary_ifsc, beneficiary_upi, reference_id, remarks, status, cashfree_payout_id AS provider_payout_id, admin_notes, utr, created_at, updated_at, webhook_data
        FROM payouts
-       WHERE vendor_id = ?
+       WHERE ${whereParts.join(' AND ')}
        ORDER BY created_at DESC
        LIMIT ? OFFSET ?`,
-      [vendorId, limit, offset]
+      [...whereParams, limit, offset]
     );
 
     // Process rows to use webhook status if available and status is still pending
