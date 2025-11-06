@@ -34,6 +34,8 @@ interface StatusCounts {
   Failed: number;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function PayoutsPage() {
   const { vendor, token, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -69,7 +71,7 @@ export default function PayoutsPage() {
     setError('');
     
     try {
-      const response = await fetch(`/api/vendor/payouts/jwt?page=${page}&limit=${pagination.limit}`, {
+      const response = await fetch(`/api/vendor/payouts/jwt?page=${page}&limit=${ITEMS_PER_PAGE}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -86,7 +88,7 @@ export default function PayoutsPage() {
 
       if (response.ok) {
         setPayouts(data?.payouts || []);
-        setPagination(data?.pagination || { page, limit: pagination.limit, total: 0, totalPages: 0 });
+        setPagination(data?.pagination || { page, limit: ITEMS_PER_PAGE, total: 0, totalPages: 0 });
         if (data?.statusCounts) {
           setStatusCounts({
             Success: data.statusCounts.Success || 0,

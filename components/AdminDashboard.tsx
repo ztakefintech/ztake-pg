@@ -137,6 +137,14 @@ export default function AdminDashboard() {
   const [selectedPayoutIds, setSelectedPayoutIds] = useState<Set<number>>(new Set());
   const [exportTransferMode, setExportTransferMode] = useState<string>('');
   const [exportRemarks, setExportRemarks] = useState<string>('');
+  const [rateLimitData, setRateLimitData] = useState<{
+    blocked?: Array<{ ip: string; blockedUntil: number; violations: number; resetTime: number }> | number;
+    ips?: Array<{ ip: string; count: number; violations: number; resetTime: number; blockedUntil?: number }>;
+    all?: Array<{ ip: string; count: number; violations: number; resetTime: number; blockedUntil?: number }>;
+    total?: number;
+  } | null>(null);
+  const [rateLimitViewType, setRateLimitViewType] = useState<'blocked' | 'all'>('blocked');
+  const [rateLimitLoading, setRateLimitLoading] = useState(false);
 
   // WebSocket connection for real-time updates
   const ws = useAdminWebSocket({
@@ -961,19 +969,94 @@ export default function AdminDashboard() {
   };
 
   // Get available tabs based on permissions
-  const getAvailableTabs = () => {
-    return [
-      ...(hasPermission('view_overview') ? [{ id: 'overview', name: 'Overview' }] : []),
-      ...(hasPermission('view_users') ? [{ id: 'users', name: 'Users' }] : []),
-      ...(hasPermission('view_users') ? [{ id: 'vendors', name: 'Vendors' }] : []),
-      ...(hasPermission('view_payments') ? [{ id: 'payments', name: 'Payments' }] : []),
-      ...(hasPermission('manage_payin') ? [{ id: 'utrSubmit', name: 'UTR Submit' }] : []),
-      ...(hasPermission('view_payouts') ? [{ id: 'payouts', name: 'Payouts' }] : []),
-      ...(hasPermission('view_payouts') ? [{ id: 'recharges', name: 'Recharges' }] : []),
-      ...(hasPermission('view_settlements') ? [{ id: 'settlements', name: 'Settlements' }] : []),
-      ...(hasPermission('manage_admins') ? [{ id: 'admins', name: 'Admin Users' }] : [])
-    ];
+  const getAvailableTabs = (): Array<{ id: string; name: string }> => {
+    const tabs: Array<{ id: string; name: string }> = [];
+    
+    if (hasPermission('view_overview')) tabs.push({ id: 'overview', name: 'Overview' });
+    if (hasPermission('view_users')) tabs.push({ id: 'users', name: 'Users' });
+    if (hasPermission('view_users')) tabs.push({ id: 'vendors', name: 'Vendors' });
+    if (hasPermission('view_payments')) tabs.push({ id: 'payments', name: 'Payments' });
+    if (hasPermission('manage_payin')) tabs.push({ id: 'utrSubmit', name: 'UTR Submit' });
+    if (hasPermission('view_payouts')) tabs.push({ id: 'payouts', name: 'Payouts' });
+    if (hasPermission('view_payouts')) tabs.push({ id: 'recharges', name: 'Recharges' });
+    if (hasPermission('view_settlements')) tabs.push({ id: 'settlements', name: 'Settlements' });
+    if (hasPermission('manage_admins')) tabs.push({ id: 'admins', name: 'Admin Users' });
+    
+    // Rate Limits - Available to all admins
+    tabs.push({ id: 'rateLimits', name: 'Rate Limits' });
+    
+    return tabs;
   };
+
+  // Load rate limit data
+  const loadRateLimitData = async (type: 'blocked' | 'all' = 'blocked') => {
+    setRateLimitLoading(true);
+    try {
+      const response = await fetch(`/api/admin/rate-limits?type=${type}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRateLimitData(data);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load rate limit data",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error loading rate limit data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load rate limit data",
+        variant: "destructive",
+      });
+    } finally {
+      setRateLimitLoading(false);
+    }
+  };
+
+  // Unblock IP
+  const handleUnblockIP = async (ip: string, action: 'unblock' | 'reset' = 'unblock') => {
+    try {
+      const response = await fetch('/api/admin/rate-limits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, action }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        toast({
+          title: "Success",
+          description: data.message,
+          variant: "default",
+        });
+        // Reload data
+        loadRateLimitData(rateLimitViewType);
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || data.message || "Failed to unblock IP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error unblocking IP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to unblock IP",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load rate limit data when tab is active
+  useEffect(() => {
+    if (activeTab === 'rateLimits') {
+      loadRateLimitData(rateLimitViewType);
+    }
+  }, [activeTab, rateLimitViewType]);
 
   // Redirect to first available tab if current tab is not accessible
   useEffect(() => {
@@ -2151,6 +2234,225 @@ export default function AdminDashboard() {
                 <div className="p-6 text-center text-sm text-gray-500">No admin users found.</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rate Limits Tab */}
+      {activeTab === 'rateLimits' && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Rate Limit Management</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex rounded-md shadow-sm">
+                  <button
+                    onClick={() => {
+                      setRateLimitViewType('blocked');
+                      loadRateLimitData('blocked');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-l-md ${
+                      rateLimitViewType === 'blocked'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    Blocked IPs
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRateLimitViewType('all');
+                      loadRateLimitData('all');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-r-md border-l-0 ${
+                      rateLimitViewType === 'all'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    All IPs
+                  </button>
+                </div>
+                <button
+                  onClick={() => loadRateLimitData(rateLimitViewType)}
+                  disabled={rateLimitLoading}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {rateLimitLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            {rateLimitLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span className="ml-2 text-gray-600">Loading rate limit data...</span>
+              </div>
+            ) : rateLimitViewType === 'blocked' ? (
+              <div className="overflow-hidden">
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> Blocked IPs are automatically unblocked after their block duration expires. 
+                    You can manually unblock them before that time.
+                  </p>
+                </div>
+                {rateLimitData && Array.isArray(rateLimitData.blocked) && rateLimitData.blocked.length > 0 ? (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violations</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blocked Until</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Remaining</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {Array.isArray(rateLimitData.blocked) && rateLimitData.blocked.map((item) => {
+                        const now = Date.now();
+                        const timeRemaining = item.blockedUntil - now;
+                        const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+                        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                        const isExpired = timeRemaining <= 0;
+                        
+                        return (
+                          <tr key={item.ip} className={isExpired ? 'bg-gray-50' : ''}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {item.ip}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                {item.violations}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(item.blockedUntil).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {isExpired ? (
+                                <span className="text-green-600 font-medium">Expired</span>
+                              ) : (
+                                <span className="text-orange-600 font-medium">
+                                  {hours > 0 ? `${hours}h ` : ''}{minutes}m
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="inline-flex gap-2">
+                                <button
+                                  onClick={() => handleUnblockIP(item.ip, 'unblock')}
+                                  className="text-sm px-3 py-1 rounded text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100"
+                                >
+                                  Unblock
+                                </button>
+                                <button
+                                  onClick={() => handleUnblockIP(item.ip, 'reset')}
+                                  className="text-sm px-3 py-1 rounded text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100"
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-6 text-center text-sm text-gray-500">
+                    No blocked IPs found. All IPs are currently unblocked.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-hidden">
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>All IPs:</strong> Shows all IPs currently tracked in the rate limit system, including their current request count and violation history.
+                  </p>
+                </div>
+                {rateLimitData && (rateLimitData.ips || rateLimitData.all) && (rateLimitData.ips || rateLimitData.all)!.length > 0 ? (
+                  <div>
+                    <div className="mb-4 text-sm text-gray-600">
+                      Showing <strong>{(rateLimitData.ips || rateLimitData.all)!.length}</strong> IPs ({typeof rateLimitData.blocked === 'number' ? rateLimitData.blocked : (rateLimitData.ips || rateLimitData.all)!.filter(ip => ip.blockedUntil && ip.blockedUntil > Date.now()).length} currently blocked)
+                    </div>
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Count</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violations</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reset Time</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {(rateLimitData.ips || rateLimitData.all)!.map((item) => {
+                          const isBlocked = item.blockedUntil && item.blockedUntil > Date.now();
+                          
+                          return (
+                            <tr key={item.ip} className={isBlocked ? 'bg-red-50' : ''}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {item.ip}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {item.count}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {item.violations > 0 ? (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    {item.violations}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">0</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {isBlocked ? (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    Blocked
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(item.resetTime).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="inline-flex gap-2">
+                                  {isBlocked && (
+                                    <button
+                                      onClick={() => handleUnblockIP(item.ip, 'unblock')}
+                                      className="text-sm px-3 py-1 rounded text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100"
+                                    >
+                                      Unblock
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleUnblockIP(item.ip, 'reset')}
+                                    className="text-sm px-3 py-1 rounded text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-sm text-gray-500">
+                    No IPs found in rate limit system.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

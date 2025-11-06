@@ -13,7 +13,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     
     // Validate pagination parameters
     const validatedParams = validateQueryParams(paginationSchema, searchParams);
-    const { page, limit, offset } = validatedParams;
+    const { page, limit } = validatedParams;
+    const offset = (page - 1) * limit;
 
     console.log(`[JWT-PAYOUTS] Fetching payouts for vendor ID: ${vendorId}`);
 

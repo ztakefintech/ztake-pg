@@ -11,6 +11,59 @@ interface RateLimitStore {
 
 const store: RateLimitStore = {};
 
+// Utility functions for manual IP management
+export function unblockIP(ip: string): boolean {
+  if (store[ip]) {
+    delete store[ip].blockedUntil;
+    store[ip].violations = 0; // Reset violations count
+    return true;
+  }
+  return false;
+}
+
+export function resetIP(ip: string): boolean {
+  if (store[ip]) {
+    delete store[ip];
+    return true;
+  }
+  return false;
+}
+
+export function getBlockedIPs(): Array<{ ip: string; blockedUntil: number; violations: number; resetTime: number }> {
+  const now = Date.now();
+  const blocked: Array<{ ip: string; blockedUntil: number; violations: number; resetTime: number }> = [];
+  
+  Object.keys(store).forEach(ip => {
+    if (store[ip].blockedUntil && store[ip].blockedUntil > now) {
+      blocked.push({
+        ip,
+        blockedUntil: store[ip].blockedUntil!,
+        violations: store[ip].violations,
+        resetTime: store[ip].resetTime
+      });
+    }
+  });
+  
+  return blocked.sort((a, b) => a.blockedUntil - b.blockedUntil);
+}
+
+export function getAllIPs(): Array<{ ip: string; count: number; violations: number; resetTime: number; blockedUntil?: number }> {
+  const now = Date.now();
+  const ips: Array<{ ip: string; count: number; violations: number; resetTime: number; blockedUntil?: number }> = [];
+  
+  Object.keys(store).forEach(ip => {
+    ips.push({
+      ip,
+      count: store[ip].count,
+      violations: store[ip].violations,
+      resetTime: store[ip].resetTime,
+      blockedUntil: store[ip].blockedUntil && store[ip].blockedUntil > now ? store[ip].blockedUntil : undefined
+    });
+  });
+  
+  return ips.sort((a, b) => (b.violations || 0) - (a.violations || 0));
+}
+
 export interface RateLimitOptions {
   windowMs: number;
   max: number;
