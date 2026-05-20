@@ -2,7 +2,7 @@
 
 import React, { ReactNode, useState } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage, FiDollarSign, FiTrendingUp, FiHome, FiZap } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage, FiDollarSign, FiTrendingUp, FiHome, FiZap, FiPlayCircle } from 'react-icons/fi';
 import { FiMoon, FiSun } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -146,6 +146,14 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <FiMonitor className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                 <span className="font-medium">Instant Payout</span>
+              </Link>
+
+              <Link
+                href="/demo"
+                className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-colors group glass-hover"
+              >
+                <FiPlayCircle className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                <span className="font-medium">Demo Payin</span>
               </Link>
             </div>
           </nav>

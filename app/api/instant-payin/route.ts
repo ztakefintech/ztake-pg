@@ -22,9 +22,9 @@ const instantOrderSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Merchant order ID must be 3-255 characters and contain only letters, numbers, underscores, and hyphens'
     }),
-  amount: Joi.number().positive().precision(2).min(100).max(100000).required()
+  amount: Joi.number().positive().precision(2).min(5).max(100000).required()
     .messages({
-      'number.min': 'Amount must be at least ₹100',
+      'number.min': 'Amount must be at least ₹5',
       'number.max': 'Amount cannot exceed ₹1,00,000'
     }),
   currency: Joi.string().valid('INR', 'USD', 'EUR').default('INR'),

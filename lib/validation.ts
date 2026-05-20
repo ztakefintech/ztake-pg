@@ -34,9 +34,9 @@ export const createOrderSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Merchant order ID must be 3-255 characters and contain only letters, numbers, underscores, and hyphens'
     }),
-  amount: Joi.number().positive().precision(2).min(100).max(100000).required()
+  amount: Joi.number().positive().precision(2).min(5).max(100000).required()
     .messages({
-      'number.min': 'Amount must be at least ₹100',
+      'number.min': 'Amount must be at least ₹5',
       'number.max': 'Amount cannot exceed ₹1,00,000'
     }),
   currency: Joi.string().valid('INR', 'USD', 'EUR').default('INR'),
@@ -56,9 +56,9 @@ export const updatePaymentSchema = Joi.object({
     .messages({
       'string.pattern.base': 'UTR must be 10-20 digits'
     }),
-  amount: Joi.number().positive().precision(2).min(100).max(100000).required()
+  amount: Joi.number().positive().precision(2).min(5).max(100000).required()
     .messages({
-      'number.min': 'Amount must be at least ₹100',
+      'number.min': 'Amount must be at least ₹5',
       'number.max': 'Amount cannot exceed ₹1,00,000'
     }),
   vendor_code: Joi.string().pattern(VENDOR_CODE_PATTERN).required(),
@@ -248,8 +248,8 @@ export function validateBusinessRules(data: any, context: string = '') {
     if (context === 'payout' && data.amount < 100) {
       errors.push('Payout amount must be at least ₹100');
     }
-    if (context === 'order' && data.amount < 100) {
-      errors.push('Order amount must be at least ₹100');
+    if (context === 'order' && data.amount < 5) {
+      errors.push('Order amount must be at least ₹5');
     }
     if (data.amount > 100000) {
       errors.push('Amount cannot exceed ₹1,00,000');
