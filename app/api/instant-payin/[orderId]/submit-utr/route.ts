@@ -166,30 +166,65 @@ export async function POST(
     }
 
     // Check if payment exists for this UTR and vendor
-    const payment = await db.get(
+    let payment = await db.get(
       'SELECT id, amount, payment_status, checked_status FROM payments WHERE utr = ? AND vendor_id = ?',
       [utr, vendor.id]
     );
 
+    let matchedFromWebhook = false;
+    let webhookEventId: number | null = null;
+    let webhookAmount: number | null = null;
+
+    if (!payment) {
+      // Check if there is an unmatched bank webhook event for this UTR
+      const webhookEvent = await db.get(
+        'SELECT id, amount, processed FROM webhook_events WHERE utr = ? AND processed = false',
+        [utr]
+      );
+      if (webhookEvent) {
+        console.log(`[INSTANT-UTR] Found unmatched webhook event for UTR: ${utr}`);
+        matchedFromWebhook = true;
+        webhookEventId = webhookEvent.id;
+        webhookAmount = webhookEvent.amount;
+
+        payment = {
+          id: webhookEvent.id,
+          amount: webhookEvent.amount,
+          payment_status: 'Succeeded',
+          checked_status: false
+        };
+      }
+    }
+
     if (payment) {
-      console.log(`[INSTANT-UTR] Payment found for UTR: ${utr}`);
+      console.log(`[INSTANT-UTR] Payment matched (Webhook? ${matchedFromWebhook}) for UTR: ${utr}`);
       
+      const verifiedAmount = webhookAmount !== null ? webhookAmount : payment.amount;
+
       // Update order amount from payment
       await db.run(
         'UPDATE orders SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?',
-        [payment.amount, params.orderId]
+        [verifiedAmount, params.orderId]
       );
 
       if (payment.payment_status === 'Succeeded' && !payment.checked_status) {
-        // Mark payment as checked
-        await db.run(
-          'UPDATE payments SET checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [payment.id]
-        );
+        if (matchedFromWebhook && webhookEventId) {
+          // Mark the webhook event as processed and set matched order ID
+          await db.run(
+            `UPDATE webhook_events SET processed = true, matched_txn_id = ?, note = 'Matched via UTR submission' WHERE id = ?`,
+            [params.orderId, webhookEventId]
+          );
+        } else {
+          // Mark payment as checked
+          await db.run(
+            'UPDATE payments SET checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [payment.id]
+          );
+        }
 
-        // Update order status to succeeded
+        // Update order status to succeeded and mark as webhook verified
         await db.run(
-          'UPDATE orders SET status = ?, payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?',
+          `UPDATE orders SET status = ?, payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, webhook_verified = true, webhook_verified_at = CURRENT_TIMESTAMP, verification_source = 'webhook' WHERE ztake_order_id = ?`,
           ['Succeeded', params.orderId]
         );
 
@@ -204,7 +239,7 @@ export async function POST(
             merchantOrderId: order.merchant_order_id,
             vendorId: vendor.id,
             vendorCode: vendor.vendor_code,
-            amount: payment.amount,
+            amount: verifiedAmount,
             currency: order.currency,
             status: 'Succeeded',
             utr: utr
@@ -219,7 +254,7 @@ export async function POST(
         const successAlert = [
           '<b>🔔 Pay-in Payment Succeeded</b>',
           `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
-          `• Amount: ₹${payment.amount} ${order.currency}`,
+          `• Amount: ₹${verifiedAmount} ${order.currency}`,
           `• Customer: ${order.customer_name}`,
           `• Merchant Order ID: ${order.merchant_order_id}`,
           `• Ztake Order ID: ${params.orderId}`,
@@ -236,7 +271,7 @@ export async function POST(
             merchantOrderId: order.merchant_order_id,
             vendorId: vendor.id,
             vendorCode: vendor.vendor_code,
-            amount: payment.amount,
+            amount: verifiedAmount,
             currency: order.currency,
             status: 'Succeeded',
             utr: utr,
@@ -248,7 +283,7 @@ export async function POST(
           success: true,
           verified: true,
           status: 'Succeeded',
-          amount: payment.amount,
+          amount: verifiedAmount,
           message: 'UTR verified and order succeeded'
         });
       } else if (payment.checked_status) {

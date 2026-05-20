@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   // 4. If no UTR extracted, log and return 200
   if (!parsed.utr) {
     await db.run(
-      `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         parsed.source || 'unknown',
         parsed.amount,
@@ -65,7 +65,14 @@ export async function POST(req: NextRequest) {
         JSON.stringify(payload),
         true,
         false,
-        'Could not extract UTR from raw_screen'
+        'Could not extract UTR from raw_screen',
+        parsed.payment_type,
+        parsed.sender_name,
+        parsed.payment_method,
+        parsed.payment_app,
+        parsed.customer_paid,
+        parsed.mdr_gst,
+        parsed.amount_received
       ]
     );
     return NextResponse.json({ status: 'logged_no_utr' }, { status: 200 });
@@ -80,7 +87,7 @@ export async function POST(req: NextRequest) {
   // 6. Idempotency — if already verified, skip silently
   if (transaction?.webhook_verified === true || transaction?.webhook_verified === 1) {
     await db.run(
-      `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         parsed.source || '',
         parsed.utr,
@@ -91,7 +98,14 @@ export async function POST(req: NextRequest) {
         true,
         transaction.ztake_order_id,
         true,
-        'Duplicate — already webhook-verified'
+        'Duplicate — already webhook-verified',
+        parsed.payment_type,
+        parsed.sender_name,
+        parsed.payment_method,
+        parsed.payment_app,
+        parsed.customer_paid,
+        parsed.mdr_gst,
+        parsed.amount_received
       ]
     );
     return NextResponse.json({ status: 'already_processed' }, { status: 200 });
@@ -108,7 +122,7 @@ export async function POST(req: NextRequest) {
       );
 
       await db.run(
-        `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           parsed.source || '',
           parsed.utr,
@@ -119,7 +133,14 @@ export async function POST(req: NextRequest) {
           true,
           transaction.ztake_order_id,
           true,
-          'Auto-verified via webhook UTR match'
+          'Auto-verified via webhook UTR match',
+          parsed.payment_type,
+          parsed.sender_name,
+          parsed.payment_method,
+          parsed.payment_app,
+          parsed.customer_paid,
+          parsed.mdr_gst,
+          parsed.amount_received
         ]
       );
 
@@ -132,7 +153,7 @@ export async function POST(req: NextRequest) {
 
   // 8. No matching transaction found — log as unmatched
   await db.run(
-    `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       parsed.source || '',
       parsed.utr,
@@ -143,7 +164,14 @@ export async function POST(req: NextRequest) {
       true,
       null,
       false,
-      `No PENDING transaction found for UTR: ${parsed.utr}`
+      `No PENDING transaction found for UTR: ${parsed.utr}`,
+      parsed.payment_type,
+      parsed.sender_name,
+      parsed.payment_method,
+      parsed.payment_app,
+      parsed.customer_paid,
+      parsed.mdr_gst,
+      parsed.amount_received
     ]
   );
 

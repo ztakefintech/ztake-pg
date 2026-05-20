@@ -3,6 +3,8 @@ import { Pool, PoolClient } from 'pg';
 class Database {
   private pool: Pool;
 
+  private initPromise: Promise<void> | null = null;
+
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
@@ -10,7 +12,13 @@ class Database {
         rejectUnauthorized: false
       }
     });
-    this.init();
+    this.initPromise = this.init();
+  }
+
+  private async ensureInitialized() {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
   }
 
   private async init() {
@@ -213,14 +221,37 @@ class Database {
           signature_valid BOOLEAN DEFAULT FALSE,
           matched_txn_id VARCHAR(64),
           processed BOOLEAN DEFAULT FALSE,
-          note TEXT
+          note TEXT,
+          payment_type VARCHAR(20) DEFAULT 'unknown',
+          sender_name VARCHAR(255),
+          payment_method VARCHAR(50),
+          payment_app VARCHAR(50),
+          customer_paid DECIMAL(12,2),
+          mdr_gst DECIMAL(12,2),
+          amount_received DECIMAL(12,2)
         )
       `);
 
-      // Ensure UTR on orders is unique when present
+      // Ensure extra columns exist on webhook_events for new payload schema
       await client.query(`
-        CREATE UNIQUE INDEX IF NOT EXISTS orders_utr_key ON orders(utr) WHERE utr IS NOT NULL
+        ALTER TABLE webhook_events 
+        ADD COLUMN IF NOT EXISTS payment_type VARCHAR(20) DEFAULT 'unknown',
+        ADD COLUMN IF NOT EXISTS sender_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS payment_app VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS customer_paid DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS mdr_gst DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS amount_received DECIMAL(12,2)
       `);
+
+      // Ensure UTR on orders is unique when present
+      try {
+        await client.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS orders_utr_key ON orders(utr) WHERE utr IS NOT NULL
+        `);
+      } catch (err) {
+        console.warn('Could not create unique index orders_utr_key (possibly due to duplicate data):', err);
+      }
       await client.query(`
         DO $$
         BEGIN
@@ -276,9 +307,13 @@ class Database {
         ALTER TABLE payments 
         ADD COLUMN IF NOT EXISTS order_id VARCHAR(255)
       `);
-      await client.query(`
-        CREATE UNIQUE INDEX IF NOT EXISTS payments_order_id_key ON payments(order_id)
-      `);
+      try {
+        await client.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS payments_order_id_key ON payments(order_id)
+        `);
+      } catch (err) {
+        console.warn('Could not create unique index payments_order_id_key (possibly due to duplicate data):', err);
+      }
 
       // Add bot_token column to existing vendors table if it doesn't exist
       await client.query(`
@@ -413,10 +448,13 @@ class Database {
         ALTER TABLE payout_recharges 
         ADD COLUMN IF NOT EXISTS utr VARCHAR(64)
       `);
-      // Ensure UTR on payout_recharges is unique when present
-      await client.query(`
-        CREATE UNIQUE INDEX IF NOT EXISTS payout_recharges_utr_key ON payout_recharges(utr) WHERE utr IS NOT NULL
-      `);
+      try {
+        await client.query(`
+          CREATE UNIQUE INDEX IF NOT EXISTS payout_recharges_utr_key ON payout_recharges(utr) WHERE utr IS NOT NULL
+        `);
+      } catch (err) {
+        console.warn('Could not create unique index payout_recharges_utr_key (possibly due to duplicate data):', err);
+      }
       // Ensure fee columns exist on payout_recharges
       await client.query(`
         ALTER TABLE payout_recharges 
@@ -525,6 +563,7 @@ class Database {
 
   // Promisified methods
   async run(sql: string, params: any[] = []): Promise<{ lastID: number; changes: number }> {
+    await this.ensureInitialized();
     const client = await this.pool.connect();
     try {
       let { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params);
@@ -554,6 +593,7 @@ class Database {
   }
 
   async get(sql: string, params: any[] = []): Promise<any> {
+    await this.ensureInitialized();
     const client = await this.pool.connect();
     try {
       const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params);
@@ -565,6 +605,7 @@ class Database {
   }
 
   async all(sql: string, params: any[] = []): Promise<any[]> {
+    await this.ensureInitialized();
     const client = await this.pool.connect();
     try {
       const { sql: convertedSql, params: convertedParams } = this.convertQuery(sql, params);

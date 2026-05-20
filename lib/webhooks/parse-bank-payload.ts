@@ -7,6 +7,13 @@ export interface ParsedPayment {
   paid_at: Date | null;
   source: string | null;
   raw_amount_string: string;
+  payment_type: string; // 'credit' | 'debit' | 'unknown'
+  sender_name: string | null;
+  payment_method: string | null;
+  payment_app: string | null;
+  customer_paid: number | null;
+  mdr_gst: number | null;
+  amount_received: number | null;
 }
 
 export function parseBankWebhookPayload(payload: {
@@ -16,14 +23,25 @@ export function parseBankWebhookPayload(payload: {
   source?: string;
   timestamp?: string;
 }): ParsedPayment {
+  const parseNumber = (val: string): number | null => {
+    const clean = val.replace(/[+\-\s₹,]/g, '').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? null : parsed;
+  };
+
   // 1. Parse amount
   const rawAmount = payload.amount || '';
-  const cleanAmount = rawAmount.replace(/[+\-\s₹,]/g, '');
-  const amount = parseFloat(cleanAmount) || null;
+  let amount = parseNumber(rawAmount);
 
-  // 2. Parse UTR from raw_screen
-  // raw_screen uses both | and \n as separators
-  // Normalize: replace | with \n, then split on \n
+  // 2. Parse debit/credit type from amount prefix
+  let payment_type = 'unknown';
+  if (rawAmount.includes('+')) {
+    payment_type = 'credit';
+  } else if (rawAmount.includes('-')) {
+    payment_type = 'debit';
+  }
+
+  // 3. Parse fields from raw_screen
   const rawScreen = payload.raw_screen || '';
   const lines = rawScreen
     .replace(/\|/g, '\n')
@@ -33,17 +51,72 @@ export function parseBankWebhookPayload(payload: {
 
   let utr: string | null = null;
   let google_txn_id: string | null = null;
+  let sender_name: string | null = null;
+  let payment_method: string | null = null;
+  let payment_app: string | null = null;
+  let customer_paid: number | null = null;
+  let mdr_gst: number | null = null;
+  let amount_received: number | null = null;
 
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i] === 'UPI Transaction ID' && lines[i + 1]) {
+    const line = lines[i];
+
+    // Check credit/debit in text if not set by amount prefix
+    if (payment_type === 'unknown') {
+      if (line.toLowerCase().includes('credited')) {
+        payment_type = 'credit';
+      } else if (line.toLowerCase().includes('debited')) {
+        payment_type = 'debit';
+      }
+    }
+
+    // Sender Name
+    if (line.startsWith('Received from')) {
+      sender_name = line.replace(/^Received from\s+/i, '').trim();
+    }
+
+    // Payment App
+    if (line.startsWith('Payment from')) {
+      payment_app = line.replace(/^Payment from\s+/i, '').trim();
+    }
+
+    // Payment method
+    if (line === 'Payment method' && lines[i + 1]) {
+      payment_method = lines[i + 1].trim();
+    }
+
+    // UPI Transaction ID (UTR)
+    if (line === 'UPI Transaction ID' && lines[i + 1]) {
       utr = lines[i + 1].trim();
     }
-    if (lines[i] === 'Google Transaction ID' && lines[i + 1]) {
+
+    // Google Transaction ID
+    if (line === 'Google Transaction ID' && lines[i + 1]) {
       google_txn_id = lines[i + 1].trim();
+    }
+
+    // Customer paid
+    if (line === 'Customer paid' && lines[i + 1]) {
+      customer_paid = parseNumber(lines[i + 1]);
+    }
+
+    // MDR + GST
+    if (line === 'MDR + GST' && lines[i + 1]) {
+      mdr_gst = parseNumber(lines[i + 1]);
+    }
+
+    // Amount you get
+    if (line === 'Amount you get' && lines[i + 1]) {
+      amount_received = parseNumber(lines[i + 1]);
     }
   }
 
-  // 3. Parse timestamp
+  // Fallback for amount if not parsed earlier
+  if (amount === null && customer_paid !== null) {
+    amount = customer_paid;
+  }
+
+  // 4. Parse timestamp
   const paid_at = payload.timestamp
     ? new Date(parseInt(payload.timestamp) * 1000)
     : null;
@@ -55,5 +128,12 @@ export function parseBankWebhookPayload(payload: {
     paid_at,
     source: payload.source || null,
     raw_amount_string: rawAmount,
+    payment_type,
+    sender_name,
+    payment_method,
+    payment_app,
+    customer_paid,
+    mdr_gst,
+    amount_received,
   };
 }

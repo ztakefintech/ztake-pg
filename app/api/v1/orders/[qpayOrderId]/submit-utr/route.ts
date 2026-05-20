@@ -71,21 +71,56 @@ export async function POST(
 
     // If payment already exists and succeeded, flip now and send SUCCESS callback
     if (order.vendor_id) {
-      const paymentRow = await db.get(
+      let paymentRow = await db.get(
         `SELECT id, utr, amount, payment_status, checked_status FROM payments WHERE utr = ? AND vendor_id = ?`,
         [utr, order.vendor_id]
       );
-      if (paymentRow && paymentRow.payment_status === 'Succeeded') {
-        await db.run(
-          `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-           WHERE utr = ? AND vendor_id = ? AND checked_status = FALSE`,
-          [order.ztake_order_id, utr, order.vendor_id]
+
+      let matchedFromWebhook = false;
+      let webhookEventId: number | null = null;
+
+      if (!paymentRow) {
+        // Check if there is an unmatched bank webhook event for this UTR
+        const webhookEvent = await db.get(
+          'SELECT id, amount, processed FROM webhook_events WHERE utr = ? AND processed = false',
+          [utr]
         );
-        if (paymentRow.amount != null) {
-          await db.run(`UPDATE orders SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`, [paymentRow.amount, params.qpayOrderId]);
+        if (webhookEvent) {
+          console.log(`[SUBMIT-UTR-PUBLIC] Found unmatched webhook event for UTR: ${utr}`);
+          matchedFromWebhook = true;
+          webhookEventId = webhookEvent.id;
+
+          paymentRow = {
+            id: webhookEvent.id,
+            utr: utr,
+            amount: webhookEvent.amount,
+            payment_status: 'Succeeded',
+            checked_status: false
+          };
+        }
+      }
+
+      if (paymentRow && paymentRow.payment_status === 'Succeeded') {
+        if (matchedFromWebhook && webhookEventId) {
+          // Mark the webhook event as processed and set matched order ID
+          await db.run(
+            `UPDATE webhook_events SET processed = true, matched_txn_id = ?, note = 'Matched via UTR submission' WHERE id = ?`,
+            [order.ztake_order_id, webhookEventId]
+          );
+        } else {
+          await db.run(
+            `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE utr = ? AND vendor_id = ? AND checked_status = FALSE`,
+            [order.ztake_order_id, utr, order.vendor_id]
+          );
+        }
+
+        const verifiedAmount = paymentRow.amount ?? order.amount;
+        if (verifiedAmount != null) {
+          await db.run(`UPDATE orders SET amount = ?, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`, [verifiedAmount, params.qpayOrderId]);
         }
         await db.run(
-          `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
+          `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, webhook_verified = true, webhook_verified_at = CURRENT_TIMESTAMP, verification_source = 'webhook' WHERE ztake_order_id = ?`,
           [params.qpayOrderId]
         );
         
