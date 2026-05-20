@@ -71,7 +71,7 @@ async function handler(req: AuthenticatedRequest) {
 
     // Generate public payment page URL and its QR code
     const origin = req.nextUrl.origin;
-    const payPageUrl = `${origin}/demo/pay/${ztakeOrderId}`;
+    const payPageUrl = `${origin}/pay/${ztakeOrderId}`;
     let pageQrCodeUrl: string | null = null;
     try {
       pageQrCodeUrl = await QRCode.toDataURL(payPageUrl, { width: 256, margin: 1 });
