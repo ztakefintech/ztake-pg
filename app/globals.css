@@ -123,6 +123,14 @@
   .login-shape {
     animation: pulse 4s ease-in-out infinite;
   }
+
+  .animate-fade-in {
+    animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  
+  .animate-scale-up {
+    animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
   
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
@@ -138,6 +146,16 @@
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 0.8; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
   }
 }
 

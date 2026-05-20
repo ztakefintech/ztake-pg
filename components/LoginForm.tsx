@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
 import { useRouter } from 'next/navigation';
-import { FiEye, FiEyeOff, FiMail, FiLock, FiShield, FiCreditCard, FiDollarSign, FiCheckCircle, FiX } from 'react-icons/fi';
+import { 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Loader2, 
+  ShieldCheck, 
+  ArrowRight,
+  HelpCircle,
+} from 'lucide-react';
 
 // Google OAuth types
 interface GoogleUserInfo {
@@ -143,10 +152,8 @@ export default function LoginForm() {
       const data = await response.json();
 
       if (response.ok) {
-        // Show success message if password was set (for Google OAuth users)
         if (data.message && data.message.includes('Password set successfully')) {
           setError(''); // Clear any previous errors
-          // Password was set automatically, proceed with login
         }
         login(data.vendor, data.token);
         router.push('/dashboard');
@@ -165,18 +172,15 @@ export default function LoginForm() {
     setError('');
 
     try {
-      // Load Google OAuth script if not already loaded
       if (!window.google) {
         await loadGoogleScript();
       }
 
-      // Check if Google Client ID is configured
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       if (!clientId) {
         throw new Error('Google Client ID not configured. Please add NEXT_PUBLIC_GOOGLE_CLIENT_ID to your environment variables.');
       }
 
-      // Initialize Google OAuth
       window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'email profile',
@@ -212,7 +216,6 @@ export default function LoginForm() {
         login(data.vendor, data.token);
         router.push('/dashboard');
       } else if (data.requiresApproval) {
-        // Redirect to access denied page with user info
         const params = new URLSearchParams({
           email: data.email,
           name: data.name,
@@ -260,145 +263,213 @@ export default function LoginForm() {
       [name]: value
     });
 
-    // Check email status when email changes
     if (name === 'email') {
       debouncedCheckEmail(value);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-100 to-slate-200 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="relative rounded-[28px] border border-white/50 bg-white/60 backdrop-blur-xl px-6 sm:px-8 py-8 sm:py-10 shadow-[inset_8px_8px_24px_rgba(255,255,255,0.6),inset_-8px_-8px_24px_rgba(0,0,0,0.03),0_20px_60px_rgba(0,0,0,0.08)]">
-          <div className="flex flex-col items-center">
-            <div className="mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-white shadow-[8px_8px_24px_rgba(0,0,0,0.06),-8px_-8px_24px_rgba(255,255,255,0.9)] flex items-center justify-center">
-                <img src="/logo.png" alt="ZTAKE" className="w-12 h-12 object-contain dark:hidden" />
-                <img src="/logo-white.png" alt="ZTAKE" className="w-12 h-12 object-contain hidden dark:block" />
+    <div className="min-h-screen w-full bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-50 flex items-center justify-center px-4 py-16 relative overflow-hidden transition-colors duration-300">
+      
+      {/* Background Decorative Mesh / Blobs */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-[20%] left-[20%] w-[350px] h-[350px] rounded-full bg-blue-500/10 dark:bg-blue-600/10 blur-[100px]" />
+        <div className="absolute bottom-[20%] right-[20%] w-[450px] h-[450px] rounded-full bg-violet-500/10 dark:bg-violet-600/10 blur-[120px]" />
+      </div>
+
+      <div className="w-full max-w-[420px] relative z-10">
+        
+        {/* Apple-style Frosted Glass Card */}
+        <div className="relative rounded-[32px] border border-black/[0.05] dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/70 backdrop-blur-2xl px-8 py-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+          
+          {/* Card Header (Emblem & Title) */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="mb-4 relative group">
+              {/* Sleek App Icon Container */}
+              <div className="w-16 h-16 rounded-2xl bg-zinc-900 dark:bg-white flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-105">
+                <svg 
+                  className="w-8 h-8 text-white dark:text-black" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path 
+                    d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                  />
+                  <path 
+                    d="M7 8H17L10 16H17" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                  />
+                </svg>
               </div>
             </div>
-            <h1 className="text-xl font-semibold tracking-wide text-slate-800 mb-6">ZTAKE</h1>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Sign In to Ztake</h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">Enter your credentials to access your gateway dashboard</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Input Fields Container */}
             <div className="space-y-3">
+              
+              {/* Email Input */}
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+                  <Mail className="h-4 w-4" />
+                </div>
                 <input
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className={`w-full rounded-2xl px-5 py-3.5 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 text-slate-800 ${
-                    emailStatus.checking
-                      ? 'ring-2 ring-amber-300/60'
-                      : ''
-                  }`}
-                  placeholder="Email"
+                  className="w-full rounded-xl pl-10 pr-10 py-3 text-sm bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
+                  placeholder="Email address"
                   value={formData.email}
                   onChange={handleChange}
                 />
+                
+                {/* Checking Loader */}
                 {emailStatus.checking && (
                   <div className="absolute inset-y-0 right-3 flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-sky-500"></div>
+                    <Loader2 className="animate-spin h-4 w-4 text-blue-500" />
                   </div>
                 )}
               </div>
 
+              {/* Password Input */}
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+                  <Lock className="h-4 w-4" />
+                </div>
                 <input
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="w-full rounded-2xl px-5 py-3.5 pr-12 bg-white/70 border border-white/60 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.06),inset_-4px_-4px_12px_rgba(255,255,255,0.9)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400/60 text-slate-800"
+                  className="w-full rounded-xl pl-10 pr-10 py-3 text-sm bg-zinc-100/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
                 />
+                
+                {/* Toggle Eye Button */}
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <FiEyeOff className="h-5 w-5 text-slate-400" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <FiEye className="h-5 w-5 text-slate-400" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </button>
               </div>
 
+              {/* Email Status Message */}
               {emailStatus.message && (
-                <div className="text-xs text-slate-600 bg-white/60 border border-white/70 rounded-xl px-4 py-2 shadow-[inset_2px_2px_8px_rgba(0,0,0,0.04),inset_-2px_-2px_8px_rgba(255,255,255,0.9)]">
+                <div className="text-[11px] font-medium leading-normal text-zinc-500 dark:text-zinc-400 bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/60 rounded-xl px-4 py-2.5">
                   {emailStatus.message}
                 </div>
               )}
             </div>
 
+            {/* Error Message */}
             {error && (
-              <div className="text-red-600 text-sm text-center bg-red-50/70 border border-red-200/60 rounded-xl p-3">
+              <div className="text-red-600 dark:text-red-400 text-xs text-center bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 dark:border-red-500/30 rounded-xl py-3 px-4">
                 {error}
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-2xl py-3.5 text-slate-800 bg-white shadow-[8px_8px_24px_rgba(0,0,0,0.06),-8px_-8px_24px_rgba(255,255,255,0.9)] hover:shadow-[10px_10px_28px_rgba(0,0,0,0.08),-10px_-10px_28px_rgba(255,255,255,1)] transition-shadow disabled:opacity-50"
+              className="w-full rounded-xl py-3 text-sm font-semibold text-white dark:text-black bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 transition-all shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 hover:scale-[1.01]"
             >
-              {isLoading ? 'Signing in…' : 'Sign In'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin h-4 w-4" />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-300/60" />
-              <span className="px-3 py-1 text-slate-500 text-xs rounded-full bg-white/80 shadow-[inset_4px_4px_12px_rgba(0,0,0,0.04),inset_-4px_-4px_12px_rgba(255,255,255,0.9)]">or</span>
-              <div className="h-px flex-1 bg-slate-300/60" />
+            {/* Divider */}
+            <div className="flex items-center gap-3 py-1">
+              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800/80" />
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest font-bold">or</span>
+              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800/80" />
             </div>
 
+            {/* Google OAuth Login Button */}
             <button
               type="button"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
-              className="w-full rounded-2xl py-3.5 bg-white/80 border border-white/60 text-slate-700 flex items-center justify-center gap-2 shadow-[8px_8px_24px_rgba(0,0,0,0.06),-8px_-8px_24px_rgba(255,255,255,0.9)] hover:shadow-[10px_10px_28px_rgba(0,0,0,0.08),-10px_-10px_28px_rgba(255,255,255,1)] transition-shadow disabled:opacity-50"
+              className="w-full rounded-xl py-3 bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800/80 text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-center gap-2.5 transition-all disabled:opacity-50 hover:scale-[1.01]"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              {isGoogleLoading ? 'Signing in…' : 'Continue with Google'}
+              {isGoogleLoading ? (
+                <Loader2 className="animate-spin h-4 w-4" />
+              ) : (
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+              )}
+              {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
             </button>
 
-            <div className="text-center">
-              <a href="#" className="text-sm text-slate-600 hover:text-slate-700">Forgot Password?</a>
+            {/* Forgot Password Link */}
+            <div className="text-center pt-2">
+              <a href="#" className="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors">
+                Forgot Password?
+              </a>
             </div>
+
           </form>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-500">Secured with end-to-end encryption</p>
+        {/* Security Footer Details */}
+        <div className="mt-8 text-center space-y-4">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+            <ShieldCheck className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+            <span>Secured with End-to-End Encryption</span>
+          </div>
+
+          {/* Payment Methods Badges */}
+          <div className="flex justify-center gap-2">
+            <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-md">
+              UPI
+            </div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-md">
+              VISA
+            </div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-md">
+              MC
+            </div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-md">
+              RUPAY
+            </div>
+            <div className="px-2.5 py-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-md">
+              NETBANKING
+            </div>
+          </div>
         </div>
 
-        <div className="mt-4 flex justify-center gap-3">
-          <div className="w-10 h-7 rounded-xl bg-white/70 border border-white/60 shadow-[4px_4px_12px_rgba(0,0,0,0.06),-4px_-4px_12px_rgba(255,255,255,0.9)] flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-indigo-600">UPI</span>
-          </div>
-          <div className="w-10 h-7 rounded-xl bg-white/70 border border-white/60 shadow-[4px_4px_12px_rgba(0,0,0,0.06),-4px_-4px_12px_rgba(255,255,255,0.9)] flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-blue-600">VISA</span>
-          </div>
-          <div className="w-10 h-7 rounded-xl bg-white/70 border border-white/60 shadow-[4px_4px_12px_rgba(0,0,0,0.06),-4px_-4px_12px_rgba(255,255,255,0.9)] flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-red-500">MC</span>
-          </div>
-          <div className="w-10 h-7 rounded-xl bg-white/70 border border-white/60 shadow-[4px_4px_12px_rgba(0,0,0,0.06),-4px_-4px_12px_rgba(255,255,255,0.9)] flex items-center justify-center">
-            <span className="text-[12px] font-semibold text-emerald-600">₹</span>
-          </div>
-          <div className="w-10 h-7 rounded-xl bg-white/70 border border-white/60 shadow-[4px_4px_12px_rgba(0,0,0,0.06),-4px_-4px_12px_rgba(255,255,255,0.9)] flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-sky-600">NB</span>
-          </div>
-        </div>
       </div>
     </div>
   );
