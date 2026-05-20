@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/database';
+import { requirePermission } from '@/lib/admin-middleware';
+
+export const dynamic = 'force-dynamic';
+
+export const GET = requirePermission('view_payments')(async (req: NextRequest) => {
+  try {
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const status = searchParams.get('status') || 'all';
+    
+    const offset = (page - 1) * limit;
+    
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+    let paramIndex = 1;
+    
+    if (status === 'matched') {
+      whereClause += ` AND matched_txn_id IS NOT NULL AND processed = true`;
+    } else if (status === 'unmatched') {
+      whereClause += ` AND matched_txn_id IS NULL AND signature_valid = true`;
+    } else if (status === 'invalid') {
+      whereClause += ` AND signature_valid = false`;
+    }
+
+    const events = await db.all(`
+      SELECT 
+        id,
+        received_at,
+        source,
+        utr,
+        amount,
+        signature_valid,
+        matched_txn_id,
+        processed,
+        note
+      FROM webhook_events
+      ${whereClause}
+      ORDER BY received_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `, [...params, limit, offset]);
+
+    const totalResult = await db.get(`
+      SELECT COUNT(*) as total
+      FROM webhook_events
+      ${whereClause}
+    `, params);
+
+    const total = totalResult?.total || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      events,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Get webhook events error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch webhook events' },
+      { status: 500 }
+    );
+  }
+});

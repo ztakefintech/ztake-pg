@@ -94,7 +94,7 @@ export const POST = requirePermission('manage_payin')(async (req: NextRequest) =
     }
 
     await db.run(
-      `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE ztake_order_id = ?`,
+      `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, verification_source = 'manual' WHERE ztake_order_id = ?`,
       [order.ztake_order_id]
     )
 

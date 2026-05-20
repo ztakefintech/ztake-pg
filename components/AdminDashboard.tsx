@@ -305,6 +305,148 @@ export default function AdminDashboard() {
   const [cashfreeEnv, setCashfreeEnv] = useState<'sandbox' | 'prod'>('sandbox');
   const [savingCashfreeCredentials, setSavingCashfreeCredentials] = useState(false);
 
+  function WebhookEventsList() {
+    const [events, setEvents] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+
+    const load = async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const query = new URLSearchParams({ status: statusFilter, limit: '20' });
+        const res = await fetch(`/api/admin/webhook-events?${query.toString()}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed');
+        setEvents(json.events || []);
+      } catch (e: any) {
+        setErr(e.message || 'Failed to load');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => { load(); }, [statusFilter]);
+
+    return (
+      <div className="border rounded-md mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border-b bg-gray-50">
+          <div className="font-medium text-gray-700">Webhook Events (Auto-Verified)</div>
+          <div className="mt-2 sm:mt-0 flex space-x-2">
+            {['all', 'matched', 'unmatched', 'invalid'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1 text-xs font-medium rounded-full ${
+                  statusFilter === status 
+                    ? 'bg-indigo-100 text-indigo-700 border-indigo-200' 
+                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                } border`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+            <button onClick={load} className="ml-2 px-3 py-1 text-xs font-medium bg-white text-indigo-600 border border-gray-200 rounded-full hover:bg-gray-50">
+              Refresh
+            </button>
+          </div>
+        </div>
+        
+        {loading ? (
+          <div className="p-4 text-sm text-gray-500 text-center">Loading...</div>
+        ) : err ? (
+          <div className="p-4 text-sm text-red-600">{err}</div>
+        ) : events.length === 0 ? (
+          <div className="p-8 text-sm text-gray-500 text-center">No webhook events found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Received</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UTR</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {events.map((e) => (
+                  <tr key={e.id}>
+                    <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                      {new Date(e.received_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-mono text-gray-900">
+                      {e.utr || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {e.amount ? `₹${e.amount}` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {e.processed && e.matched_txn_id ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ✅ Auto-verified
+                        </span>
+                      ) : !e.signature_valid ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          ❌ Signature Invalid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          ⚠️ Unmatched
+                        </span>
+                      )}
+                      <div className="text-xs text-gray-500 mt-1">{e.note}</div>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm">
+                      <button 
+                        onClick={() => setSelectedEvent(e)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        View JSON
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {selectedEvent && (
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-screen overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Webhook Payload</h3>
+                <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-gray-500">
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="px-6 py-4 overflow-y-auto flex-1 bg-gray-50">
+                <pre className="text-xs text-gray-800 whitespace-pre-wrap break-all bg-gray-100 p-4 rounded border">
+                  {JSON.stringify(selectedEvent.raw_payload, null, 2)}
+                </pre>
+              </div>
+              <div className="px-6 py-3 border-t bg-gray-50 flex justify-end">
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function PendingUtrList({ onApprove }: { onApprove: (p: { id?: number; utr: string; amount: number; vendor_code: string }) => Promise<void> }) {
     const [rows, setRows] = useState<Array<{ id?: number; utr: string; amount: number; vendor_id: number; vendor_code: string; business_name?: string; created_at: string }>>([]);
     const [loading, setLoading] = useState(false);
@@ -1721,6 +1863,9 @@ export default function AdminDashboard() {
                       }
                     }}
                   />
+                  
+                  {/* Webhook Events Tab */}
+                  <WebhookEventsList />
                 </div>
               </>
             )}

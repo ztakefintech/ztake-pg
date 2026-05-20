@@ -193,8 +193,30 @@ class Database {
       await client.query(`
         ALTER TABLE orders 
         ADD COLUMN IF NOT EXISTS checked_status BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP
+        ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS webhook_verified BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS webhook_verified_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS verification_source VARCHAR(50)
       `);
+      
+      // Create webhook_events table for logging bank webhooks
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS webhook_events (
+          id SERIAL PRIMARY KEY,
+          received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          source VARCHAR(50) NOT NULL,
+          utr VARCHAR(64),
+          google_txn_id VARCHAR(64),
+          amount DECIMAL(12,2),
+          paid_at TIMESTAMP,
+          raw_payload JSONB NOT NULL,
+          signature_valid BOOLEAN DEFAULT FALSE,
+          matched_txn_id VARCHAR(64),
+          processed BOOLEAN DEFAULT FALSE,
+          note TEXT
+        )
+      `);
+
       // Ensure UTR on orders is unique when present
       await client.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS orders_utr_key ON orders(utr) WHERE utr IS NOT NULL

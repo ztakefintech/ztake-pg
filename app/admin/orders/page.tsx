@@ -11,6 +11,7 @@ interface OrderRow {
   status: string;
   utr?: string | null;
   created_at: string;
+  verification_source?: string | null;
 }
 
 export default function AdminOrdersPage() {
@@ -87,7 +88,19 @@ export default function AdminOrdersPage() {
                 <td className="px-4 py-3 text-sm">{o.merchant_order_id}</td>
                 <td className="px-4 py-3 text-sm">{o.customer_name}</td>
                 <td className="px-4 py-3 text-sm">{o.currency} {Number(o.amount).toFixed(2)}</td>
-                <td className="px-4 py-3 text-sm">{o.status}</td>
+                <td className="px-4 py-3 text-sm">
+                  {o.status}
+                  {o.verification_source === 'webhook' && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Webhook ✓
+                    </span>
+                  )}
+                  {o.verification_source === 'manual' && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                      Manual
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right text-sm">
                   <div className="inline-flex gap-2">
                     <button

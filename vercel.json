@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/webhooks/bank/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
