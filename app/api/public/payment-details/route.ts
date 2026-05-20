@@ -27,13 +27,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Vendor not found' }, { status: 404 });
     }
 
+    const amountParam = searchParams.get('amount');
+    const amount = amountParam ? Number(amountParam) : null;
+
     let qrCodeDataUrl: string | null = null;
     if (vendor.upi_id) {
       try {
-        const qr = await QRCodeService.generateQRCodeForVendor(vendor.upi_id, vendor.business_name || '');
-        qrCodeDataUrl = qr.qrCodeUrl;
-      } catch {
-        // ignore QR errors, return other details
+        if (amount && amount > 0) {
+          qrCodeDataUrl = await QRCodeService.generateQRCode(vendor.upi_id, vendor.business_name || '', amount);
+        } else {
+          const qr = await QRCodeService.generateQRCodeForVendor(vendor.upi_id, vendor.business_name || '');
+          qrCodeDataUrl = qr.qrCodeUrl;
+        }
+      } catch (e) {
+        console.error('QR generation error in payment-details API:', e);
       }
     }
 

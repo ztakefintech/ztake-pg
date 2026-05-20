@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { withAuth, type AuthenticatedRequest } from '@/lib/middleware';
 import { QRCodeService } from '@/lib/qr-generator';
+import QRCode from 'qrcode';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -68,6 +69,16 @@ async function handler(req: AuthenticatedRequest) {
       console.error('Failed to generate QR code for demo payin order:', e);
     }
 
+    // Generate public payment page URL and its QR code
+    const origin = req.nextUrl.origin;
+    const payPageUrl = `${origin}/demo/pay/${ztakeOrderId}`;
+    let pageQrCodeUrl: string | null = null;
+    try {
+      pageQrCodeUrl = await QRCode.toDataURL(payPageUrl, { width: 256, margin: 1 });
+    } catch (e) {
+      console.error('Failed to generate QR code for pay page URL:', e);
+    }
+
     return NextResponse.json({
       success: true,
       ztakeOrderId,
@@ -76,6 +87,8 @@ async function handler(req: AuthenticatedRequest) {
       status: 'order_created',
       upiUrl,
       qrCodeUrl,
+      payPageUrl,
+      pageQrCodeUrl,
       upiId: vendor.upi_id
     });
   } catch (error) {
