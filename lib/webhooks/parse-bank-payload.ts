@@ -16,6 +16,21 @@ export interface ParsedPayment {
   amount_received: number | null;
 }
 
+/**
+ * Normalize Unicode whitespace characters that Tasker/GPay inject:
+ *   \u202f = narrow no-break space (seen in timestamps like "4:14\u202fam")
+ *   \u00a0 = non-breaking space
+ *   \u200b = zero-width space
+ */
+function normalizeUnicode(str: string): string {
+  return str
+    .replace(/\u202f/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\u200b/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+}
+
 export function parseBankWebhookPayload(payload: {
   amount?: string;
   time?: string;
@@ -41,8 +56,8 @@ export function parseBankWebhookPayload(payload: {
     payment_type = 'debit';
   }
 
-  // 3. Parse fields from raw_screen
-  const rawScreen = payload.raw_screen || '';
+  // 3. Parse fields from raw_screen — normalize Unicode FIRST
+  const rawScreen = normalizeUnicode(payload.raw_screen || '');
   const lines = rawScreen
     .replace(/\|/g, '\n')
     .split('\n')
@@ -108,6 +123,32 @@ export function parseBankWebhookPayload(payload: {
     // Amount you get
     if (line === 'Amount you get' && lines[i + 1]) {
       amount_received = parseNumber(lines[i + 1]);
+    }
+  }
+
+  // Fallback UTR extraction: scan raw_screen for a 9-16 digit number pattern
+  // UPI Transaction IDs are typically 12-digit numbers
+  if (!utr && rawScreen) {
+    const utrRegex = /\b(\d{9,16})\b/g;
+    const matches: string[] = [];
+    let m;
+    while ((m = utrRegex.exec(rawScreen)) !== null) {
+      // Skip timestamps (10-digit Unix epochs starting with 17...)
+      if (m[1].length === 10 && m[1].startsWith('17')) continue;
+      matches.push(m[1]);
+    }
+    // Pick the first match that's 9+ digits (most likely UTR)
+    if (matches.length > 0) {
+      utr = matches[0];
+    }
+  }
+
+  // Fallback Google Transaction ID: scan for CIC pattern
+  if (!google_txn_id && rawScreen) {
+    const googleTxnRegex = /\b(CIC[A-Za-z0-9_-]{8,})\b/;
+    const gMatch = googleTxnRegex.exec(rawScreen);
+    if (gMatch) {
+      google_txn_id = gMatch[1];
     }
   }
 

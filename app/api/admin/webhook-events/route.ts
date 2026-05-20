@@ -13,9 +13,9 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
     
     const offset = (page - 1) * limit;
     
+    // Build WHERE clause with ? placeholders — convertQuery() handles $N conversion
     let whereClause = 'WHERE 1=1';
-    const params: any[] = [];
-    let paramIndex = 1;
+    const filterParams: any[] = [];
     
     if (status === 'matched') {
       whereClause += ` AND matched_txn_id IS NOT NULL AND processed = true`;
@@ -25,6 +25,7 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
       whereClause += ` AND signature_valid = false`;
     }
 
+    // Query events with consistent ? placeholders
     const events = await db.all(`
       SELECT 
         id,
@@ -45,20 +46,24 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
         payment_app,
         customer_paid,
         mdr_gst,
-        amount_received
+        amount_received,
+        request_ip,
+        user_agent,
+        content_type
       FROM webhook_events
       ${whereClause}
       ORDER BY received_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `, [...params, limit, offset]);
+      LIMIT ? OFFSET ?
+    `, [...filterParams, limit, offset]);
 
+    // Count total events with same filters
     const totalResult = await db.get(`
       SELECT COUNT(*) as total
       FROM webhook_events
       ${whereClause}
-    `, params);
+    `, filterParams);
 
-    const total = totalResult?.total || 0;
+    const total = parseInt(totalResult?.total || '0');
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
@@ -75,7 +80,7 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
   } catch (error) {
     console.error('Get webhook events error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch webhook events' },
+      { error: 'Failed to fetch webhook events', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     );
   }

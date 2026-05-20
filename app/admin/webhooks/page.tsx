@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 
 interface WebhookEvent {
@@ -23,6 +23,10 @@ interface WebhookEvent {
   customer_paid?: number | null;
   mdr_gst?: number | null;
   amount_received?: number | null;
+  request_ip?: string | null;
+  user_agent?: string | null;
+  content_type?: string | null;
+  request_headers?: any;
 }
 
 interface Pagination {
@@ -42,9 +46,13 @@ export default function AdminWebhooksPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<WebhookEvent | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [copySuccess, setCopySuccess] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadEvents = async (page = 1, status = statusFilter) => {
-    setLoading(true);
+  const loadEvents = useCallback(async (page = 1, status = statusFilter, silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const query = new URLSearchParams({
@@ -65,16 +73,37 @@ export default function AdminWebhooksPage() {
       setEvents(json.events || []);
       setPagination(json.pagination || null);
       setCurrentPage(page);
+      setLastRefreshed(new Date());
     } catch (e: any) {
-      setError(e.message || 'Failed to load');
+      if (!silent) setError(e.message || 'Failed to load');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
+  // Initial load
   useEffect(() => {
     loadEvents(1, statusFilter);
   }, [statusFilter]);
+
+  // Auto-refresh polling — 5 seconds
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (autoRefresh) {
+      intervalRef.current = setInterval(() => {
+        loadEvents(currentPage, statusFilter, true);
+      }, 5000);
+    }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoRefresh, currentPage, statusFilter, loadEvents]);
 
   const loadDetail = async (id: number) => {
     try {
@@ -83,17 +112,29 @@ export default function AdminWebhooksPage() {
       const json = await res.json();
       setSelectedEvent(json.event);
     } catch {
-      // Fallback to the row data already loaded
       const fallback = events.find((e) => e.id === id);
       if (fallback) setSelectedEvent(fallback);
     }
   };
 
+  const handleCopyPayload = async (payload: any) => {
+    try {
+      const text = typeof payload === 'string'
+        ? (() => { try { return JSON.stringify(JSON.parse(payload), null, 2); } catch { return payload; } })()
+        : JSON.stringify(payload, null, 2);
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
+
   const statusFilters = [
-    { key: 'all', label: 'All Events' },
-    { key: 'matched', label: 'Matched' },
-    { key: 'unmatched', label: 'Unmatched' },
-    { key: 'invalid', label: 'Invalid' },
+    { key: 'all', label: 'All Events', icon: '📋' },
+    { key: 'matched', label: 'Matched', icon: '✓' },
+    { key: 'unmatched', label: 'Unmatched', icon: '⚠' },
+    { key: 'invalid', label: 'Invalid', icon: '✕' },
   ];
 
   const getStatusBadge = (e: WebhookEvent) => {
@@ -162,6 +203,14 @@ export default function AdminWebhooksPage() {
     );
   };
 
+  const formatTimestamp = (ts: string) => {
+    try {
+      return new Date(ts).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Asia/Kolkata' });
+    } catch {
+      return ts;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/50">
       {/* Navigation */}
@@ -176,7 +225,29 @@ export default function AdminWebhooksPage() {
                 Dashboard
               </Link>
               <span className="text-slate-200">|</span>
-              <h1 className="text-base font-bold text-slate-800">Webhook Logs</h1>
+              <h1 className="text-base font-bold text-slate-800">Webhook Events</h1>
+            </div>
+            {/* Live Indicator */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  autoRefresh
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                }`}
+              >
+                {autoRefresh && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                )}
+                {autoRefresh ? 'LIVE' : 'PAUSED'}
+              </button>
+              <span className="text-[10px] text-slate-400 hidden sm:inline">
+                {lastRefreshed.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+              </span>
             </div>
           </div>
         </div>
@@ -188,7 +259,7 @@ export default function AdminWebhooksPage() {
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Bank Webhook Events</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Live updates of incoming GPay Business notifications received at <code className="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 font-mono text-xs">/api/webhooks/bank</code>
+              Live stream of incoming GPay Business / Tasker notifications at <code className="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 font-mono text-xs">/api/webhooks/bank</code>
             </p>
           </div>
           <button
@@ -215,7 +286,7 @@ export default function AdminWebhooksPage() {
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {f.label}
+                {f.icon} {f.label}
               </button>
             ))}
           </div>
@@ -254,6 +325,15 @@ export default function AdminWebhooksPage() {
             </div>
             <p className="text-slate-800 font-bold text-lg">No Webhook Events Found</p>
             <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto">Events will appear live once GPay Business starts posting notifications to your endpoint.</p>
+            {autoRefresh && (
+              <p className="text-emerald-600 text-xs mt-4 font-semibold flex items-center justify-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Listening for incoming webhooks...
+              </p>
+            )}
           </div>
         ) : (
           <div className="bg-white border border-slate-100 shadow-sm rounded-2xl overflow-hidden">
@@ -268,7 +348,7 @@ export default function AdminWebhooksPage() {
                     <th className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Amount Details</th>
                     <th className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">App / Method</th>
                     <th className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Matched Txn</th>
+                    <th className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">IP / Agent</th>
                     <th className="px-4 py-3.5"></th>
                   </tr>
                 </thead>
@@ -277,7 +357,7 @@ export default function AdminWebhooksPage() {
                     <tr key={e.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-4 py-4 text-xs font-semibold text-slate-400 font-mono">#{e.id}</td>
                       <td className="px-4 py-4 text-xs text-slate-800 whitespace-nowrap">
-                        <div className="font-semibold">{new Date(e.received_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' })}</div>
+                        <div className="font-semibold">{formatTimestamp(e.received_at)}</div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">{e.source || 'GPay'}</div>
                       </td>
                       <td className="px-4 py-4 text-xs whitespace-nowrap">
@@ -295,12 +375,12 @@ export default function AdminWebhooksPage() {
                         <div className="font-extrabold text-slate-900">
                           {e.amount != null ? `₹${Number(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
                         </div>
-                        {e.mdr_gst != null && e.mdr_gst > 0 && (
+                        {e.mdr_gst != null && Number(e.mdr_gst) > 0 && (
                           <div className="text-[10px] text-rose-500 font-bold mt-0.5">
                             Fee: -₹{Number(e.mdr_gst).toFixed(2)}
                           </div>
                         )}
-                        {e.amount_received != null && e.amount_received !== e.amount && (
+                        {e.amount_received != null && Number(e.amount_received) !== Number(e.amount) && (
                           <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
                             Net: ₹{Number(e.amount_received).toFixed(2)}
                           </div>
@@ -317,21 +397,20 @@ export default function AdminWebhooksPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-xs whitespace-nowrap">{getStatusBadge(e)}</td>
-                      <td className="px-4 py-4 text-xs font-mono text-indigo-600 whitespace-nowrap font-bold">
-                        {e.matched_txn_id ? (
-                          <span className="bg-indigo-50/50 border border-indigo-100/50 px-2 py-0.5 rounded select-all hover:bg-indigo-100/50 transition-colors">
-                            {e.matched_txn_id.substring(0, 10)}...
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 font-semibold">—</span>
-                        )}
+                      <td className="px-4 py-4 text-xs whitespace-nowrap">
+                        <div className="font-mono text-[10px] text-slate-400 truncate max-w-[100px]" title={e.request_ip || ''}>
+                          {e.request_ip || '—'}
+                        </div>
+                        <div className="text-[9px] text-slate-300 truncate max-w-[100px] mt-0.5" title={e.user_agent || ''}>
+                          {e.user_agent ? e.user_agent.split(' ')[0] : '—'}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-right whitespace-nowrap text-xs">
                         <button
                           onClick={() => loadDetail(e.id)}
                           className="bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 hover:text-indigo-700 text-indigo-600 font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-all cursor-pointer"
                         >
-                          View Payload
+                          View
                         </button>
                       </td>
                     </tr>
@@ -369,13 +448,13 @@ export default function AdminWebhooksPage() {
       {/* Detail Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col border border-slate-100">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Webhook Event Details</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ID: <span className="font-mono font-semibold">#{selectedEvent.id}</span> · Received: {new Date(selectedEvent.received_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                  ID: <span className="font-mono font-semibold">#{selectedEvent.id}</span> · Received: {formatTimestamp(selectedEvent.received_at)}
                 </p>
               </div>
               <button
@@ -401,6 +480,29 @@ export default function AdminWebhooksPage() {
                     Matched Order: <span className="font-mono text-indigo-600 font-semibold bg-indigo-50 px-2 py-1 rounded border border-indigo-100 select-all">{selectedEvent.matched_txn_id}</span>
                   </div>
                 )}
+              </div>
+
+              {/* Request Details (like webhook.site) */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Request Details</h4>
+                <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-2 shadow-sm">
+                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span className="text-xs text-slate-500">IP Address</span>
+                    <span className="text-xs font-mono font-bold text-slate-900 select-all">{selectedEvent.request_ip || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span className="text-xs text-slate-500">User-Agent</span>
+                    <span className="text-xs font-mono text-slate-700 truncate max-w-[300px]" title={selectedEvent.user_agent || ''}>{selectedEvent.user_agent || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span className="text-xs text-slate-500">Content-Type</span>
+                    <span className="text-xs font-mono text-slate-700">{selectedEvent.content_type || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-slate-500">Source</span>
+                    <span className="text-xs font-bold text-slate-800">{selectedEvent.source || '—'}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Grid: Extracted Metadata & Financials */}
@@ -474,15 +576,44 @@ export default function AdminWebhooksPage() {
 
               {/* Raw JSON Payload */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Raw Webhook JSON Payload</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Raw Webhook JSON Payload</h4>
+                  <button
+                    onClick={() => handleCopyPayload(selectedEvent.raw_payload)}
+                    className={`text-xs font-bold px-3 py-1 rounded-lg border transition-all cursor-pointer ${
+                      copySuccess
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {copySuccess ? '✓ Copied!' : 'Copy'}
+                  </button>
+                </div>
                 <div className="relative">
-                  <pre className="text-xs text-slate-800 whitespace-pre-wrap break-all bg-slate-95 p-4 rounded-xl border border-slate-100 font-mono leading-relaxed max-h-[250px] overflow-y-auto">
+                  <pre className="text-xs text-slate-800 whitespace-pre-wrap break-all bg-slate-50 p-4 rounded-xl border border-slate-100 font-mono leading-relaxed max-h-[250px] overflow-y-auto">
                     {typeof selectedEvent.raw_payload === 'string'
                       ? (() => { try { return JSON.stringify(JSON.parse(selectedEvent.raw_payload), null, 2); } catch { return selectedEvent.raw_payload; } })()
                       : JSON.stringify(selectedEvent.raw_payload, null, 2)}
                   </pre>
                 </div>
               </div>
+
+              {/* Request Headers (expandable) */}
+              {selectedEvent.request_headers && Object.keys(selectedEvent.request_headers).length > 0 && (
+                <details className="group">
+                  <summary className="text-xs font-bold uppercase tracking-wider text-slate-400 cursor-pointer hover:text-slate-600 transition-colors list-none flex items-center gap-1">
+                    <svg className="h-3 w-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                    Request Headers
+                  </summary>
+                  <pre className="mt-2 text-xs text-slate-600 whitespace-pre-wrap break-all bg-slate-50 p-4 rounded-xl border border-slate-100 font-mono leading-relaxed max-h-[200px] overflow-y-auto">
+                    {typeof selectedEvent.request_headers === 'string'
+                      ? (() => { try { return JSON.stringify(JSON.parse(selectedEvent.request_headers), null, 2); } catch { return selectedEvent.request_headers; } })()
+                      : JSON.stringify(selectedEvent.request_headers, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
 
             {/* Modal Footer */}

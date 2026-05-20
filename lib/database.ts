@@ -244,6 +244,20 @@ class Database {
         ADD COLUMN IF NOT EXISTS amount_received DECIMAL(12,2)
       `);
 
+      // Add request metadata columns for webhook debugging (like webhook.site)
+      await client.query(`
+        ALTER TABLE webhook_events 
+        ADD COLUMN IF NOT EXISTS request_headers JSONB DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS request_ip VARCHAR(45),
+        ADD COLUMN IF NOT EXISTS user_agent VARCHAR(512),
+        ADD COLUMN IF NOT EXISTS content_type VARCHAR(128)
+      `);
+
+      // Make raw_payload default to '{}' to prevent NOT NULL crashes
+      await client.query(`
+        ALTER TABLE webhook_events ALTER COLUMN raw_payload SET DEFAULT '{}'::jsonb
+      `);
+
       // Ensure UTR on orders is unique when present
       try {
         await client.query(`
