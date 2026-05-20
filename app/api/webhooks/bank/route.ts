@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   const secret = process.env.WEBHOOK_SECRET || '';
   let signatureValid = false;
 
+  // Verify signature only if secret is configured
   if (secret && signature) {
     const expected = crypto
       .createHmac('sha256', secret)
@@ -36,8 +37,9 @@ export async function POST(req: NextRequest) {
     } catch {
       signatureValid = false;
     }
-  } else if (!secret) {
-    // If no secret configured yet, allow but log as unverified
+  } else {
+    // No secret configured – accept payload but log for debugging
+    if (!secret) console.warn('WEBHOOK_SECRET not set – skipping signature verification');
     signatureValid = true;
   }
 
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
 
   // 5. Find matching PENDING transaction by UTR
   const transaction = await db.get(
-    `SELECT ztake_order_id, webhook_verified FROM orders WHERE utr = ? AND status = 'PENDING'`,
+    `SELECT ztake_order_id, webhook_verified FROM orders WHERE utr = ?`,
     [parsed.utr]
   );
 

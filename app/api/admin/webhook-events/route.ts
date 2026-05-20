@@ -31,11 +31,14 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
         received_at,
         source,
         utr,
+        google_txn_id,
         amount,
+        paid_at,
         signature_valid,
         matched_txn_id,
         processed,
-        note
+        note,
+        raw_payload
       FROM webhook_events
       ${whereClause}
       ORDER BY received_at DESC

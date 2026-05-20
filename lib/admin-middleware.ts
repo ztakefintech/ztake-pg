@@ -38,8 +38,8 @@ export function requireAdmin(handler: (req: NextRequest) => Promise<NextResponse
 }
 
 export function requirePermission(permission: string) {
-  return function(handler: (req: NextRequest) => Promise<NextResponse>) {
-    return async (req: NextRequest): Promise<NextResponse> => {
+  return function<T extends any[]>(handler: (req: NextRequest, ...args: T) => Promise<NextResponse>) {
+    return async (req: NextRequest, ...args: T): Promise<NextResponse> => {
       try {
         const admin = verifyAdminToken(req);
         
@@ -60,7 +60,7 @@ export function requirePermission(permission: string) {
         // Add admin info to request headers for use in handlers
         req.headers.set('x-admin-id', JSON.stringify(admin));
 
-        return handler(req);
+        return handler(req, ...args);
       } catch (error) {
         console.error('Admin permission middleware error:', error);
         return NextResponse.json(

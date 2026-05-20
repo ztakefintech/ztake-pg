@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminDashboard from '@/components/AdminDashboard';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -58,8 +59,20 @@ export default function AdminPage() {
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-6">
               <h1 className="text-xl font-semibold text-gray-900">Admin Dashboard</h1>
+              <Link
+                href="/admin/orders"
+                className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+              >
+                Orders
+              </Link>
+              <Link
+                href="/admin/webhooks"
+                className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+              >
+                Webhook Events
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <button
