@@ -52,23 +52,83 @@ export async function POST(req: NextRequest) {
 
   console.log(`[WEBHOOK] ← POST /api/webhooks/bank | IP: ${requestIp} | UA: ${userAgent} | CT: ${contentType}`);
 
-  // 1. Read raw body
+  // 1. Read raw body and parse based on content type
   try {
     rawBody = await req.text();
-    console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 500)}`);
-    payload = JSON.parse(rawBody);
+    console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
+
+    // Try JSON first
+    if (contentType.includes('application/json') || rawBody.trimStart().startsWith('{')) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        // JSON parse failed, try URL-encoded fallback below
+      }
+    }
+
+    // If payload is still empty, try parsing as URL-encoded form data
+    if (!payload || Object.keys(payload).length === 0) {
+      try {
+        const params = new URLSearchParams(rawBody);
+        const entries = Array.from(params.entries());
+        if (entries.length > 0) {
+          payload = {};
+          for (const [key, value] of entries) {
+            payload[key] = value;
+          }
+          console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
+        }
+      } catch {
+        // URL-encoded parse also failed
+      }
+    }
+
+    // If still empty, try one more JSON parse attempt (content type might be wrong)
+    if (!payload || Object.keys(payload).length === 0) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        // Total failure
+      }
+    }
+
+    // Final check — if payload is still empty, store as error
+    if (!payload || Object.keys(payload).length === 0) {
+      console.error('[WEBHOOK] ✗ Could not parse body as JSON or form data');
+      try {
+        await db.run(
+          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          [
+            'unknown',
+            JSON.stringify({ error: 'Could not parse body', raw_body_preview: rawBody.substring(0, 2000) }),
+            false,
+            false,
+            `Body parse error: not JSON or form-encoded. Content-Type: ${contentType}`,
+            JSON.stringify(requestHeaders),
+            requestIp,
+            userAgent,
+            contentType,
+          ]
+        );
+      } catch (dbErr) {
+        console.error('[WEBHOOK] ✗ Failed to log bad body to DB:', dbErr);
+      }
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    console.log(`[WEBHOOK] Parsed payload keys: ${Object.keys(payload).join(', ')}`);
   } catch (parseErr) {
-    console.error('[WEBHOOK] ✗ JSON parse failed:', parseErr);
-    // Still store the raw body for debugging even if JSON parse fails
+    console.error('[WEBHOOK] ✗ Body read/parse failed:', parseErr);
+    // Still store the raw body for debugging even if parse fails
     try {
       await db.run(
         `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
         [
           'unknown',
-          JSON.stringify({ error: 'Invalid JSON', raw_body_preview: rawBody.substring(0, 1000) }),
+          JSON.stringify({ error: 'Body read failed', raw_body_preview: rawBody.substring(0, 2000) }),
           false,
           false,
-          `JSON parse error: ${parseErr instanceof Error ? parseErr.message : 'Unknown'}`,
+          `Body read error: ${parseErr instanceof Error ? parseErr.message : 'Unknown'}`,
           JSON.stringify(requestHeaders),
           requestIp,
           userAgent,
@@ -76,9 +136,9 @@ export async function POST(req: NextRequest) {
         ]
       );
     } catch (dbErr) {
-      console.error('[WEBHOOK] ✗ Failed to log bad JSON to DB:', dbErr);
+      console.error('[WEBHOOK] ✗ Failed to log bad body to DB:', dbErr);
     }
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
   // Top-level try/catch — NEVER let the handler crash without storing the event

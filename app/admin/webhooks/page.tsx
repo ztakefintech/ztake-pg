@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { parseBankWebhookPayload } from '@/lib/webhooks/parse-bank-payload';
 
 interface WebhookEvent {
   id: number;
@@ -38,6 +39,35 @@ interface Pagination {
   hasPrev: boolean;
 }
 
+function enhanceEventWithParsedData(e: WebhookEvent): WebhookEvent {
+  if (!e) return e;
+  
+  let payloadObj = e.raw_payload;
+  if (typeof payloadObj === 'string') {
+    try {
+      payloadObj = JSON.parse(payloadObj);
+    } catch {
+      payloadObj = {};
+    }
+  }
+
+  const parsed = parseBankWebhookPayload(payloadObj || {});
+
+  return {
+    ...e,
+    utr: e.utr || parsed.utr,
+    google_txn_id: e.google_txn_id || parsed.google_txn_id,
+    amount: e.amount != null ? Number(e.amount) : (parsed.amount != null ? Number(parsed.amount) : null),
+    payment_type: e.payment_type && e.payment_type !== 'unknown' ? e.payment_type : parsed.payment_type,
+    sender_name: e.sender_name || parsed.sender_name,
+    payment_method: e.payment_method || parsed.payment_method,
+    payment_app: e.payment_app || parsed.payment_app,
+    customer_paid: e.customer_paid != null ? Number(e.customer_paid) : (parsed.customer_paid != null ? Number(parsed.customer_paid) : null),
+    mdr_gst: e.mdr_gst != null ? Number(e.mdr_gst) : (parsed.mdr_gst != null ? Number(parsed.mdr_gst) : null),
+    amount_received: e.amount_received != null ? Number(e.amount_received) : (parsed.amount_received != null ? Number(parsed.amount_received) : null),
+  };
+}
+
 export default function AdminWebhooksPage() {
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -70,7 +100,8 @@ export default function AdminWebhooksPage() {
         throw new Error(json?.error || 'Failed to fetch webhook events');
       }
       const json = await res.json();
-      setEvents(json.events || []);
+      const enhancedEvents = (json.events || []).map(enhanceEventWithParsedData);
+      setEvents(enhancedEvents);
       setPagination(json.pagination || null);
       setCurrentPage(page);
       setLastRefreshed(new Date());
@@ -110,10 +141,10 @@ export default function AdminWebhooksPage() {
       const res = await fetch(`/api/admin/webhook-events/${id}`);
       if (!res.ok) throw new Error('Failed to load detail');
       const json = await res.json();
-      setSelectedEvent(json.event);
+      setSelectedEvent(enhanceEventWithParsedData(json.event));
     } catch {
       const fallback = events.find((e) => e.id === id);
-      if (fallback) setSelectedEvent(fallback);
+      if (fallback) setSelectedEvent(enhanceEventWithParsedData(fallback));
     }
   };
 
