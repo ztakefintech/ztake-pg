@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { parseBankWebhookPayload } from '@/lib/webhooks/parse-bank-payload';
 import crypto from 'crypto';
+import { eventStore } from '@/lib/event-store';
+import { sendTelegramAdminAlert } from '@/lib/telegram';
 
 // Disable body parser — read raw for signature verification
 export const dynamic = 'force-dynamic';
@@ -158,9 +160,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'logged_no_utr' }, { status: 200 });
     }
 
-    // 5. Find matching PENDING transaction by UTR
+    // 5. Find matching transaction by UTR
     const transaction = await db.get(
-      `SELECT ztake_order_id, webhook_verified FROM orders WHERE utr = ?`,
+      `SELECT ztake_order_id, amount, status, vendor_id, callback_url, merchant_order_id, currency, customer_name, webhook_verified FROM orders WHERE utr = ?`,
       [parsed.utr]
     );
 
@@ -201,11 +203,104 @@ export async function POST(req: NextRequest) {
     if (transaction) {
       try {
         console.log(`[WEBHOOK] ✓ UTR ${parsed.utr} matched to order ${transaction.ztake_order_id} — auto-verifying`);
+        
+        const expectedAmount = Number(transaction.amount);
+        const receivedAmount = parsed.amount !== null ? Number(parsed.amount) : expectedAmount;
+        const amountMatches = expectedAmount === receivedAmount;
+        
+        let note = 'Auto-verified via webhook UTR match';
+        if (!amountMatches) {
+          console.warn(`[WEBHOOK] ⚠ Amount mismatch for order ${transaction.ztake_order_id}: expected ₹${expectedAmount}, received ₹${receivedAmount}`);
+          note = `Auto-verified but amount mismatch: expected ₹${expectedAmount}, received ₹${receivedAmount}`;
+        }
+
+        // Update the order amount to the actual received amount and mark as succeeded
         await db.run(
-          `UPDATE orders SET status = 'Succeeded', payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, webhook_verified = true, webhook_verified_at = CURRENT_TIMESTAMP, verification_source = 'webhook' WHERE ztake_order_id = ?`,
-          [transaction.ztake_order_id]
+          `UPDATE orders SET status = 'Succeeded', amount = ?, payment_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, webhook_verified = true, webhook_verified_at = CURRENT_TIMESTAMP, verification_source = 'webhook' WHERE ztake_order_id = ?`,
+          [receivedAmount, transaction.ztake_order_id]
         );
-        await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, 'Auto-verified via webhook UTR match'));
+
+        // Keep payments table fully in sync to update admin overview stats and daily trends
+        if (transaction.vendor_id) {
+          const existingPayment = await db.get(
+            `SELECT id FROM payments WHERE utr = ? AND vendor_id = ?`,
+            [parsed.utr, transaction.vendor_id]
+          );
+          if (existingPayment) {
+            await db.run(
+              `UPDATE payments SET order_id = ?, amount = ?, payment_status = 'Succeeded', checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+              [transaction.ztake_order_id, receivedAmount, existingPayment.id]
+            );
+          } else {
+            await db.run(
+              `INSERT INTO payments (order_id, utr, amount, vendor_id, status, payment_status, checked_status, checked_at) VALUES (?, ?, ?, ?, 'completed', 'Succeeded', TRUE, CURRENT_TIMESTAMP)`,
+              [transaction.ztake_order_id, parsed.utr, receivedAmount, transaction.vendor_id]
+            );
+          }
+
+          // Emit WebSocket status event
+          const vendor = await db.get(
+            `SELECT id, business_name, contact_name, upi_id, vendor_code FROM vendors WHERE id = ?`,
+            [transaction.vendor_id]
+          );
+          if (vendor) {
+            const event = {
+              id: `payment_verified_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              type: 'payment_status_changed',
+              payload: {
+                id: Date.now(),
+                vendorId: vendor.id,
+                businessName: vendor.business_name,
+                contactName: vendor.contact_name,
+                upiId: vendor.upi_id,
+                utr: parsed.utr,
+                amount: receivedAmount,
+                payment_status: 'Succeeded',
+                status: 'completed',
+                checked_status: true,
+                checked_at: new Date().toISOString(),
+                orderId: transaction.ztake_order_id,
+                timestamp: new Date().toISOString()
+              },
+              timestamp: new Date()
+            };
+            eventStore.emit(event);
+
+            // Send Telegram admin alert
+            const successAlert = [
+              '<b>🔔 Pay-in Payment Succeeded (Webhook)</b>',
+              `• Vendor: ${vendor.business_name || `Vendor #${vendor.id}`} (${vendor.vendor_code || '-'})`,
+              `• Amount: ₹${receivedAmount} ${transaction.currency || 'INR'}`,
+              `• Customer: ${transaction.customer_name || 'Anonymous'}`,
+              `• Merchant Order ID: ${transaction.merchant_order_id || '-'}`,
+              `• Ztake Order ID: ${transaction.ztake_order_id}`,
+              `• UTR: ${parsed.utr}`,
+              `• Status: Succeeded`
+            ].join('\n');
+            sendTelegramAdminAlert(successAlert, vendor.id).catch(() => {});
+          }
+        }
+
+        // Trigger Callback URL
+        if (transaction.callback_url) {
+          const successPayload = {
+            merchantOrderId: transaction.merchant_order_id,
+            ztakeOrderId: transaction.ztake_order_id,
+            amount: Number(receivedAmount),
+            utr: parsed.utr,
+            status: 'SUCCESS',
+            paymentTime: new Date().toISOString()
+          };
+          fetch(transaction.callback_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(successPayload)
+          }).catch((err) => {
+            console.error('[WEBHOOK] Callback error:', err);
+          });
+        }
+
+        await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, note));
         return NextResponse.json({ status: 'verified', transaction_id: transaction.ztake_order_id }, { status: 200 });
       } catch (err) {
         console.error('[WEBHOOK] ✗ Error processing matched transaction:', err);

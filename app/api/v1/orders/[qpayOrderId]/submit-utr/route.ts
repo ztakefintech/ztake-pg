@@ -107,6 +107,25 @@ export async function POST(
             `UPDATE webhook_events SET processed = true, matched_txn_id = ?, note = 'Matched via UTR submission' WHERE id = ?`,
             [order.ztake_order_id, webhookEventId]
           );
+
+          // Also sync to payments table for stats update in dashboard
+          if (order.vendor_id) {
+            const existingPayment = await db.get(
+              `SELECT id FROM payments WHERE utr = ? AND vendor_id = ?`,
+              [utr, order.vendor_id]
+            );
+            if (existingPayment) {
+              await db.run(
+                `UPDATE payments SET order_id = ?, amount = ?, payment_status = 'Succeeded', checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                [order.ztake_order_id, paymentRow.amount, existingPayment.id]
+              );
+            } else {
+              await db.run(
+                `INSERT INTO payments (order_id, utr, amount, vendor_id, status, payment_status, checked_status, checked_at) VALUES (?, ?, ?, ?, 'completed', 'Succeeded', TRUE, CURRENT_TIMESTAMP)`,
+                [order.ztake_order_id, utr, paymentRow.amount, order.vendor_id]
+              );
+            }
+          }
         } else {
           await db.run(
             `UPDATE payments SET order_id = ?, checked_status = TRUE, checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
