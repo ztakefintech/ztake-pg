@@ -342,9 +342,9 @@ export default function AdminWebhooksPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Bank Webhook Events</h2>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Webhook Events</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Live stream of incoming GPay Business / Tasker notifications at <code className="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-600 font-mono text-xs">/api/webhooks/bank</code>
+              Live stream of incoming GPay Business / Tasker / external webhook notifications
             </p>
           </div>
           <button
@@ -360,21 +360,47 @@ export default function AdminWebhooksPage() {
 
         {/* Diagnostic Panel */}
         <div className="bg-white rounded-2xl border border-slate-100 p-6 mb-6 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-1">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webhook Endpoint Details</h3>
+          <div className="flex flex-col gap-5">
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webhook Endpoints — Accepts ALL Formats</h3>
+              
+              {/* Primary Endpoint */}
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm font-semibold text-slate-600">Your Webhook URL:</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">PRIMARY</span>
                 <code className="bg-slate-50 text-indigo-600 font-mono text-xs px-2.5 py-1 rounded-lg border border-slate-200 select-all">
                   {typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/bank` : '/api/webhooks/bank'}
                 </code>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Configure your Tasker app or scraper to POST notification payload data to this address.
+              
+              {/* Fallback Endpoint */}
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">FALLBACK</span>
+                <code className="bg-slate-50 text-amber-600 font-mono text-xs px-2.5 py-1 rounded-lg border border-slate-200 select-all">
+                  /api/webhooks/payment
+                </code>
+                <span className="text-[10px] text-slate-400">(Express server — auto-forwards to primary)</span>
+              </div>
+
+              {/* Capabilities */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-100">✓ GET</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">✓ POST</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">✓ PUT</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">✓ PATCH</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100">✓ DELETE</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200">✓ JSON</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200">✓ Form Data</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200">✓ URL-Encoded</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200">✓ Raw Text</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">✓ No Auth Required</span>
+              </div>
+
+              <p className="text-xs text-slate-400">
+                Send data via any HTTP method, any content type, with or without headers/authorization. All requests are logged.
               </p>
             </div>
             
-            <div>
+            <div className="flex justify-end">
               <button
                 onClick={() => {
                   setTestUtr('');
@@ -476,7 +502,7 @@ export default function AdminWebhooksPage() {
                       <td className="px-4 py-4 text-xs font-semibold text-slate-400 font-mono">#{e.id}</td>
                       <td className="px-4 py-4 text-xs text-slate-800 whitespace-nowrap">
                         <div className="font-semibold">{formatTimestamp(e.received_at)}</div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-[10px] text-slate-400 font-mono">{e.source || 'GPay'}</span>
                           {e.request_method && (
                             <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold ${
@@ -488,6 +514,11 @@ export default function AdminWebhooksPage() {
                               'bg-slate-50 text-slate-700 border border-slate-100'
                             }`}>
                               {e.request_method}
+                            </span>
+                          )}
+                          {(e as any).table_source === 'payment_webhooks' && (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold bg-orange-50 text-orange-600 border border-orange-100">
+                              TASKER
                             </span>
                           )}
                         </div>

@@ -5,8 +5,45 @@ const socketManager = require('../socket/socketManager');
 const pool = require('../config/db');
 
 /**
+ * Forward the webhook payload to the main Next.js /api/webhooks/bank endpoint.
+ * This bridges the gap between the Express webhook-system and the Next.js admin dashboard.
+ * Fire-and-forget — does not block the response to Tasker.
+ */
+async function forwardToNextJs(rawPayload, headers, method) {
+  // Determine the Next.js app URL
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL 
+    || process.env.NEXTAUTH_URL 
+    || 'http://localhost:3000';
+  
+  const forwardUrl = `${appUrl}/api/webhooks/bank`;
+  
+  try {
+    const response = await fetch(forwardUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-from': 'webhook-system',
+        'x-original-method': method || 'POST',
+      },
+      body: JSON.stringify(rawPayload),
+    });
+    
+    const status = response.status;
+    const body = await response.text();
+    console.log(`✅ [Forward] Forwarded to ${forwardUrl} — Status: ${status}`);
+    socketManager.broadcastSystemLog(`Forwarded to Next.js endpoint: ${forwardUrl} — HTTP ${status}`, 'success');
+    return { success: true, status, body };
+  } catch (err) {
+    console.error(`❌ [Forward] Failed to forward to ${forwardUrl}:`, err.message);
+    socketManager.broadcastSystemLog(`Forward to Next.js FAILED: ${err.message}`, 'error');
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Ingestion handler for incoming Tasker webhook posts.
- * POST /api/webhooks/payment
+ * Accepts ALL methods, ALL formats, ALL content types.
+ * POST/GET/PUT/PATCH/DELETE /api/webhooks/payment
  */
 async function receiveWebhook(req, res) {
   const timestamp = new Date().toISOString();
@@ -19,7 +56,8 @@ async function receiveWebhook(req, res) {
       status: 'ok',
       endpoint: '/api/webhooks/payment',
       method,
-      description: 'Webhook receiver for GPay Business / Tasker notifications.',
+      accepts: 'ALL methods, ALL content types, ALL formats',
+      description: 'Webhook receiver for GPay Business / Tasker notifications. Also forwards to main app.',
       timestamp: new Date().toISOString(),
     });
   }
@@ -63,11 +101,21 @@ async function receiveWebhook(req, res) {
     };
   }
 
-  // 2. Save webhook event to Neon PostgreSQL
+  // 2. Save webhook event to Neon PostgreSQL (payment_webhooks table)
   socketManager.broadcastSystemLog(`Saving payload to Neon PostgreSQL database...`, 'info');
   const dbSaveResult = await queries.saveWebhook(parsedData, req.parsedBody || {}, headers, method);
 
-  // 3. Assemble socket event payload
+  // 3. Forward to Next.js /api/webhooks/bank endpoint (fire-and-forget)
+  // This ensures the event also appears in webhook_events table and triggers UTR matching
+  const payloadToForward = req.parsedBody && Object.keys(req.parsedBody).length > 0 
+    ? req.parsedBody 
+    : { raw_screen: rawPayload, source: parsedData.source || 'tasker_forwarded' };
+  
+  forwardToNextJs(payloadToForward, headers, method).catch((err) => {
+    console.error('❌ [Forward] Async forward error:', err.message);
+  });
+
+  // 4. Assemble socket event payload
   const dashboardEvent = {
     id: dbSaveResult.success ? dbSaveResult.data.id : Date.now(),
     received_at: dbSaveResult.success ? dbSaveResult.data.received_at : new Date().toISOString(),
@@ -86,23 +134,23 @@ async function receiveWebhook(req, res) {
     parse_status: parseWarning ? 'Warning' : 'Success'
   };
 
-  // 4. Instant Realtime emit to all connected dashboards
+  // 5. Instant Realtime emit to all connected dashboards
   socketManager.broadcastWebhook(dashboardEvent);
   socketManager.broadcastSystemLog(`Realtime broadcast emitted to dashboard for UTR: ${parsedData.upi_transaction_id || 'N/A'}`, 'success');
 
-  // 5. Response to Webhook sender (Tasker)
+  // 6. Response to Webhook sender (Tasker) — ALWAYS 200
   if (dbSaveResult.success) {
     return res.status(200).json({
       status: 'success',
-      message: 'Webhook processed and logged successfully',
+      message: 'Webhook processed, logged, and forwarded to main app successfully',
       id: dbSaveResult.data.id,
       utr: parsedData.upi_transaction_id
     });
   } else {
-    // Do not return 500 so Tasker doesn't retry infinitely and exhaust resources
+    // Do not return 500 so Tasker doesn't retry infinitely
     return res.status(200).json({
       status: 'warning',
-      message: 'Webhook processed but database insertion failed',
+      message: 'Webhook processed but database insertion failed. Forwarded to main app.',
       error: dbSaveResult.error,
       utr: parsedData.upi_transaction_id
     });
@@ -116,7 +164,6 @@ async function receiveWebhook(req, res) {
 async function testWebhook(req, res) {
   let dbStatus = 'connected';
   try {
-    // Perform a quick ping query to verify database is online
     await pool.query('SELECT 1');
   } catch (err) {
     dbStatus = `disconnected (${err.message})`;

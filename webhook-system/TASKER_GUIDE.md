@@ -1,16 +1,24 @@
 # Tasker Android Integration & Configuration Guide
 
-This guide details how to configure the **Tasker Android Automation app** to intercept mobile payment notifications (e.g. from Google Pay for Business, PhonePe Business, or Paytm Business) and POST them directly to the Webhook Ingestion server.
+This guide details how to configure the **Tasker Android Automation app** to intercept mobile payment notifications (e.g. from Google Pay for Business, PhonePe Business, or Paytm Business) and POST them directly to the webhook endpoint.
 
 ---
 
 ## 📡 Webhook Connection Details
 
-- **Method**: `POST`
+### Primary Endpoint (Recommended)
+- **Method**: `POST` (also accepts `GET`, `PUT`, `PATCH`, `DELETE`)
+- **Webhook URL**: `https://<YOUR_DEPLOYED_DOMAIN>/api/webhooks/bank`
+- **Headers**: None required (but `Content-Type: application/json` is recommended)
+- **Authentication**: Not required — all requests are accepted and logged
+- **Payload Format**: JSON (also accepts URL-encoded, form-data, or raw text)
+
+### Fallback Endpoint (Express Server)
+- **Method**: `POST` (also accepts all methods)
 - **Webhook URL**: `https://<YOUR_DEPLOYED_DOMAIN>/api/webhooks/payment`
-- **Headers**:
-  - `Content-Type: application/json`
-- **Payload Format**: Raw JSON string
+- **Note**: This endpoint auto-forwards to the primary endpoint. Use this if you're running the Express webhook-system separately.
+
+> **Important**: The webhook accepts ALL data formats and NEVER rejects a request. Any data you send will be logged and parsed automatically.
 
 ---
 
@@ -33,11 +41,14 @@ Follow these steps on your Android device to configure automated notifications f
 3. Search for and select **Net** -> **HTTP Request**.
 4. In the Action edit screen:
    - **Method**: Set to `POST`.
-   - **URL**: Input your webhook endpoint URL, e.g., `https://your-domain.com/api/webhooks/payment` (for local dev testing, you can use a tunnel like ngrok pointing to port `3001`).
+   - **URL**: Input your webhook endpoint URL:
+     - **Primary**: `https://your-domain.com/api/webhooks/bank`
+     - **Fallback**: `https://your-domain.com/api/webhooks/payment` (if running Express server separately)
    - **Headers**:
      ```text
      Content-Type: application/json
      ```
+     > Note: Headers are optional. The endpoint accepts requests with or without headers.
    - **Body**: In the text area, paste the following structured JSON mapping block using Tasker variables:
      ```json
      {
@@ -59,11 +70,51 @@ Follow these steps on your Android device to configure automated notifications f
 
 ---
 
+## 🔧 Supported Data Formats
+
+The webhook endpoint accepts **ALL** of the following formats:
+
+| Format | Content-Type | Example |
+|--------|-------------|---------|
+| JSON | `application/json` | `{"amount": "₹15", "utr": "123456789012"}` |
+| URL-encoded | `application/x-www-form-urlencoded` | `amount=%E2%82%B915&utr=123456789012` |
+| Form Data | `multipart/form-data` | Standard multipart form |
+| Raw Text | `text/plain` | `Received from John | ₹15 | UTR: 123456789012` |
+| Query Params (GET) | N/A | `/api/webhooks/bank?amount=15&utr=123456789012` |
+
+---
+
 ## 🔍 Local Debugging & Dry Run Testing
 
-To verify the ingestion flow without needing live physical device notifications, you can use the **Payload Simulator** built directly into the Webhook Dashboard:
+To verify the ingestion flow without needing live physical device notifications, you can use:
 
-1. Open your browser and navigate to `http://localhost:3001` (or your deployed URL).
-2. Fill in the mock amount and customer name in the **Tasker Payload Simulator** block.
-3. Click **Inject Test Webhook**.
-4. Observe the live charts, stats counter, and detailed tables update instantaneously in the UI while checking the **Realtime Diagnostic Logs** panel to trace the SQL insert and socket broadcast status.
+### Option 1: Admin Dashboard Simulator
+1. Open your browser and navigate to `https://your-domain.com/admin/webhooks`.
+2. Click the **🧪 Simulate Webhook Payload** button.
+3. Fill in the mock amount, sender name, and optional UTR.
+4. Click **Dispatch Webhook** and observe the event appear immediately in the table.
+
+### Option 2: cURL Command
+```bash
+# JSON payload
+curl -X POST https://your-domain.com/api/webhooks/bank \
+  -H "Content-Type: application/json" \
+  -d '{"amount": "+ ₹15", "raw_screen": "Received from Test User|₹15|UTR: 123456789012", "source": "gpay_business"}'
+
+# GET with query params
+curl "https://your-domain.com/api/webhooks/bank?amount=15&utr=123456789012&source=test"
+
+# URL-encoded
+curl -X POST https://your-domain.com/api/webhooks/bank \
+  -d "amount=15&utr=123456789012&source=test&raw_screen=Test+payment"
+
+# Raw text
+curl -X POST https://your-domain.com/api/webhooks/bank \
+  -H "Content-Type: text/plain" \
+  -d "Google Pay Business|Received from Test|₹15|UTR: 123456789012"
+```
+
+### Option 3: Express Dashboard (if running locally)
+1. Open `http://localhost:3001`.
+2. Use the built-in Tasker Payload Simulator.
+3. Observe real-time updates via Socket.io.
