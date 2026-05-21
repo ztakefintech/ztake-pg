@@ -499,3 +499,14 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   return handleWebhook(req);
 }
+
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-webhook-signature',
+    },
+  });
+}
