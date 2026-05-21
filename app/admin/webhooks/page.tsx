@@ -95,7 +95,7 @@ export default function AdminWebhooksPage() {
     try {
       const query = new URLSearchParams({
         page: String(page),
-        limit: '20',
+        limit: '10', // Optimized from 20 to 10 items per page
         status,
       });
       const res = await fetch(`/api/admin/webhook-events?${query.toString()}`);
@@ -125,7 +125,7 @@ export default function AdminWebhooksPage() {
     loadEvents(1, statusFilter);
   }, [statusFilter]);
 
-  // Auto-refresh polling — 5 seconds
+  // Auto-refresh polling — optimized from 5000ms to 10000ms (reduced API calls by 50%)
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -134,7 +134,7 @@ export default function AdminWebhooksPage() {
     if (autoRefresh) {
       intervalRef.current = setInterval(() => {
         loadEvents(currentPage, statusFilter, true);
-      }, 5000);
+      }, 10000); // Optimized: reduced polling frequency
     }
     return () => {
       if (intervalRef.current) {
@@ -437,7 +437,7 @@ export default function AdminWebhooksPage() {
           <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-16 text-center">
             <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V7a2 2 0 012-2h6a2 2 0 012 2v2M7 20h10a2 2 0 002-2v-6a2 2 0 00-2-2H7a2 2 0 00-2 2v6a2 2 0 002 2z" />
               </svg>
             </div>
             <p className="text-slate-800 font-bold text-lg">No Webhook Events Found</p>
@@ -550,7 +550,7 @@ export default function AdminWebhooksPage() {
                 <button
                   onClick={() => loadEvents(currentPage - 1)}
                   disabled={!pagination.hasPrev}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                 >
                   ← Prev Page
                 </button>
@@ -560,7 +560,7 @@ export default function AdminWebhooksPage() {
                 <button
                   onClick={() => loadEvents(currentPage + 1)}
                   disabled={!pagination.hasNext}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                 >
                   Next Page →
                 </button>
