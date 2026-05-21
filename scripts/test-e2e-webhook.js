@@ -15,7 +15,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const BASE_URL = `http://localhost:${PORT}`;
 const VENDOR_SECRET = 'sk_live_test_secret_key_123456789012345';
 const VENDOR_CODE = 'TSTVND';
@@ -149,13 +149,13 @@ async function cleanupTestData(utrs, orderIds) {
 async function runTests() {
   const vendorId = await setupTestData();
   
-  const utr1 = `UTR_E2E_SCEN_1_${Date.now()}`;
+  const utr1 = (100000000000 + Math.floor(Math.random() * 900000000000)).toString();
   const orderId1 = `ORD_E2E_SCEN_1_${Date.now()}`;
   
-  const utr2 = `UTR_E2E_SCEN_2_${Date.now()}`;
+  const utr2 = (200000000000 + Math.floor(Math.random() * 900000000000)).toString();
   const orderId2 = `ORD_E2E_SCEN_2_${Date.now()}`;
 
-  const utr3 = `UTR_E2E_SCEN_3_${Date.now()}`;
+  const utr3 = (300000000000 + Math.floor(Math.random() * 900000000000)).toString();
   const orderId3 = `ORD_E2E_SCEN_3_${Date.now()}`;
 
   try {
