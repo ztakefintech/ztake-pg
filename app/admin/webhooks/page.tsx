@@ -80,6 +80,7 @@ export default function AdminWebhooksPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [copySuccess, setCopySuccess] = useState(false);
+  const [taskerWebhookKey, setTaskerWebhookKey] = useState('5ac5024706c3e5c81d6fc5437452469f897177637c35aa129ee3ead3f1bd9fa8');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Simulation State
@@ -111,6 +112,9 @@ export default function AdminWebhooksPage() {
       const json = await res.json();
       const enhancedEvents = (json.events || []).map(enhanceEventWithParsedData);
       setEvents(enhancedEvents);
+      if (json.taskerWebhookKey) {
+        setTaskerWebhookKey(json.taskerWebhookKey);
+      }
       setPagination(json.pagination || null);
       setCurrentPage(page);
       setLastRefreshed(new Date());
@@ -397,6 +401,24 @@ export default function AdminWebhooksPage() {
 
               <p className="text-xs text-slate-400">
                 Send data via any HTTP method, any content type, with or without headers/authorization. All requests are logged.
+              </p>
+            </div>
+
+            {/* Tasker API Key */}
+            <div className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tasker API Key (Optional — for verified requests)</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-500">Header:</span>
+                <code className="bg-white text-indigo-600 font-mono text-xs px-2 py-1 rounded border border-slate-200 select-all">x-api-key</code>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-500">Value:</span>
+                <code className="bg-white text-emerald-700 font-mono text-xs px-2 py-1 rounded border border-slate-200 select-all break-all">
+                  {taskerWebhookKey}
+                </code>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Add this header in your Tasker HTTP Request to tag webhooks as verified. Without it, webhooks are still accepted but marked as unverified.
               </p>
             </div>
             

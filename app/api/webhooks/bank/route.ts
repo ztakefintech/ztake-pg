@@ -274,6 +274,23 @@ async function handleWebhook(req: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Tasker API Key validation — if x-api-key matches TASKER_WEBHOOK_KEY, tag as verified
+    const apiKey = req.headers.get('x-api-key') || '';
+    const taskerKey = process.env.TASKER_WEBHOOK_KEY || '';
+    let taskerVerified = false;
+    if (apiKey && taskerKey && apiKey === taskerKey) {
+      taskerVerified = true;
+      signatureValid = true; // Tasker key overrides signature check
+      console.log('[WEBHOOK] ✓ Valid Tasker API key provided');
+    } else if (apiKey) {
+      console.warn(`[WEBHOOK] x-api-key provided but does not match TASKER_WEBHOOK_KEY`);
+    }
+
+    // If source is not set in payload and it's from Tasker, tag it
+    if (taskerVerified && !payload.source) {
+      payload.source = 'tasker_verified';
+    }
+
     // Parse payment data from payload
     const parsed = parseBankWebhookPayload(payload);
     console.log(`[WEBHOOK] Parsed → UTR: ${parsed.utr || 'N/A'} | Amount: ${parsed.amount} | Sender: ${parsed.sender_name || 'N/A'} | Source: ${parsed.source}`);

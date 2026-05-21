@@ -17,14 +17,27 @@ async function forwardToNextJs(rawPayload, headers, method) {
   
   const forwardUrl = `${appUrl}/api/webhooks/bank`;
   
+  const forwardHeaders = {
+    'Content-Type': 'application/json',
+    'x-forwarded-from': 'webhook-system',
+    'x-original-method': method || 'POST',
+  };
+
+  if (headers) {
+    const apiKey = headers['x-api-key'] || headers['x-api-key'.toLowerCase()];
+    if (apiKey) forwardHeaders['x-api-key'] = apiKey;
+
+    const signature = headers['x-webhook-signature'] || headers['x-webhook-signature'.toLowerCase()];
+    if (signature) forwardHeaders['x-webhook-signature'] = signature;
+
+    const userAgent = headers['user-agent'] || headers['user-agent'.toLowerCase()];
+    if (userAgent) forwardHeaders['user-agent'] = userAgent;
+  }
+
   try {
     const response = await fetch(forwardUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-forwarded-from': 'webhook-system',
-        'x-original-method': method || 'POST',
-      },
+      headers: forwardHeaders,
       body: JSON.stringify(rawPayload),
     });
     

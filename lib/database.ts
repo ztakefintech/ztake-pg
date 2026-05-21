@@ -564,6 +564,30 @@ class Database {
         )
       `);
 
+      // Ensure payment_webhooks table exists (Express fallback table)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS payment_webhooks (
+          id SERIAL PRIMARY KEY,
+          amount TEXT,
+          customer TEXT,
+          time TEXT,
+          raw_screen TEXT,
+          upi_transaction_id TEXT,
+          google_transaction_id TEXT,
+          source TEXT,
+          timestamp TEXT,
+          full_payload JSONB,
+          request_headers JSONB,
+          request_method TEXT DEFAULT 'POST',
+          received_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      await client.query(`
+        ALTER TABLE payment_webhooks 
+        ADD COLUMN IF NOT EXISTS request_method TEXT DEFAULT 'POST'
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);
