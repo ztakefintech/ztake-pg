@@ -9,32 +9,11 @@ import { sendTelegramAdminAlert } from '@/lib/telegram';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET handler — diagnostic health check.
- * Visit https://ztake.in/api/webhooks/bank in a browser to confirm endpoint is alive.
+ * Main Webhook Handler supporting all HTTP methods (GET, POST, PUT, PATCH, DELETE).
+ * Can parse structured JSON payloads, multipart/form-data, URL-encoded data, and GET query parameters.
  */
-export async function GET(req: NextRequest) {
-  return NextResponse.json({
-    status: 'ok',
-    endpoint: '/api/webhooks/bank',
-    method: 'POST',
-    description: 'Bank webhook receiver for GPay Business / Tasker notifications.',
-    timestamp: new Date().toISOString(),
-  });
-}
-
-/**
- * POST handler — receives bank webhook payloads from Tasker/GPay Business.
- * 
- * Expected payload format:
- * {
- *   "amount": "+ ₹15",
- *   "time": "19 May, 9:28 am",
- *   "raw_screen": "Back|Show menu|Received from ...|...",
- *   "source": "gpay_business",
- *   "timestamp": "1779163139"
- * }
- */
-export async function POST(req: NextRequest) {
+async function handleWebhook(req: NextRequest) {
+  const method = req.method;
   let rawBody = '';
   let payload: any = {};
 
@@ -50,105 +29,134 @@ export async function POST(req: NextRequest) {
   const userAgent = req.headers.get('user-agent') || '';
   const contentType = req.headers.get('content-type') || '';
 
-  console.log(`[WEBHOOK] ← POST /api/webhooks/bank | IP: ${requestIp} | UA: ${userAgent} | CT: ${contentType}`);
+  console.log(`[WEBHOOK] ← ${method} /api/webhooks/bank | IP: ${requestIp} | UA: ${userAgent} | CT: ${contentType}`);
 
-  // 1. Read raw body and parse based on content type
+  // Retrieve GET query parameters
+  const queryParams: Record<string, string> = {};
+  req.nextUrl.searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
+
+  // GET Diagnostic Health Check if no parameters are present
+  if (method === 'GET' && Object.keys(queryParams).length === 0) {
+    return NextResponse.json({
+      status: 'ok',
+      endpoint: '/api/webhooks/bank',
+      method,
+      description: 'Bank webhook receiver for GPay Business / Tasker notifications.',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // 1. Read raw body and parse based on content type (for methods with bodies)
   try {
-    if (contentType.includes('multipart/form-data')) {
-      try {
-        const formData = await req.formData();
-        payload = {};
-        const entries: string[] = [];
-        formData.forEach((value, key) => {
-          if (typeof value === 'string') {
-            let decodedVal = value;
-            try {
-              decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
-            } catch {
-              // Ignore decoding error
-            }
-            payload[key] = decodedVal;
-            entries.push(`${key}=${value}`);
-          }
-        });
-        rawBody = entries.join('&');
-        console.log(`[WEBHOOK] Parsed as multipart/form-data with ${Object.keys(payload).length} fields`);
-      } catch (formDataErr) {
-        console.error('[WEBHOOK] Failed parsing multipart/form-data:', formDataErr);
-      }
-    }
-
-    if (!payload || Object.keys(payload).length === 0) {
-      rawBody = await req.text();
-      console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
-
-      const trimmedBody = rawBody.trim();
-
-      // 1. Try parsing as JSON first (regardless of Content-Type header)
-      if (trimmedBody.length > 0) {
+    if (method !== 'GET' && method !== 'HEAD') {
+      if (contentType.includes('multipart/form-data')) {
         try {
-          payload = JSON.parse(trimmedBody);
-          console.log('[WEBHOOK] Successfully parsed body as JSON (pre-emptive check)');
-        } catch {
-          // Not valid JSON, continue to next formats
-        }
-      }
-
-      // 2. Try parsing as URL-encoded form data if not already parsed and contains '='
-      if ((!payload || Object.keys(payload).length === 0) && trimmedBody.includes('=')) {
-        try {
-          const params = new URLSearchParams(trimmedBody);
-          const entries = Array.from(params.entries());
-          if (entries.length > 0) {
-            // Double check it doesn't look like a raw JSON with '=' inside a value
-            const firstKey = entries[0][0];
-            if (!firstKey.startsWith('{') && !firstKey.startsWith('[')) {
-              payload = {};
-              for (const [key, value] of entries) {
-                let decodedKey = key;
-                let decodedVal = value;
-                try {
-                  decodedKey = decodeURIComponent(key.replace(/\+/g, ' '));
-                  decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
-                } catch {
-                  // Ignore decoding error
-                }
-                payload[decodedKey] = decodedVal;
+          const formData = await req.formData();
+          payload = {};
+          const entries: string[] = [];
+          formData.forEach((value, key) => {
+            if (typeof value === 'string') {
+              let decodedVal = value;
+              try {
+                decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
+              } catch {
+                // Ignore decoding error
               }
-              console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
+              payload[key] = decodedVal;
+              entries.push(`${key}=${value}`);
             }
-          }
-        } catch {
-          // URL-encoded parse failed
+          });
+          rawBody = entries.join('&');
+          console.log(`[WEBHOOK] Parsed as multipart/form-data with ${Object.keys(payload).length} fields`);
+        } catch (formDataErr) {
+          console.error('[WEBHOOK] Failed parsing multipart/form-data:', formDataErr);
         }
       }
 
-      // 3. Fallback: If payload is still empty but body has text content, treat the entire body as raw notification text
-      if ((!payload || Object.keys(payload).length === 0) && trimmedBody.length > 0) {
-        console.log(`[WEBHOOK] Treating body as raw notification text (${trimmedBody.length} bytes)`);
-        payload = {
-          raw_screen: trimmedBody,
-          source: 'raw_text',
-        };
+      if (!payload || Object.keys(payload).length === 0) {
+        rawBody = await req.text();
+        console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
+
+        const trimmedBody = rawBody.trim();
+
+        // 1. Try parsing as JSON first (regardless of Content-Type header)
+        if (trimmedBody.length > 0) {
+          try {
+            payload = JSON.parse(trimmedBody);
+            console.log('[WEBHOOK] Successfully parsed body as JSON (pre-emptive check)');
+          } catch {
+            // Not valid JSON, continue to next formats
+          }
+        }
+
+        // 2. Try parsing as URL-encoded form data if not already parsed and contains '='
+        if ((!payload || Object.keys(payload).length === 0) && trimmedBody.includes('=')) {
+          try {
+            const params = new URLSearchParams(trimmedBody);
+            const entries = Array.from(params.entries());
+            if (entries.length > 0) {
+              const firstKey = entries[0][0];
+              if (!firstKey.startsWith('{') && !firstKey.startsWith('[')) {
+                payload = {};
+                for (const [key, value] of entries) {
+                  let decodedKey = key;
+                  let decodedVal = value;
+                  try {
+                    decodedKey = decodeURIComponent(key.replace(/\+/g, ' '));
+                    decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
+                  } catch {
+                    // Ignore decoding error
+                  }
+                  payload[decodedKey] = decodedVal;
+                }
+                console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
+              }
+            }
+          } catch {
+            // URL-encoded parse failed
+          }
+        }
+
+        // 3. Fallback: If payload is still empty but body has text content, treat the entire body as raw notification text
+        if ((!payload || Object.keys(payload).length === 0) && trimmedBody.length > 0) {
+          console.log(`[WEBHOOK] Treating body as raw notification text (${trimmedBody.length} bytes)`);
+          payload = {
+            raw_screen: trimmedBody,
+            source: 'raw_text',
+          };
+        }
       }
+    } else {
+      // For GET/HEAD requests, the query params represent the payload and the rawBody is the query string
+      rawBody = req.nextUrl.search;
+      payload = queryParams;
     }
+
+    // Merge query params into payload as backup/fallback for POST/PUT/PATCH/DELETE
+    payload = {
+      ...queryParams,
+      ...payload
+    };
 
     // Final check — if payload is STILL empty
     if (!payload || Object.keys(payload).length === 0) {
-      console.error('[WEBHOOK] ✗ Empty body received');
+      console.error('[WEBHOOK] ✗ Empty body/params received');
       try {
         await db.run(
-          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`,
           [
             'unknown',
-            JSON.stringify({ error: 'Empty body received', raw_body_preview: rawBody.substring(0, 2000) }),
+            JSON.stringify({ error: 'Empty body/params received', raw_body_preview: rawBody.substring(0, 2000) }),
             false,
             false,
-            `Empty body received. Content-Type: ${contentType}`,
+            `Empty body/params received. Content-Type: ${contentType}`,
             JSON.stringify(requestHeaders),
             requestIp,
             userAgent,
             contentType,
+            method,
           ]
         );
       } catch (dbErr) {
@@ -160,10 +168,10 @@ export async function POST(req: NextRequest) {
     console.log(`[WEBHOOK] Parsed payload keys: ${Object.keys(payload).join(', ')}`);
   } catch (parseErr) {
     console.error('[WEBHOOK] ✗ Body read/parse failed:', parseErr);
-    // Still store the raw body for debugging even if parse fails
+    // Still store the raw body/params for debugging even if parse fails
     try {
       await db.run(
-        `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+        `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`,
         [
           'unknown',
           JSON.stringify({ error: 'Body read failed', raw_body_preview: rawBody.substring(0, 2000) }),
@@ -174,6 +182,7 @@ export async function POST(req: NextRequest) {
           requestIp,
           userAgent,
           contentType,
+          method,
         ]
       );
     } catch (dbErr) {
@@ -213,7 +222,7 @@ export async function POST(req: NextRequest) {
       console.log('[WEBHOOK] ✗ Invalid signature');
       try {
         await db.run(
-          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`,
           [
             payload.source || 'unknown',
             JSON.stringify(payload),
@@ -224,6 +233,7 @@ export async function POST(req: NextRequest) {
             requestIp,
             userAgent,
             contentType,
+            method,
           ]
         );
       } catch (dbErr) {
@@ -248,7 +258,7 @@ export async function POST(req: NextRequest) {
       console.log('[WEBHOOK] No UTR extracted — logging as no_utr');
       try {
         await db.run(
-          `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`,
           [
             parsed.source || 'unknown',
             finalAmount,
@@ -268,6 +278,7 @@ export async function POST(req: NextRequest) {
             requestIp,
             userAgent,
             contentType,
+            method,
           ]
         );
       } catch (dbErr) {
@@ -283,7 +294,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Common insert params for all UTR-bearing events
-    const baseInsertSql = `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)`;
+    const baseInsertSql = `INSERT INTO webhook_events (source, utr, google_txn_id, amount, paid_at, raw_payload, signature_valid, matched_txn_id, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`;
     const baseParams = (matchedTxnId: string | null, isProcessed: boolean, note: string) => [
       parsed.source || '',
       parsed.utr,
@@ -306,6 +317,7 @@ export async function POST(req: NextRequest) {
       requestIp,
       userAgent,
       contentType,
+      method,
     ];
 
     // 6. Idempotency — if already verified, skip silently
@@ -442,11 +454,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'logged_unmatched' }, { status: 200 });
 
   } catch (topLevelErr) {
-    // CRITICAL: Top-level catch — log the error and STILL try to store the event
+    // CRITICAL: Log the error and STILL try to store the event in DB
     console.error('[WEBHOOK] ✗ CRITICAL top-level error:', topLevelErr);
     try {
       await db.run(
-        `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+        `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type, request_method) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)`,
         [
           payload?.source || 'error',
           JSON.stringify(payload || {}),
@@ -457,12 +469,33 @@ export async function POST(req: NextRequest) {
           requestIp,
           userAgent,
           contentType,
+          method,
         ]
       );
     } catch (dbErr) {
       console.error('[WEBHOOK] ✗ Even DB storage failed:', dbErr);
     }
-    // Return 200 so the sender doesn't endlessly retry
     return NextResponse.json({ status: 'error_logged', error: 'Internal processing error' }, { status: 200 });
   }
+}
+
+// Export HTTP method handlers for standard web request verbs
+export async function GET(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+export async function PUT(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+export async function PATCH(req: NextRequest) {
+  return handleWebhook(req);
+}
+
+export async function DELETE(req: NextRequest) {
+  return handleWebhook(req);
 }

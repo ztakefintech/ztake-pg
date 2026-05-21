@@ -50,7 +50,8 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
         request_headers,
         request_ip,
         user_agent,
-        content_type
+        content_type,
+        request_method
       FROM webhook_events
       ${whereClause}
       ORDER BY received_at DESC

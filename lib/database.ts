@@ -228,7 +228,8 @@ class Database {
           payment_app VARCHAR(50),
           customer_paid DECIMAL(12,2),
           mdr_gst DECIMAL(12,2),
-          amount_received DECIMAL(12,2)
+          amount_received DECIMAL(12,2),
+          request_method VARCHAR(10) DEFAULT 'POST'
         )
       `);
 
@@ -250,7 +251,8 @@ class Database {
         ADD COLUMN IF NOT EXISTS request_headers JSONB DEFAULT '{}',
         ADD COLUMN IF NOT EXISTS request_ip VARCHAR(45),
         ADD COLUMN IF NOT EXISTS user_agent VARCHAR(512),
-        ADD COLUMN IF NOT EXISTS content_type VARCHAR(128)
+        ADD COLUMN IF NOT EXISTS content_type VARCHAR(128),
+        ADD COLUMN IF NOT EXISTS request_method VARCHAR(10) DEFAULT 'POST'
       `);
 
       // Make raw_payload default to '{}' to prevent NOT NULL crashes

@@ -28,6 +28,7 @@ interface WebhookEvent {
   user_agent?: string | null;
   content_type?: string | null;
   request_headers?: any;
+  request_method?: string;
 }
 
 interface Pagination {
@@ -475,7 +476,21 @@ export default function AdminWebhooksPage() {
                       <td className="px-4 py-4 text-xs font-semibold text-slate-400 font-mono">#{e.id}</td>
                       <td className="px-4 py-4 text-xs text-slate-800 whitespace-nowrap">
                         <div className="font-semibold">{formatTimestamp(e.received_at)}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{e.source || 'GPay'}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-mono">{e.source || 'GPay'}</span>
+                          {e.request_method && (
+                            <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-bold ${
+                              e.request_method === 'GET' ? 'bg-sky-50 text-sky-700 border border-sky-100' :
+                              e.request_method === 'POST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                              e.request_method === 'PUT' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              e.request_method === 'PATCH' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                              e.request_method === 'DELETE' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                              'bg-slate-50 text-slate-700 border border-slate-100'
+                            }`}>
+                              {e.request_method}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-xs whitespace-nowrap">
                         {getPaymentTypeBadge(e.payment_type)}
@@ -622,6 +637,19 @@ export default function AdminWebhooksPage() {
                   <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="text-xs text-slate-500">Content-Type</span>
                     <span className="text-xs font-mono text-slate-700">{selectedEvent.content_type || '—'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span className="text-xs text-slate-500">HTTP Method</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                      selectedEvent.request_method === 'GET' ? 'bg-sky-50 text-sky-700 border border-sky-100' :
+                      selectedEvent.request_method === 'POST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                      selectedEvent.request_method === 'PUT' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                      selectedEvent.request_method === 'PATCH' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                      selectedEvent.request_method === 'DELETE' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                      'bg-slate-50 text-slate-700 border border-slate-100'
+                    }`}>
+                      {selectedEvent.request_method || 'POST'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span className="text-xs text-slate-500">Source</span>

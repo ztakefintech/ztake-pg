@@ -19,7 +19,7 @@ export const GET = requirePermission('view_payments')(
           signature_valid, matched_txn_id, processed, note, raw_payload,
           payment_type, sender_name, payment_method, payment_app,
           customer_paid, mdr_gst, amount_received,
-          request_headers, request_ip, user_agent, content_type
+          request_headers, request_ip, user_agent, content_type, request_method
         FROM webhook_events WHERE id = ?`,
         [id]
       );

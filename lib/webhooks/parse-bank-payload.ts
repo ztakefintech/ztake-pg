@@ -420,6 +420,19 @@ export function parseBankWebhookPayload(payload: {
     else if (/\bcard\b/i.test(rawScreen)) payment_method = 'Card';
   }
 
+  // Direct fallbacks from top-level payload if not extracted from raw screen
+  if (!utr && payload.utr) utr = String(payload.utr).trim();
+  if (!utr && payload.upi_transaction_id) utr = String(payload.upi_transaction_id).trim();
+  if (!google_txn_id && payload.google_txn_id) google_txn_id = String(payload.google_txn_id).trim();
+  if (!google_txn_id && payload.google_transaction_id) google_txn_id = String(payload.google_transaction_id).trim();
+  if (!sender_name && payload.sender_name) sender_name = String(payload.sender_name).trim();
+  if (!sender_name && payload.customer) sender_name = String(payload.customer).trim();
+  if (!payment_method && payload.payment_method) payment_method = String(payload.payment_method).trim();
+  if (!payment_app && payload.payment_app) payment_app = String(payload.payment_app).trim();
+  if (customer_paid === null && payload.customer_paid !== undefined) customer_paid = parseNumber(String(payload.customer_paid));
+  if (mdr_gst === null && payload.mdr_gst !== undefined) mdr_gst = parseNumber(String(payload.mdr_gst));
+  if (amount_received === null && payload.amount_received !== undefined) amount_received = parseNumber(String(payload.amount_received));
+
   return {
     utr,
     google_txn_id,

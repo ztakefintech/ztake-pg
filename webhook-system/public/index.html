@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ztake Webhook Monitor & Diagnostic Center</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Orbitron, Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel compiler for inline JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Socket.io served locally from Express -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at 50% 50%, #0c1020 0%, #05070f 100%);
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    
+    .font-orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+    
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Glassmorphism Styles */
+    .glass-panel {
+      background: rgba(10, 15, 30, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    }
+    
+    .glass-panel-active {
+      background: rgba(16, 24, 48, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .glass-input {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      transition: all 0.3s ease;
+    }
+    
+    .glass-input:focus {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+      outline: none;
+    }
+
+    /* Cyber Glowing Effects */
+    .glow-indigo {
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.25);
+    }
+    
+    .glow-green {
+      box-shadow: 0 0 25px rgba(34, 197, 94, 0.25);
+    }
+    
+    .glow-red {
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.25);
+    }
+
+    /* Pulsing Indicators */
+    .pulse-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .pulse-green {
+      background-color: #22c55e;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulseGreen 1.8s infinite;
+    }
+
+    .pulse-red {
+      background-color: #ef4444;
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      animation: pulseRed 1.8s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    @keyframes pulseRed {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Scanlines effect */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.15;
+    }
+
+    /* Highlight JSON */
+    .json-key { color: #818cf8; }
+    .json-value { color: #34d399; }
+    .json-string { color: #f59e0b; }
+    .json-boolean { color: #38bdf8; }
+    .json-number { color: #f472b6; }
+  </style>
+</head>
+<body class="min-h-screen relative p-4 md:p-8">
+  <div class="scanlines"></div>
+  
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function App() {
+      // States
+      const [socketConnected, setSocketConnected] = useState(false);
+      const [connectionsCount, setConnectionsCount] = useState(0);
+      const [databaseConnected, setDatabaseConnected] = useState(true);
+      const [webhooks, setWebhooks] = useState([]);
+      const [selectedWebhook, setSelectedWebhook] = useState(null);
+      const [logs, setLogs] = useState([]);
+      const [autoScrollLogs, setAutoScrollLogs] = useState(true);
+      
+      // Simulation Payload State
+      const [simAmount, setSimAmount] = useState('15');
+      const [simCustomer, setSimCustomer] = useState('GAURAV S S');
+      const [simUtr, setSimUtr] = useState('');
+      const [simGoogleTxn, setSimGoogleTxn] = useState('CICAgNjO9uHwNA');
+      const [simApp, setSimApp] = useState('gpay_business');
+      const [simulating, setSimulating] = useState(false);
+      
+      // Refs
+      const logEndRef = useRef(null);
+      const socketRef = useRef(null);
+
+      // Load initial state and logs from API
+      useEffect(() => {
+        fetchLogs();
+        testEndpoint();
+
+        // Connect to Socket.io
+        const socket = io();
+        socketRef.current = socket;
+
+        socket.on('connect', () => {
+          setSocketConnected(true);
+          appendTerminalLog('Socket.io connection established with server.', 'success');
+        });
+
+        socket.on('disconnect', () => {
+          setSocketConnected(false);
+          setConnectionsCount(0);
+          appendTerminalLog('Socket.io server disconnected.', 'error');
+        });
+
+        socket.on('connections_count', (count) => {
+          setConnectionsCount(count);
+        });
+
+        socket.on('status_update', (status) => {
+          setConnectionsCount(status.connections || 1);
+          setDatabaseConnected(status.database === 'connected');
+        });
+
+        // Realtime Webhook Broadcast Handler
+        socket.on('webhook_received', (webhookEvent) => {
+          setWebhooks(prev => {
+            const updated = [webhookEvent, ...prev];
+            // Auto select latest webhook if none selected
+            if (prev.length === 0) {
+              setSelectedWebhook(webhookEvent);
+            }
+            return updated;
+          });
+          // Pulse the general status state
+          testEndpoint();
+        });
+
+        // Realtime Terminal Log Handler
+        socket.on('system_log', (logObj) => {
+          setLogs(prev => [...prev, logObj]);
+        });
+
+        return () => {
+          socket.disconnect();
+        };
+      }, []);
+
+      // Auto scroll log console
+      useEffect(() => {
+        if (autoScrollLogs && logEndRef.current) {
+          logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [logs, autoScrollLogs]);
+
+      const fetchLogs = async () => {
+        try {
+          const res = await fetch('/api/webhooks/logs');
+          if (res.ok) {
+            const data = await res.json();
+            // Reformat database payload rows to map dashboard fields
+            const formatted = data.map(row => ({
+              id: row.id,
+              received_at: row.received_at,
+              amount: row.amount,
+              customer: row.customer,
+              time: row.time,
+              raw_screen: row.raw_screen,
+              upi_transaction_id: row.upi_transaction_id,
+              google_transaction_id: row.google_transaction_id,
+              source: row.source,
+              timestamp: row.timestamp,
+              full_payload: row.full_payload,
+              request_headers: row.request_headers,
+              request_method: row.request_method,
+              db_save_status: 'Success',
+              parse_status: 'Success'
+            }));
+            setWebhooks(formatted);
+            if (formatted.length > 0) {
+              setSelectedWebhook(formatted[0]);
+            }
+          }
+        } catch (err) {
+          appendTerminalLog(`Failed to fetch database historical logs: ${err.message}`, 'error');
+        }
+      };
+
+      const testEndpoint = async () => {
+        try {
+          const res = await fetch('/api/webhooks/test');
+          if (res.ok) {
+            const data = await res.json();
+            setDatabaseConnected(data.database === 'connected' || data.database.startsWith('connected'));
+          }
+        } catch (err) {
+          setDatabaseConnected(false);
+        }
+      };
+
+      const clearLogs = async () => {
+        if (confirm('Are you sure you want to clear all webhook logs? This deletes all entries from Neon PostgreSQL.')) {
+          try {
+            const res = await fetch('/api/webhooks/clear', { method: 'DELETE' });
+            if (res.ok) {
+              setWebhooks([]);
+              setSelectedWebhook(null);
+              setLogs([]);
+              appendTerminalLog('Database logs cleared successfully.', 'success');
+            }
+          } catch (err) {
+            appendTerminalLog(`Failed to clear database logs: ${err.message}`, 'error');
+          }
+        }
+      };
+
+      const appendTerminalLog = (message, type = 'info') => {
+        const timestamp = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+        setLogs(prev => [...prev, { timestamp, message, type }]);
+      };
+
+      // Trigger Simulated Tasker POST request
+      const sendSimulatedWebhook = async (e) => {
+        e.preventDefault();
+        setSimulating(true);
+        
+        const finalUtr = simUtr.trim() || Math.floor(100000000000 + Math.random() * 900000000000).toString();
+        
+        // Assemble standard GPay / PhonePe raw screen format
+        const simulatedRawScreen = [
+          `Google Pay Business`,
+          `Received from ${simCustomer}`,
+          `+ ₹${simAmount}`,
+          `UPI Transaction ID`,
+          finalUtr,
+          `Google Transaction ID`,
+          simGoogleTxn,
+          `Paid via`,
+          `External app`,
+          `Customer paid`,
+          `₹${simAmount}`
+        ].join('|');
+
+        const payload = {
+          amount: `+ ₹${simAmount}`,
+          time: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          raw_screen: simulatedRawScreen,
+          source: simApp,
+          timestamp: Math.floor(Date.now() / 1000).toString()
+        };
+
+        try {
+          appendTerminalLog(`Simulating Tasker POST to /api/webhooks/payment (UTR: ${finalUtr})...`, 'info');
+          
+          const res = await fetch('/api/webhooks/payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Tasker/6.2.14-mock',
+              'X-Simulated-Request': 'true'
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          const data = await res.json();
+          if (res.ok) {
+            appendTerminalLog(`Simulated Webhook Success. Server Response: ${JSON.stringify(data)}`, 'success');
+          } else {
+            appendTerminalLog(`Simulated Webhook failed with status ${res.status}: ${JSON.stringify(data)}`, 'error');
+          }
+        } catch (err) {
+          appendTerminalLog(`Simulated POST dispatch failed: ${err.message}`, 'error');
+        } finally {
+          setSimulating(false);
+          setSimUtr(''); // Reset random UTR
+        }
+      };
+
+      // Helper syntax highlighter for JSON
+      const syntaxHighlightJson = (json) => {
+        if (!json) return '';
+        if (typeof json !== 'string') {
+          json = JSON.stringify(json, null, 2);
+        }
+        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+          let cls = 'json-value';
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+              cls = 'json-key';
+              return `<span class="${cls}">${match.replace(':', '')}</span>:`;
+            } else {
+              cls = 'json-string';
+            }
+          } else if (/true|false/.test(match)) {
+            cls = 'json-boolean';
+          } else if (/null/.test(match)) {
+            cls = 'json-null';
+          } else {
+            cls = 'json-number';
+          }
+          return `<span class="${cls}">${match}</span>`;
+        });
+      };
+
+      return (
+        <div class="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <header class="glass-panel rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center space-x-4">
+              <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-pink-500 flex items-center justify-center glow-indigo">
+                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white font-orbitron">ZTAKE WEBHOOK HUB</h1>
+                <p class="text-xs text-indigo-400 font-mono font-medium">Realtime Ingestion & Decryption Console · v2.0</p>
+              </div>
+            </div>
+
+            {/* Diagnostic Badges */}
+            <div class="flex flex-wrap items-center gap-3">
+              {/* Web Socket Indicator */}
+              <div class="flex items-center space-x-2 bg-slate-900/50 border border-white/5 rounded-xl px-4 py-2 text-xs">
+                <span class={`pulse-indicator ${socketConnected ? 'pulse-green' : 'pulse-red'}`}></span>
+                <span class="font-mono text-slate-400">WS Connection:</span>
+                <span class={`font-bold ${socketConnected ? 'text-green-400' : 'text-red-400'}`}>
+                  {socketConnected ? 'ONLINE' : 'DISCONNECTED'}
+                </span>
+              </div>
+
+              {/* Neon PG Database Indicator */}
+              <div class="flex items-center space-x-2 bg-slate-900/50 border border-white/5 rounded-xl px-4 py-2 text-xs">
+                <span class={`pulse-indicator ${databaseConnected ? 'pulse-green' : 'pulse-red'}`}></span>
+                <span class="font-mono text-slate-400">Neon DB:</span>
+                <span class={`font-bold ${databaseConnected ? 'text-green-400' : 'text-red-400'}`}>
+                  {databaseConnected ? 'CONNECTED' : 'OFFLINE'}
+                </span>
+              </div>
+
+              {/* Active Clients */}
+              <div class="bg-indigo-950/40 border border-indigo-500/20 rounded-xl px-4 py-2 text-xs font-mono text-indigo-300">
+                Active Observers: <span class="font-bold text-white">{connectionsCount}</span>
+              </div>
+            </div>
+          </header>
+
+          {/* Quick Metrics */}
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass-panel rounded-xl p-4 flex flex-col justify-center">
+              <span class="text-xs text-slate-400 font-mono">Total Logged Webhooks</span>
+              <span class="text-3xl font-bold font-orbitron mt-1 text-indigo-400">{webhooks.length}</span>
+            </div>
+            <div class="glass-panel rounded-xl p-4 flex flex-col justify-center">
+              <span class="text-xs text-slate-400 font-mono">Ingestion Port</span>
+              <span class="text-3xl font-bold font-orbitron mt-1 text-white">3001</span>
+            </div>
+            <div class="glass-panel rounded-xl p-4 flex flex-col justify-center">
+              <span class="text-xs text-slate-400 font-mono">Active Channel</span>
+              <span class="text-sm font-bold font-mono mt-2 truncate text-green-400 bg-green-950/20 border border-green-500/20 px-2 py-1 rounded">
+                /api/webhooks/payment
+              </span>
+            </div>
+            <div class="glass-panel rounded-xl p-4 flex flex-col justify-center">
+              <span class="text-xs text-slate-400 font-mono">Last Ingested UTR</span>
+              <span class="text-sm font-bold font-mono mt-2 truncate text-amber-400 bg-amber-950/20 border border-amber-500/20 px-2 py-1 rounded">
+                {webhooks.length > 0 ? (webhooks[0].upi_transaction_id || 'Alphanumeric ID') : '—'}
+              </span>
+            </div>
+          </div>
+
+          {/* Main Dashboard Layout */}
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left Column: Stream of webhooks & test simulator (LG: 5 cols) */}
+            <div class="lg:col-span-5 flex flex-col gap-6">
+              
+              {/* Log stream panel */}
+              <div class="glass-panel rounded-2xl p-6 flex flex-col h-[520px]">
+                <div class="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
+                  <div class="flex items-center space-x-2">
+                    <span class="h-2 w-2 rounded-full bg-indigo-500 animate-ping"></span>
+                    <h2 class="font-bold text-lg text-white">Ingestion Feed</h2>
+                  </div>
+                  <button 
+                    onClick={clearLogs}
+                    class="px-3 py-1.5 bg-red-950/30 hover:bg-red-950/60 border border-red-500/30 hover:border-red-500/60 text-red-300 rounded-lg text-xs font-semibold font-mono transition-all duration-300"
+                  >
+                    Clear DB Logs
+                  </button>
+                </div>
+
+                {/* Stream list */}
+                <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {webhooks.length === 0 ? (
+                    <div class="h-full flex flex-col items-center justify-center text-slate-500 font-mono text-center space-y-2 p-6">
+                      <svg class="h-10 w-10 text-slate-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <p class="text-xs">Awaiting live webhook POST payloads...</p>
+                      <p class="text-[10px] text-indigo-400">Configure Tasker to hit this server or use the simulator below.</p>
+                    </div>
+                  ) : (
+                    webhooks.map((item) => {
+                      const isSelected = selectedWebhook && selectedWebhook.id === item.id;
+                      const hasUtr = !!item.upi_transaction_id;
+                      const hasGtxn = !!item.google_transaction_id;
+                      return (
+                        <div 
+                          key={item.id}
+                          onClick={() => setSelectedWebhook(item)}
+                          class={`p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                            isSelected 
+                              ? 'glass-panel-active' 
+                              : 'bg-slate-900/30 hover:bg-slate-900/60 border border-white/5'
+                          }`}
+                        >
+                          <div class="flex justify-between items-start gap-2 mb-2">
+                            <span class="text-xs font-bold text-indigo-300 font-mono truncate max-w-[200px]">
+                              {item.customer}
+                            </span>
+                            <span class="text-xs font-extrabold text-green-400 font-mono">
+                              {item.amount}
+                            </span>
+                          </div>
+                          <div class="flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                            <span class="truncate max-w-[170px]" title={item.upi_transaction_id || 'No UTR'}>
+                              UTR: <span class={hasUtr ? 'text-amber-400 font-medium' : 'text-slate-600'}>
+                                {item.upi_transaction_id || '—'}
+                              </span>
+                            </span>
+                            <div class="flex items-center gap-1.5">
+                              {item.request_method && (
+                                <span class={`px-1 py-0.2 rounded text-[8px] font-bold ${
+                                  item.request_method === 'GET' ? 'bg-sky-950/40 text-sky-400 border border-sky-500/20' :
+                                  item.request_method === 'POST' ? 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/20' :
+                                  item.request_method === 'PUT' ? 'bg-amber-950/40 text-amber-400 border border-amber-500/20' :
+                                  item.request_method === 'PATCH' ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' :
+                                  item.request_method === 'DELETE' ? 'bg-rose-950/40 text-rose-400 border border-rose-500/20' :
+                                  'bg-slate-900/50 text-slate-400 border border-white/5'
+                                }`}>
+                                  {item.request_method}
+                                </span>
+                              )}
+                              <span>{new Date(item.received_at).toLocaleTimeString('en-IN')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Tasker Simulator Panel */}
+              <div class="glass-panel rounded-2xl p-6">
+                <h2 class="font-bold text-lg text-white pb-3 border-b border-white/5 mb-4 flex items-center gap-2">
+                  <span>🧪</span> Tasker Payload Simulator
+                </h2>
+                
+                <form onSubmit={sendSimulatedWebhook} class="space-y-4">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 font-mono mb-1">Amount</label>
+                      <input 
+                        type="text" 
+                        class="w-full px-3 py-2 text-xs rounded-lg glass-input"
+                        value={simAmount}
+                        onChange={(e) => setSimAmount(e.target.value)}
+                        placeholder="e.g. 15"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 font-mono mb-1">Sender Customer</label>
+                      <input 
+                        type="text" 
+                        class="w-full px-3 py-2 text-xs rounded-lg glass-input"
+                        value={simCustomer}
+                        onChange={(e) => setSimCustomer(e.target.value)}
+                        placeholder="GAURAV S S"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 font-mono mb-1">UPI UTR (Optional)</label>
+                      <input 
+                        type="text" 
+                        class="w-full px-3 py-2 text-xs rounded-lg glass-input font-mono"
+                        value={simUtr}
+                        onChange={(e) => setSimUtr(e.target.value)}
+                        placeholder="Randomly generated if empty"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 font-mono mb-1">Source App</label>
+                      <select 
+                        class="w-full px-3 py-2 text-xs rounded-lg glass-input"
+                        value={simApp}
+                        onChange={(e) => setSimApp(e.target.value)}
+                      >
+                        <option value="gpay_business">GPay Business</option>
+                        <option value="phonepe_business">PhonePe Business</option>
+                        <option value="paytm_business">Paytm Business</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={simulating}
+                    class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all duration-300 glow-indigo disabled:opacity-50"
+                  >
+                    {simulating ? 'Ingesting Simulation...' : '🚀 Inject Test Webhook'}
+                  </button>
+                </form>
+              </div>
+
+            </div>
+
+            {/* Right Column: Webhook Detail Viewer (LG: 7 cols) */}
+            <div class="lg:col-span-7">
+              <div class="glass-panel rounded-2xl p-6 h-full flex flex-col min-h-[500px]">
+                <div class="pb-4 border-b border-white/5 mb-6 flex justify-between items-center">
+                  <h2 class="font-bold text-lg text-white flex items-center gap-2">
+                    <span>📋</span> Decrypted Webhook Details
+                  </h2>
+                  {selectedWebhook && (
+                    <span class="text-[10px] font-mono font-bold px-2.5 py-1 rounded bg-indigo-505/20 text-indigo-400 border border-indigo-500/20">
+                      ID: #{selectedWebhook.id}
+                    </span>
+                  )}
+                </div>
+
+                {selectedWebhook ? (
+                  <div class="flex-1 space-y-6 overflow-y-auto pr-1">
+                    
+                    {/* Glowing Metric Banner */}
+                    <div class="bg-gradient-to-r from-slate-900/60 to-indigo-950/30 border border-white/5 rounded-2xl p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 font-mono">Amount</div>
+                        <div class="text-xl font-extrabold text-green-400 mt-1 font-mono">{selectedWebhook.amount}</div>
+                      </div>
+                      <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 font-mono">UPI Ref No (UTR)</div>
+                        <div class="text-sm font-bold text-amber-400 mt-1 font-mono select-all">
+                          {selectedWebhook.upi_transaction_id || '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 font-mono">App / Source</div>
+                        <div class="text-sm font-bold text-white mt-1 font-mono uppercase flex items-center gap-1.5">
+                          <span>{selectedWebhook.source}</span>
+                          {selectedWebhook.request_method && (
+                            <span class={`px-1 py-0.2 rounded text-[8px] font-bold ${
+                              selectedWebhook.request_method === 'GET' ? 'bg-sky-950/40 text-sky-400 border border-sky-500/20' :
+                              selectedWebhook.request_method === 'POST' ? 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/20' :
+                              selectedWebhook.request_method === 'PUT' ? 'bg-amber-950/40 text-amber-400 border border-amber-500/20' :
+                              selectedWebhook.request_method === 'PATCH' ? 'bg-purple-950/40 text-purple-400 border border-purple-500/20' :
+                              selectedWebhook.request_method === 'DELETE' ? 'bg-rose-950/40 text-rose-400 border border-rose-500/20' :
+                              'bg-slate-900/50 text-slate-400 border border-white/5'
+                            }`}>
+                              {selectedWebhook.request_method}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-400 font-mono">DB Log Status</div>
+                        <div class="text-xs font-bold text-green-400 mt-1.5 flex items-center gap-1">
+                          <span class="h-1.5 w-1.5 rounded-full bg-green-400"></span>
+                          {selectedWebhook.db_save_status}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Metadata details list */}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/20 border border-white/5 p-4 rounded-xl">
+                      <div class="space-y-3">
+                        <h3 class="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider">Payload Metadata</h3>
+                        <div class="space-y-2 text-xs">
+                          <div class="flex justify-between border-b border-white/5 pb-1">
+                            <span class="text-slate-400">Customer Name:</span>
+                            <span class="font-bold text-white">{selectedWebhook.customer}</span>
+                          </div>
+                          <div class="flex justify-between border-b border-white/5 pb-1">
+                            <span class="text-slate-400">Timestamp:</span>
+                            <span class="font-mono text-slate-300">{selectedWebhook.timestamp}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-slate-400">Payload Source Date:</span>
+                            <span class="font-mono text-slate-300">{selectedWebhook.time}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="space-y-3">
+                        <h3 class="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider">System Ingestion Ledger</h3>
+                        <div class="space-y-2 text-xs">
+                          <div class="flex justify-between border-b border-white/5 pb-1">
+                            <span class="text-slate-400">Google Txn ID:</span>
+                            <span class="font-mono text-indigo-300">{selectedWebhook.google_transaction_id || '—'}</span>
+                          </div>
+                          <div class="flex justify-between border-b border-white/5 pb-1">
+                            <span class="text-slate-400">Server Ingestion Time:</span>
+                            <span class="font-mono text-slate-300">{new Date(selectedWebhook.received_at).toLocaleString()}</span>
+                          </div>
+                          <div class="flex justify-between">
+                            <span class="text-slate-400">Parser Ingestion Status:</span>
+                            <span class="font-bold text-green-400 flex items-center gap-1">
+                              ✓ {selectedWebhook.parse_status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Raw Screen Buffer (Pipes/Newlines) */}
+                    <div>
+                      <h3 class="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider mb-2">Raw Screen Buffer</h3>
+                      <pre class="bg-slate-900/60 p-4 rounded-xl border border-white/5 font-mono text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap break-all max-h-[160px] overflow-y-auto">
+                        {selectedWebhook.raw_screen}
+                      </pre>
+                    </div>
+
+                    {/* Full JSON code block */}
+                    <div>
+                      <h3 class="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider mb-2">Full JSON Payload</h3>
+                      <pre 
+                        class="bg-slate-950/80 p-4 rounded-xl border border-white/5 font-mono text-xs overflow-x-auto max-h-[220px]"
+                        dangerouslySetInnerHTML={{ __html: syntaxHighlightJson(selectedWebhook.full_payload || selectedWebhook) }}
+                      />
+                    </div>
+
+                    {/* Expandable Request Headers */}
+                    <details class="group">
+                      <summary class="text-[10px] uppercase font-bold text-slate-400 font-mono tracking-wider mb-2 cursor-pointer list-none flex items-center gap-1 select-none hover:text-indigo-400 transition-colors">
+                        <svg class="h-3 w-3 transition-transform group-open:rotate-90 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                        Incoming Request Headers
+                      </summary>
+                      <pre class="bg-slate-950/50 p-4 rounded-xl border border-white/5 font-mono text-[10px] text-slate-400 overflow-x-auto mt-2">
+                        {JSON.stringify(selectedWebhook.request_headers, null, 2)}
+                      </pre>
+                    </details>
+
+                  </div>
+                ) : (
+                  <div class="flex-1 flex flex-col items-center justify-center text-slate-500 font-mono text-center p-8">
+                    <p class="text-sm">Select an ingested webhook from the left stream to view decoded details.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Bottom Console Terminal Section */}
+          <section class="glass-panel rounded-2xl p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
+              <div class="flex items-center space-x-2 text-white font-bold">
+                <svg class="h-4 w-4 text-green-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <h2 class="font-orbitron tracking-wide text-sm">REALTIME DIAGNOSTIC SERVER LOGS</h2>
+              </div>
+              <div class="flex items-center space-x-4">
+                <label class="flex items-center space-x-2 text-xs font-mono text-slate-400 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={autoScrollLogs}
+                    onChange={(e) => setAutoScrollLogs(e.target.checked)}
+                    class="rounded bg-slate-900 border-white/10 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                  />
+                  <span>Auto Scroll Console</span>
+                </label>
+                <button 
+                  onClick={() => setLogs([])}
+                  class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-white/5 text-[10px] font-mono text-slate-400 rounded transition-colors duration-200"
+                >
+                  Clear Console Console
+                </button>
+              </div>
+            </div>
+
+            {/* Terminal screen container */}
+            <div class="bg-black/90 rounded-xl p-4 border border-white/5 font-mono text-xs text-slate-300 h-64 overflow-y-auto space-y-1.5 shadow-inner">
+              {logs.length === 0 ? (
+                <div class="text-slate-600 italic">Console initialized. Awaiting server lifecycle events...</div>
+              ) : (
+                logs.map((log, index) => {
+                  let colorClass = 'text-slate-300';
+                  if (log.type === 'success') colorClass = 'text-green-400 font-medium';
+                  if (log.type === 'warning') colorClass = 'text-amber-400 font-medium';
+                  if (log.type === 'error') colorClass = 'text-red-400 font-bold';
+                  return (
+                    <div key={index} class="flex items-start gap-3 border-b border-white/[0.01] pb-1">
+                      <span class="text-indigo-500/80 shrink-0 select-none">[{log.timestamp}]</span>
+                      <span class={`${colorClass} whitespace-pre-wrap break-all`}>{log.message}</span>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={logEndRef}></div>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
