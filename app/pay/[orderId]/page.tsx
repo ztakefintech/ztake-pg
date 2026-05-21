@@ -21,6 +21,7 @@ interface Order {
   customer_name: string;
   status: string;
   vendor_id: number;
+  utr?: string | null;
 }
 
 interface PaymentDetails {
@@ -39,7 +40,7 @@ export default function PublicPaymentPage({ params }: { params: { orderId: strin
   const [error, setError] = useState<string | null>(null);
   
   // Page state
-  const [step, setStep] = useState<'pay' | 'polling' | 'succeeded' | 'failed'>('pay');
+  const [step, setStep] = useState<'pay' | 'polling' | 'succeeded' | 'failed' | 'expired'>('pay');
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<{ text: string; type: 'success' | 'warning' | 'error' } | null>(null);
@@ -66,9 +67,16 @@ export default function PublicPaymentPage({ params }: { params: { orderId: strin
         const currentOrder = orderData.data;
         setOrder(currentOrder);
 
-        // If order already succeeded, skip straight to success
+        // If order already succeeded, show success
         if (currentOrder.status === 'Succeeded' || currentOrder.status === 'SUCCEEDED' || currentOrder.status === 'completed') {
           setStep('succeeded');
+          setLoading(false);
+          return;
+        }
+
+        // If UTR already submitted (status is Pending or order has a UTR), block the page
+        if (currentOrder.utr || currentOrder.status === 'Pending' || currentOrder.status === 'PENDING') {
+          setStep('expired');
           setLoading(false);
           return;
         }
@@ -475,6 +483,38 @@ export default function PublicPaymentPage({ params }: { params: { orderId: strin
                 <div className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
                 <div className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
+            </div>
+          )}
+
+          {/* === STEP: EXPIRED / ALREADY USED === */}
+          {step === 'expired' && (
+            <div className="text-center py-14 space-y-6">
+              <div className="mx-auto w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-950/20 flex items-center justify-center">
+                <FiAlertCircle className="h-10 w-10 text-amber-500" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-black text-gray-900 dark:text-white">Payment Link Expired</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px] mx-auto leading-relaxed">
+                  A UTR has already been submitted for this order. This payment link is no longer active.
+                </p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-xs space-y-2 mx-auto max-w-xs text-left">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Order ID</span>
+                  <span className="font-mono font-semibold text-gray-700 dark:text-gray-300 text-[11px]">{order.ztake_order_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Status</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400 uppercase text-[10px] tracking-wider">{order.status}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Amount</span>
+                  <span className="font-bold text-gray-800 dark:text-white">₹{Number(order.amount).toFixed(2)}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 font-medium max-w-xs mx-auto">
+                If you believe this is an error, please contact the merchant.
+              </p>
             </div>
           )}
 
