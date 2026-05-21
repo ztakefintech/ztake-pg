@@ -47,6 +47,7 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
         customer_paid,
         mdr_gst,
         amount_received,
+        request_headers,
         request_ip,
         user_agent,
         content_type

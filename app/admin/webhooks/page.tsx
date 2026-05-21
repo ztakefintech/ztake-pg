@@ -81,6 +81,14 @@ export default function AdminWebhooksPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Simulation State
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testAmount, setTestAmount] = useState('10.00');
+  const [testUtr, setTestUtr] = useState('');
+  const [testSender, setTestSender] = useState('TEST USER');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const loadEvents = useCallback(async (page = 1, status = statusFilter, silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
@@ -158,6 +166,51 @@ export default function AdminWebhooksPage() {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
       // Fallback
+    }
+  };
+
+  const handleSendTestWebhook = async () => {
+    setSendingTest(true);
+    setTestResult(null);
+    try {
+      const finalUtr = testUtr.trim() || Math.floor(100000000000 + Math.random() * 900000000000).toString();
+      
+      const payload = {
+        amount: `+ ₹${testAmount}`,
+        time: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        raw_screen: `Google Pay Business|Received from ${testSender}|₹${testAmount}|UTR: ${finalUtr}`,
+        source: 'gpay_business',
+        timestamp: Math.floor(Date.now() / 1000).toString()
+      };
+
+      const res = await fetch('/api/webhooks/bank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-webhook-signature': 'debug-test'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      }
+
+      const data = await res.json();
+      setTestResult({
+        success: true,
+        message: `Simulated webhook event dispatched successfully! Status: ${data.status || 'logged'}. Generated UTR: ${finalUtr}`
+      });
+      
+      // Refresh list to show new event immediately
+      setTimeout(() => loadEvents(1), 500);
+    } catch (e: any) {
+      setTestResult({
+        success: false,
+        message: `Failed to dispatch simulation: ${e.message}`
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -304,6 +357,39 @@ export default function AdminWebhooksPage() {
           </button>
         </div>
 
+        {/* Diagnostic Panel */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 mb-6 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webhook Endpoint Details</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-slate-600">Your Webhook URL:</span>
+                <code className="bg-slate-50 text-indigo-600 font-mono text-xs px-2.5 py-1 rounded-lg border border-slate-200 select-all">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/bank` : '/api/webhooks/bank'}
+                </code>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure your Tasker app or scraper to POST notification payload data to this address.
+              </p>
+            </div>
+            
+            <div>
+              <button
+                onClick={() => {
+                  setTestUtr('');
+                  setTestAmount('10.00');
+                  setTestSender('TEST USER');
+                  setTestResult(null);
+                  setShowTestModal(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                🧪 Simulate Webhook Payload
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 mb-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-wrap gap-2">
@@ -395,12 +481,20 @@ export default function AdminWebhooksPage() {
                         {getPaymentTypeBadge(e.payment_type)}
                       </td>
                       <td className="px-4 py-4 text-xs">
-                        <div className="font-bold text-slate-900 truncate max-w-[150px]" title={e.sender_name || 'Sender'}>
-                          {e.sender_name || 'Anonymous'}
-                        </div>
-                        <div className="text-[10px] font-mono text-slate-400 mt-0.5 font-medium select-all" title="UTR ID">
-                          {e.utr || '—'}
-                        </div>
+                        {e.utr || e.sender_name ? (
+                          <>
+                            <div className="font-bold text-slate-900 truncate max-w-[150px]" title={e.sender_name || 'Sender'}>
+                              {e.sender_name || 'Anonymous'}
+                            </div>
+                            <div className="text-[10px] font-mono text-slate-400 mt-0.5 font-medium select-all" title="UTR ID">
+                              {e.utr || '—'}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-slate-400 italic max-w-[180px] truncate" title={e.note || 'No parsed data'}>
+                            {e.note || 'No metadata parsed'}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-xs whitespace-nowrap">
                         <div className="font-extrabold text-slate-900">
@@ -654,6 +748,94 @@ export default function AdminWebhooksPage() {
                 className="bg-white border border-slate-300 rounded-xl shadow-sm px-5 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer"
               >
                 Close details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simulator Modal */}
+      {showTestModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col border border-slate-100">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Simulate Bank Webhook</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Test end-to-end webhook receipt & UTR verification</p>
+              </div>
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {testResult && (
+                <div className={`p-4 rounded-xl border text-xs font-semibold ${
+                  testResult.success 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}>
+                  {testResult.message}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Amount (INR)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={testAmount}
+                  onChange={(e) => setTestAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Sender Name</label>
+                <input
+                  type="text"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={testSender}
+                  onChange={(e) => setTestSender(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">UTR / Transaction ID (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Generates random UTR if empty"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  value={testUtr}
+                  onChange={(e) => setTestUtr(e.target.value)}
+                />
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  To test order verification, enter the UTR submitted on a pending checkout order.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowTestModal(false)}
+                className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleSendTestWebhook}
+                disabled={sendingTest}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-2 text-xs font-bold disabled:opacity-50 cursor-pointer"
+              >
+                {sendingTest ? 'Sending...' : 'Dispatch Webhook'}
               </button>
             </div>
           </div>

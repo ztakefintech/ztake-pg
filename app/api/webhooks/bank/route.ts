@@ -54,49 +54,83 @@ export async function POST(req: NextRequest) {
 
   // 1. Read raw body and parse based on content type
   try {
-    rawBody = await req.text();
-    console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
-
-    const trimmedBody = rawBody.trim();
-
-    // 1. Try parsing as JSON first (regardless of Content-Type header)
-    if (trimmedBody.length > 0) {
+    if (contentType.includes('multipart/form-data')) {
       try {
-        payload = JSON.parse(trimmedBody);
-        console.log('[WEBHOOK] Successfully parsed body as JSON (pre-emptive check)');
-      } catch {
-        // Not valid JSON, continue to next formats
-      }
-    }
-
-    // 2. Try parsing as URL-encoded form data if not already parsed and contains '='
-    if ((!payload || Object.keys(payload).length === 0) && trimmedBody.includes('=')) {
-      try {
-        const params = new URLSearchParams(trimmedBody);
-        const entries = Array.from(params.entries());
-        if (entries.length > 0) {
-          // Double check it doesn't look like a raw JSON with '=' inside a value
-          const firstKey = entries[0][0];
-          if (!firstKey.startsWith('{') && !firstKey.startsWith('[')) {
-            payload = {};
-            for (const [key, value] of entries) {
-              payload[key] = value;
+        const formData = await req.formData();
+        payload = {};
+        const entries: string[] = [];
+        formData.forEach((value, key) => {
+          if (typeof value === 'string') {
+            let decodedVal = value;
+            try {
+              decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
+            } catch {
+              // Ignore decoding error
             }
-            console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
+            payload[key] = decodedVal;
+            entries.push(`${key}=${value}`);
           }
-        }
-      } catch {
-        // URL-encoded parse failed
+        });
+        rawBody = entries.join('&');
+        console.log(`[WEBHOOK] Parsed as multipart/form-data with ${Object.keys(payload).length} fields`);
+      } catch (formDataErr) {
+        console.error('[WEBHOOK] Failed parsing multipart/form-data:', formDataErr);
       }
     }
 
-    // 3. Fallback: If payload is still empty but body has text content, treat the entire body as raw notification text
-    if ((!payload || Object.keys(payload).length === 0) && trimmedBody.length > 0) {
-      console.log(`[WEBHOOK] Treating body as raw notification text (${trimmedBody.length} bytes)`);
-      payload = {
-        raw_screen: trimmedBody,
-        source: 'raw_text',
-      };
+    if (!payload || Object.keys(payload).length === 0) {
+      rawBody = await req.text();
+      console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
+
+      const trimmedBody = rawBody.trim();
+
+      // 1. Try parsing as JSON first (regardless of Content-Type header)
+      if (trimmedBody.length > 0) {
+        try {
+          payload = JSON.parse(trimmedBody);
+          console.log('[WEBHOOK] Successfully parsed body as JSON (pre-emptive check)');
+        } catch {
+          // Not valid JSON, continue to next formats
+        }
+      }
+
+      // 2. Try parsing as URL-encoded form data if not already parsed and contains '='
+      if ((!payload || Object.keys(payload).length === 0) && trimmedBody.includes('=')) {
+        try {
+          const params = new URLSearchParams(trimmedBody);
+          const entries = Array.from(params.entries());
+          if (entries.length > 0) {
+            // Double check it doesn't look like a raw JSON with '=' inside a value
+            const firstKey = entries[0][0];
+            if (!firstKey.startsWith('{') && !firstKey.startsWith('[')) {
+              payload = {};
+              for (const [key, value] of entries) {
+                let decodedKey = key;
+                let decodedVal = value;
+                try {
+                  decodedKey = decodeURIComponent(key.replace(/\+/g, ' '));
+                  decodedVal = decodeURIComponent(value.replace(/\+/g, ' '));
+                } catch {
+                  // Ignore decoding error
+                }
+                payload[decodedKey] = decodedVal;
+              }
+              console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
+            }
+          }
+        } catch {
+          // URL-encoded parse failed
+        }
+      }
+
+      // 3. Fallback: If payload is still empty but body has text content, treat the entire body as raw notification text
+      if ((!payload || Object.keys(payload).length === 0) && trimmedBody.length > 0) {
+        console.log(`[WEBHOOK] Treating body as raw notification text (${trimmedBody.length} bytes)`);
+        payload = {
+          raw_screen: trimmedBody,
+          source: 'raw_text',
+        };
+      }
     }
 
     // Final check — if payload is STILL empty
@@ -177,20 +211,24 @@ export async function POST(req: NextRequest) {
 
     if (!signatureValid) {
       console.log('[WEBHOOK] ✗ Invalid signature');
-      await db.run(
-        `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
-        [
-          payload.source || 'unknown',
-          JSON.stringify(payload),
-          false,
-          false,
-          'Invalid or missing webhook signature',
-          JSON.stringify(requestHeaders),
-          requestIp,
-          userAgent,
-          contentType,
-        ]
-      );
+      try {
+        await db.run(
+          `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          [
+            payload.source || 'unknown',
+            JSON.stringify(payload),
+            false,
+            false,
+            'Invalid or missing webhook signature',
+            JSON.stringify(requestHeaders),
+            requestIp,
+            userAgent,
+            contentType,
+          ]
+        );
+      } catch (dbErr) {
+        console.error('[WEBHOOK] ✗ Failed to log invalid signature event to DB:', dbErr);
+      }
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
@@ -198,32 +236,43 @@ export async function POST(req: NextRequest) {
     const parsed = parseBankWebhookPayload(payload);
     console.log(`[WEBHOOK] Parsed → UTR: ${parsed.utr || 'N/A'} | Amount: ${parsed.amount} | Sender: ${parsed.sender_name || 'N/A'} | Source: ${parsed.source}`);
 
+    // Ensure all numeric values are clean (no NaN) and dates are valid before inserting
+    const paidAtStr = (parsed.paid_at instanceof Date && !isNaN(parsed.paid_at.getTime())) ? parsed.paid_at.toISOString() : null;
+    const finalAmount = (parsed.amount !== null && parsed.amount !== undefined && !isNaN(parsed.amount)) ? parsed.amount : null;
+    const customerPaid = (parsed.customer_paid !== null && parsed.customer_paid !== undefined && !isNaN(parsed.customer_paid)) ? parsed.customer_paid : null;
+    const mdrGst = (parsed.mdr_gst !== null && parsed.mdr_gst !== undefined && !isNaN(parsed.mdr_gst)) ? parsed.mdr_gst : null;
+    const amountReceived = (parsed.amount_received !== null && parsed.amount_received !== undefined && !isNaN(parsed.amount_received)) ? parsed.amount_received : null;
+
     // 4. If no UTR extracted, log and return 200
     if (!parsed.utr) {
       console.log('[WEBHOOK] No UTR extracted — logging as no_utr');
-      await db.run(
-        `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
-        [
-          parsed.source || 'unknown',
-          parsed.amount,
-          parsed.paid_at ? parsed.paid_at.toISOString() : null,
-          JSON.stringify(payload),
-          true,
-          false,
-          'Could not extract UTR from raw_screen',
-          parsed.payment_type,
-          parsed.sender_name,
-          parsed.payment_method,
-          parsed.payment_app,
-          parsed.customer_paid,
-          parsed.mdr_gst,
-          parsed.amount_received,
-          JSON.stringify(requestHeaders),
-          requestIp,
-          userAgent,
-          contentType,
-        ]
-      );
+      try {
+        await db.run(
+          `INSERT INTO webhook_events (source, amount, paid_at, raw_payload, signature_valid, processed, note, payment_type, sender_name, payment_method, payment_app, customer_paid, mdr_gst, amount_received, request_headers, request_ip, user_agent, content_type) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
+          [
+            parsed.source || 'unknown',
+            finalAmount,
+            paidAtStr,
+            JSON.stringify(payload),
+            true,
+            false,
+            'Could not extract UTR from raw_screen',
+            parsed.payment_type,
+            parsed.sender_name,
+            parsed.payment_method,
+            parsed.payment_app,
+            customerPaid,
+            mdrGst,
+            amountReceived,
+            JSON.stringify(requestHeaders),
+            requestIp,
+            userAgent,
+            contentType,
+          ]
+        );
+      } catch (dbErr) {
+        console.error('[WEBHOOK] ✗ Failed to log no-UTR event to DB:', dbErr);
+      }
       return NextResponse.json({ status: 'logged_no_utr' }, { status: 200 });
     }
 
@@ -239,8 +288,8 @@ export async function POST(req: NextRequest) {
       parsed.source || '',
       parsed.utr,
       parsed.google_txn_id,
-      parsed.amount,
-      parsed.paid_at ? parsed.paid_at.toISOString() : null,
+      finalAmount,
+      paidAtStr,
       JSON.stringify(payload),
       true,
       matchedTxnId,
@@ -250,9 +299,9 @@ export async function POST(req: NextRequest) {
       parsed.sender_name,
       parsed.payment_method,
       parsed.payment_app,
-      parsed.customer_paid,
-      parsed.mdr_gst,
-      parsed.amount_received,
+      customerPaid,
+      mdrGst,
+      amountReceived,
       JSON.stringify(requestHeaders),
       requestIp,
       userAgent,
@@ -262,7 +311,11 @@ export async function POST(req: NextRequest) {
     // 6. Idempotency — if already verified, skip silently
     if (transaction?.webhook_verified === true || transaction?.webhook_verified === 1) {
       console.log(`[WEBHOOK] Duplicate — UTR ${parsed.utr} already verified for order ${transaction.ztake_order_id}`);
-      await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, 'Duplicate — already webhook-verified'));
+      try {
+        await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, 'Duplicate — already webhook-verified'));
+      } catch (dbErr) {
+        console.error('[WEBHOOK] ✗ Failed to log duplicate webhook event:', dbErr);
+      }
       return NextResponse.json({ status: 'already_processed' }, { status: 200 });
     }
 
@@ -272,7 +325,7 @@ export async function POST(req: NextRequest) {
         console.log(`[WEBHOOK] ✓ UTR ${parsed.utr} matched to order ${transaction.ztake_order_id} — auto-verifying`);
         
         const expectedAmount = Number(transaction.amount);
-        const receivedAmount = parsed.amount !== null ? Number(parsed.amount) : expectedAmount;
+        const receivedAmount = finalAmount !== null ? Number(finalAmount) : expectedAmount;
         const amountMatches = expectedAmount === receivedAmount;
         
         let note = 'Auto-verified via webhook UTR match';
@@ -367,7 +420,11 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, note));
+        try {
+          await db.run(baseInsertSql, baseParams(transaction.ztake_order_id, true, note));
+        } catch (dbErr) {
+          console.error('[WEBHOOK] ✗ Failed to log matched success event:', dbErr);
+        }
         return NextResponse.json({ status: 'verified', transaction_id: transaction.ztake_order_id }, { status: 200 });
       } catch (err) {
         console.error('[WEBHOOK] ✗ Error processing matched transaction:', err);
@@ -377,7 +434,11 @@ export async function POST(req: NextRequest) {
 
     // 8. No matching transaction found — log as unmatched
     console.log(`[WEBHOOK] No matching order for UTR ${parsed.utr} — logging as unmatched`);
-    await db.run(baseInsertSql, baseParams(null, false, `No PENDING transaction found for UTR: ${parsed.utr}`));
+    try {
+      await db.run(baseInsertSql, baseParams(null, false, `No PENDING transaction found for UTR: ${parsed.utr}`));
+    } catch (dbErr) {
+      console.error('[WEBHOOK] ✗ Failed to log unmatched event:', dbErr);
+    }
     return NextResponse.json({ status: 'logged_unmatched' }, { status: 200 });
 
   } catch (topLevelErr) {
