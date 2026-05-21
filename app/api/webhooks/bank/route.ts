@@ -57,48 +57,44 @@ export async function POST(req: NextRequest) {
     rawBody = await req.text();
     console.log(`[WEBHOOK] Raw body (${rawBody.length} bytes): ${rawBody.substring(0, 1000)}`);
 
-    // Try JSON first
-    if (contentType.includes('application/json') || rawBody.trimStart().startsWith('{')) {
+    const trimmedBody = rawBody.trim();
+
+    // 1. Try parsing as JSON first (regardless of Content-Type header)
+    if (trimmedBody.length > 0) {
       try {
-        payload = JSON.parse(rawBody);
+        payload = JSON.parse(trimmedBody);
+        console.log('[WEBHOOK] Successfully parsed body as JSON (pre-emptive check)');
       } catch {
-        // JSON parse failed, try URL-encoded fallback below
+        // Not valid JSON, continue to next formats
       }
     }
 
-    // If payload is still empty, try parsing as URL-encoded form data
-    if (!payload || Object.keys(payload).length === 0) {
+    // 2. Try parsing as URL-encoded form data if not already parsed and contains '='
+    if ((!payload || Object.keys(payload).length === 0) && trimmedBody.includes('=')) {
       try {
-        const params = new URLSearchParams(rawBody);
+        const params = new URLSearchParams(trimmedBody);
         const entries = Array.from(params.entries());
-        // Only treat as URL-encoded if it has = signs (real form data)
-        if (entries.length > 0 && rawBody.includes('=')) {
-          payload = {};
-          for (const [key, value] of entries) {
-            payload[key] = value;
+        if (entries.length > 0) {
+          // Double check it doesn't look like a raw JSON with '=' inside a value
+          const firstKey = entries[0][0];
+          if (!firstKey.startsWith('{') && !firstKey.startsWith('[')) {
+            payload = {};
+            for (const [key, value] of entries) {
+              payload[key] = value;
+            }
+            console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
           }
-          console.log(`[WEBHOOK] Parsed as URL-encoded form data with ${entries.length} fields`);
         }
       } catch {
-        // URL-encoded parse also failed
+        // URL-encoded parse failed
       }
     }
 
-    // If still empty, try one more JSON parse attempt (content type might be wrong)
-    if (!payload || Object.keys(payload).length === 0) {
-      try {
-        payload = JSON.parse(rawBody);
-      } catch {
-        // Total failure
-      }
-    }
-
-    // If still empty but body has text content, treat it as raw notification text
-    // Tasker may send the notification screen dump as plain text
-    if ((!payload || Object.keys(payload).length === 0) && rawBody.trim().length > 0) {
-      console.log(`[WEBHOOK] Body not JSON/form — treating as raw notification text (${rawBody.length} bytes)`);
+    // 3. Fallback: If payload is still empty but body has text content, treat the entire body as raw notification text
+    if ((!payload || Object.keys(payload).length === 0) && trimmedBody.length > 0) {
+      console.log(`[WEBHOOK] Treating body as raw notification text (${trimmedBody.length} bytes)`);
       payload = {
-        raw_screen: rawBody.trim(),
+        raw_screen: trimmedBody,
         source: 'raw_text',
       };
     }
