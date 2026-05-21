@@ -71,7 +71,8 @@ export async function POST(req: NextRequest) {
       try {
         const params = new URLSearchParams(rawBody);
         const entries = Array.from(params.entries());
-        if (entries.length > 0) {
+        // Only treat as URL-encoded if it has = signs (real form data)
+        if (entries.length > 0 && rawBody.includes('=')) {
           payload = {};
           for (const [key, value] of entries) {
             payload[key] = value;
@@ -92,18 +93,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Final check — if payload is still empty, store as error
+    // If still empty but body has text content, treat it as raw notification text
+    // Tasker may send the notification screen dump as plain text
+    if ((!payload || Object.keys(payload).length === 0) && rawBody.trim().length > 0) {
+      console.log(`[WEBHOOK] Body not JSON/form — treating as raw notification text (${rawBody.length} bytes)`);
+      payload = {
+        raw_screen: rawBody.trim(),
+        source: 'raw_text',
+      };
+    }
+
+    // Final check — if payload is STILL empty
     if (!payload || Object.keys(payload).length === 0) {
-      console.error('[WEBHOOK] ✗ Could not parse body as JSON or form data');
+      console.error('[WEBHOOK] ✗ Empty body received');
       try {
         await db.run(
           `INSERT INTO webhook_events (source, raw_payload, signature_valid, processed, note, request_headers, request_ip, user_agent, content_type) VALUES (?, ?::jsonb, ?, ?, ?, ?::jsonb, ?, ?, ?)`,
           [
             'unknown',
-            JSON.stringify({ error: 'Could not parse body', raw_body_preview: rawBody.substring(0, 2000) }),
+            JSON.stringify({ error: 'Empty body received', raw_body_preview: rawBody.substring(0, 2000) }),
             false,
             false,
-            `Body parse error: not JSON or form-encoded. Content-Type: ${contentType}`,
+            `Empty body received. Content-Type: ${contentType}`,
             JSON.stringify(requestHeaders),
             requestIp,
             userAgent,
@@ -111,9 +122,9 @@ export async function POST(req: NextRequest) {
           ]
         );
       } catch (dbErr) {
-        console.error('[WEBHOOK] ✗ Failed to log bad body to DB:', dbErr);
+        console.error('[WEBHOOK] ✗ Failed to log empty body to DB:', dbErr);
       }
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
     }
 
     console.log(`[WEBHOOK] Parsed payload keys: ${Object.keys(payload).join(', ')}`);
