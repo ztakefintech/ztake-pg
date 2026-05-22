@@ -139,7 +139,7 @@ export default function AdminWebhooksPage() {
     if (autoRefresh) {
       intervalRef.current = setInterval(() => {
         loadEvents(currentPage, statusFilter, true);
-      }, 10000); // Optimized: reduced polling frequency
+      }, 2000); // Polling every 2s for live updates
     }
     return () => {
       if (intervalRef.current) {
@@ -566,14 +566,14 @@ export default function AdminWebhooksPage() {
                       </td>
                       <td className="px-4 py-4 text-xs whitespace-nowrap">
                         <div className="font-extrabold text-slate-900">
-                          {e.amount != null ? `₹${Number(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+                          {e.amount != null && !isNaN(Number(e.amount)) ? `₹${Number(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : (e.amount != null ? `₹${e.amount}` : '—')}
                         </div>
-                        {e.mdr_gst != null && Number(e.mdr_gst) > 0 && (
+                        {e.mdr_gst != null && !isNaN(Number(e.mdr_gst)) && Number(e.mdr_gst) > 0 && (
                           <div className="text-[10px] text-rose-500 font-bold mt-0.5">
                             Fee: -₹{Number(e.mdr_gst).toFixed(2)}
                           </div>
                         )}
-                        {e.amount_received != null && Number(e.amount_received) !== Number(e.amount) && (
+                        {e.amount_received != null && !isNaN(Number(e.amount_received)) && Number(e.amount_received) !== Number(e.amount) && (
                           <div className="text-[9px] text-slate-400 font-semibold mt-0.5">
                             Net: ₹{Number(e.amount_received).toFixed(2)}
                           </div>
@@ -753,19 +753,19 @@ export default function AdminWebhooksPage() {
                     <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                       <span className="text-xs text-slate-500">Customer Paid</span>
                       <span className="text-xs font-extrabold text-slate-900">
-                        {selectedEvent.customer_paid != null ? `₹${Number(selectedEvent.customer_paid).toFixed(2)}` : (selectedEvent.amount != null ? `₹${Number(selectedEvent.amount).toFixed(2)}` : '—')}
+                        {selectedEvent.customer_paid != null && !isNaN(Number(selectedEvent.customer_paid)) ? `₹${Number(selectedEvent.customer_paid).toFixed(2)}` : (selectedEvent.amount != null && !isNaN(Number(selectedEvent.amount)) ? `₹${Number(selectedEvent.amount).toFixed(2)}` : '—')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-1.5 border-b border-slate-50">
                       <span className="text-xs text-slate-500">MDR + GST Fees</span>
                       <span className="text-xs font-bold text-rose-500">
-                        {selectedEvent.mdr_gst != null ? `-₹${Number(selectedEvent.mdr_gst).toFixed(2)}` : '₹0.00'}
+                        {selectedEvent.mdr_gst != null && !isNaN(Number(selectedEvent.mdr_gst)) ? `-₹${Number(selectedEvent.mdr_gst).toFixed(2)}` : '₹0.00'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-1.5 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/50">
                       <span className="text-xs font-bold text-emerald-800">Amount Received</span>
                       <span className="text-sm font-extrabold text-emerald-600">
-                        {selectedEvent.amount_received != null ? `₹${Number(selectedEvent.amount_received).toFixed(2)}` : (selectedEvent.amount != null ? `₹${Number(selectedEvent.amount).toFixed(2)}` : '—')}
+                        {selectedEvent.amount_received != null && !isNaN(Number(selectedEvent.amount_received)) ? `₹${Number(selectedEvent.amount_received).toFixed(2)}` : (selectedEvent.amount != null && !isNaN(Number(selectedEvent.amount)) ? `₹${Number(selectedEvent.amount).toFixed(2)}` : '—')}
                       </span>
                     </div>
                   </div>
