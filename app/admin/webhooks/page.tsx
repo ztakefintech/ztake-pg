@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { parseBankWebhookPayload } from '@/lib/webhooks/parse-bank-payload';
+import { io, Socket } from 'socket.io-client';
 
 interface WebhookEvent {
   id: number;
@@ -82,6 +83,41 @@ export default function AdminWebhooksPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [taskerWebhookKey, setTaskerWebhookKey] = useState('5ac5024706c3e5c81d6fc5437452469f897177637c35aa129ee3ead3f1bd9fa8');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Terminal Logs State
+  const [logs, setLogs] = useState<{timestamp: string, message: string, type: string}[]>([]);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const logEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // Connect to Webhook Express Server
+    const webhookUrl = process.env.NEXT_PUBLIC_WEBHOOK_URL || 'http://localhost:3001';
+    const socket: Socket = io(webhookUrl);
+    
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }), message: 'Connected to Webhook Ingestion Server Terminal.', type: 'success' }]);
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+      setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }), message: 'Disconnected from server.', type: 'error' }]);
+    });
+
+    socket.on('system_log', (logObj) => {
+      setLogs(prev => [...prev, logObj].slice(-100)); // Keep last 100 logs
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs]);
 
   // Simulation State
   const [showTestModal, setShowTestModal] = useState(false);
@@ -636,6 +672,41 @@ export default function AdminWebhooksPage() {
             )}
           </div>
         )}
+
+        {/* Realtime Terminal Log Component */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden mt-8">
+          <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-slate-950/50">
+            <div className="flex items-center space-x-3">
+              <span className={`h-2.5 w-2.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`}></span>
+              <h3 className="text-sm font-bold text-white font-mono tracking-wider">LIVE SYSTEM LOGS TERMINAL</h3>
+            </div>
+            <button
+              onClick={() => setLogs([])}
+              className="text-xs font-mono text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Clear Console
+            </button>
+          </div>
+          <div className="p-6 h-[300px] overflow-y-auto font-mono text-xs leading-relaxed scrollbar-thin scrollbar-thumb-slate-700">
+            {logs.length === 0 ? (
+              <div className="text-slate-600 flex items-center justify-center h-full">Awaiting incoming connection logs...</div>
+            ) : (
+              logs.map((log, i) => (
+                <div key={i} className="mb-2 hover:bg-white/5 px-2 py-1 rounded transition-colors flex gap-3">
+                  <span className="text-slate-500 shrink-0">[{log.timestamp}]</span>
+                  <span className={`${
+                    log.type === 'error' ? 'text-rose-400' :
+                    log.type === 'success' ? 'text-emerald-400' :
+                    log.type === 'warning' ? 'text-amber-400' : 'text-indigo-300'
+                  } break-all`}>
+                    {log.message}
+                  </span>
+                </div>
+              ))
+            )}
+            <div ref={logEndRef} />
+          </div>
+        </div>
       </main>
 
       {/* Detail Modal */}
