@@ -11,11 +11,13 @@ const pool = require('../config/db');
  */
 async function forwardToNextJs(rawPayload, headers, method) {
   // Determine the Next.js app URL
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL 
-    || process.env.NEXTAUTH_URL 
-    || 'http://localhost:3000';
-  
-  const forwardUrl = `${appUrl}/api/webhooks/bank`;
+  let forwardUrl = process.env.WEBHOOK_FORWARD_URL;
+  if (!forwardUrl) {
+    const appUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000' 
+      : (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000');
+    forwardUrl = `${appUrl}/api/webhooks/bank`;
+  }
   
   const forwardHeaders = {
     'Content-Type': 'application/json',
