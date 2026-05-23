@@ -105,6 +105,17 @@ export default function AdminWebhooksPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [taskerWebhookKey, setTaskerWebhookKey] = useState('5ac5024706c3e5c81d6fc5437452469f897177637c35aa129ee3ead3f1bd9fa8');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentPageRef = useRef(1);
+  const statusFilterRef = useRef('all');
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    statusFilterRef.current = statusFilter;
+  }, [statusFilter]);
 
   // Terminal Logs State
   const [logs, setLogs] = useState<{timestamp: string, message: string, type: string}[]>([]);
@@ -130,6 +141,16 @@ export default function AdminWebhooksPage() {
       setLogs(prev => [...prev, logObj].slice(-100)); // Keep last 100 logs
     });
 
+    socket.on('webhook_received', (event) => {
+      // If client is on Page 1, instantly refresh the events lists when a webhook is received
+      if (currentPageRef.current === 1) {
+        // Wait 500ms to ensure the Next.js backend has finished writing the matched webhook to the DB
+        setTimeout(() => {
+          loadEvents(1, statusFilterRef.current, true);
+        }, 500);
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -150,6 +171,11 @@ export default function AdminWebhooksPage() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const loadEvents = useCallback(async (page = 1, status = statusFilter, silent = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     if (!silent) setLoading(true);
     setError(null);
     try {
@@ -158,7 +184,9 @@ export default function AdminWebhooksPage() {
         limit: '10', // Optimized from 20 to 10 items per page
         status,
       });
-      const res = await fetch(`/api/admin/webhook-events?${query.toString()}`);
+      const res = await fetch(`/api/admin/webhook-events?${query.toString()}`, {
+        signal: abortControllerRef.current.signal,
+      });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           window.location.href = '/admin/login';
@@ -177,9 +205,12 @@ export default function AdminWebhooksPage() {
       setCurrentPage(page);
       setLastRefreshed(new Date());
     } catch (e: any) {
+      if (e.name === 'AbortError') return;
       if (!silent) setError(e.message || 'Failed to load');
     } finally {
-      if (!silent) setLoading(false);
+      if (!silent && (!abortControllerRef.current || !abortControllerRef.current.signal.aborted)) {
+        setLoading(false);
+      }
     }
   }, [statusFilter]);
 
@@ -188,13 +219,13 @@ export default function AdminWebhooksPage() {
     loadEvents(1, statusFilter);
   }, [statusFilter]);
 
-  // Auto-refresh polling — optimized from 5000ms to 10000ms (reduced API calls by 50%)
+  // Auto-refresh polling — only run polling on Page 1 to prevent pagination bugs and layout shifts on historical pages
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    if (autoRefresh) {
+    if (autoRefresh && currentPage === 1) {
       intervalRef.current = setInterval(() => {
         loadEvents(currentPage, statusFilter, true);
       }, 2000); // Polling every 2s for live updates
