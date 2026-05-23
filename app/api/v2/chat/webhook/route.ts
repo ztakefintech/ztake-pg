@@ -1,12 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { sendMessage } from '@/lib/zibot';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
   try {
     const { searchParams } = new URL(req.url);
+    
+    // Read raw body first for POST to prevent body stream already read issues
+    let rawBody = '';
+    if (method === 'POST') {
+      try {
+        rawBody = await req.text();
+      } catch (err) {}
+    }
+
+    // Webhook Signature verification
+    const signature = req.headers.get('x-webhook-signature') || req.headers.get('stripe-signature') || '';
+    const webhookSecret = 'whsec_fLuwlo6Bmwg5HsghMo/jBjSOVaknlJ19Klpr4pvisMY=';
+
+    if (signature && method === 'POST') {
+      let signatureValid = false;
+      const expectedHex = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
+      const expectedBase64 = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('base64');
+      
+      try {
+        if (crypto.timingSafeEqual(Buffer.from(expectedHex), Buffer.from(signature))) {
+          signatureValid = true;
+        }
+      } catch {}
+      
+      try {
+        if (crypto.timingSafeEqual(Buffer.from(expectedBase64), Buffer.from(signature))) {
+          signatureValid = true;
+        }
+      } catch {}
+
+      // Support Stripe-style (t=timestamp, v1=signature)
+      if (!signatureValid && signature.includes('v1=')) {
+        const parts = signature.split(',');
+        const t = parts.find(p => p.startsWith('t='))?.substring(2);
+        const v1 = parts.find(p => p.startsWith('v1='))?.substring(3);
+        if (t && v1) {
+          const signedPayload = `${t}.${rawBody}`;
+          const stripeHmac = crypto.createHmac('sha256', webhookSecret).update(signedPayload).digest('hex');
+          if (stripeHmac === v1) {
+            signatureValid = true;
+          }
+        }
+      }
+
+      if (!signatureValid) {
+        return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 401 });
+      }
+    }
     
     // 1. Resolve API key (header or query)
     const keyQuery = searchParams.get('key') || searchParams.get('apiKey') || searchParams.get('api_key') || searchParams.get('secret_key');
@@ -43,7 +92,7 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
     } else {
       // POST request
       try {
-        const body = await req.json().catch(() => ({}));
+        const body = rawBody ? JSON.parse(rawBody) : {};
         message = body.message || body.msg || body.text || body.query || searchParams.get('message') || searchParams.get('msg') || '';
         sessionId = body.session_id || body.sessionId || body.session || searchParams.get('session_id') || '';
         if (body.format) {
