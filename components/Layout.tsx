@@ -2,7 +2,7 @@
 
 import React, { ReactNode, useState } from 'react';
 import { useAuth } from '@/lib/context';
-import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage, FiDollarSign, FiTrendingUp, FiHome, FiZap, FiPlayCircle } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiCreditCard, FiSettings, FiMonitor, FiList, FiPackage, FiDollarSign, FiTrendingUp, FiHome, FiZap, FiPlayCircle, FiFileText, FiMessageSquare } from 'react-icons/fi';
 import { FiMoon, FiSun } from 'react-icons/fi';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -106,6 +106,22 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <FiSettings className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                 <span className="font-medium">Settings</span>
+              </Link>
+              
+              <Link
+                href="/dashboard/api-docs"
+                className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-colors group glass-hover"
+              >
+                <FiFileText className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                <span className="font-medium">API Docs</span>
+              </Link>
+              
+              <Link
+                href="/dashboard/chatbot"
+                className="flex items-center space-x-3 px-3 py-2.5 text-gray-700 dark:text-gray-300 rounded-lg transition-colors group glass-hover"
+              >
+                <FiMessageSquare className="w-5 h-5 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                <span className="font-medium">ZiBot</span>
               </Link>
               
               <Link

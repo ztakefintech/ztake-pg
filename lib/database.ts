@@ -588,6 +588,34 @@ class Database {
         ADD COLUMN IF NOT EXISTS request_method TEXT DEFAULT 'POST'
       `);
 
+      // ZiBot chat sessions table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id SERIAL PRIMARY KEY,
+          session_id VARCHAR(64) UNIQUE NOT NULL,
+          vendor_id INTEGER NOT NULL,
+          messages JSONB DEFAULT '[]',
+          system_prompt TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
+        )
+      `);
+
+      // ZiBot vendor config table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS zibot_configs (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER UNIQUE NOT NULL,
+          system_prompt TEXT DEFAULT 'You are a helpful payment support assistant. Answer questions about payment status, UTR numbers, and transaction queries.',
+          bot_name VARCHAR(100) DEFAULT 'ZiBot',
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
+        )
+      `);
+
       client.release();
     } catch (error) {
       console.error('Error initializing database:', error);
