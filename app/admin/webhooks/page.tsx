@@ -91,6 +91,9 @@ export default function AdminWebhooksPage() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
 
+  const [claudeParsing, setClaudeParsing] = useState(false);
+  const [claudeResult, setClaudeResult] = useState<{ success: boolean; message: string } | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -239,6 +242,7 @@ export default function AdminWebhooksPage() {
   }, [autoRefresh, currentPage, statusFilter, loadEvents]);
 
   const loadDetail = async (id: number) => {
+    setClaudeResult(null);
     try {
       const res = await fetch(`/api/admin/webhook-events/${id}`);
       if (!res.ok) throw new Error('Failed to load detail');
@@ -247,6 +251,36 @@ export default function AdminWebhooksPage() {
     } catch {
       const fallback = events.find((e) => e.id === id);
       if (fallback) setSelectedEvent(enhanceEventWithParsedData(fallback));
+    }
+  };
+
+  const handleParseWithClaude = async (id: number) => {
+    setClaudeParsing(true);
+    setClaudeResult(null);
+    try {
+      const res = await fetch(`/api/admin/webhook-events/${id}/parse-claude`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to parse payload with Claude AI');
+      }
+      setClaudeResult({
+        success: true,
+        message: data.message || 'Payload successfully parsed and updated with Claude AI!'
+      });
+      if (data.event) {
+        setSelectedEvent(enhanceEventWithParsedData(data.event));
+      }
+      // Silent refresh of list
+      loadEvents(currentPage, statusFilter, true);
+    } catch (e: any) {
+      setClaudeResult({
+        success: false,
+        message: e.message || 'Failed to perform Claude parsing.'
+      });
+    } finally {
+      setClaudeParsing(false);
     }
   };
 
@@ -790,7 +824,7 @@ export default function AdminWebhooksPage() {
                 </p>
               </div>
               <button
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => { setSelectedEvent(null); setClaudeResult(null); }}
                 className="text-zinc-400 hover:text-zinc-500 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -801,11 +835,42 @@ export default function AdminWebhooksPage() {
 
             {/* Modal Body */}
             <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Claude Parse Result Banner */}
+              {claudeResult && (
+                <div className={`p-4 rounded-xl border text-xs font-semibold ${
+                  claudeResult.success 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/50 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-300' 
+                    : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200/50 dark:border-rose-800/30 text-rose-800 dark:text-rose-300'
+                }`}>
+                  {claudeResult.message}
+                </div>
+              )}
+
               {/* Status Banner */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Status:</span>
-                  {getStatusBadge(selectedEvent)}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Status:</span>
+                    {getStatusBadge(selectedEvent)}
+                  </div>
+                  
+                  {/* Parse with Claude AI Button */}
+                  {!selectedEvent.processed && (
+                    <button
+                      onClick={() => handleParseWithClaude(selectedEvent.id)}
+                      disabled={claudeParsing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm disabled:opacity-50 cursor-pointer active:scale-95 transition-all"
+                    >
+                      {claudeParsing ? (
+                        <>
+                          <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full mr-1"></span>
+                          Parsing...
+                        </>
+                      ) : (
+                        '🤖 Parse with Claude AI'
+                      )}
+                    </button>
+                  )}
                 </div>
                 {selectedEvent.matched_txn_id && (
                   <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -964,7 +1029,7 @@ export default function AdminWebhooksPage() {
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 flex justify-end">
               <button
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => { setSelectedEvent(null); setClaudeResult(null); }}
                 className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm px-5 py-2 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition-colors cursor-pointer"
               >
                 Close details

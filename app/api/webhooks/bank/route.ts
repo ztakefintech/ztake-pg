@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { parseBankWebhookPayload } from '@/lib/webhooks/parse-bank-payload';
+import { parsePayloadWithClaude } from '@/lib/webhooks/claude-parser';
 import crypto from 'crypto';
 import { eventStore } from '@/lib/event-store';
 import { sendTelegramAdminAlert } from '@/lib/telegram';
@@ -291,8 +292,33 @@ async function handleWebhook(req: NextRequest): Promise<NextResponse> {
       payload.source = 'tasker_verified';
     }
 
-    // Parse payment data from payload
-    const parsed = parseBankWebhookPayload(payload);
+    // Parse payment data from payload using standard regex parser
+    let parsed = parseBankWebhookPayload(payload);
+
+    // Fallback to Claude AI if crucial fields (UTR or Amount) are missing
+    if ((!parsed.utr || parsed.amount === null) && process.env.ANTHROPIC_API_KEY) {
+      try {
+        console.log('[WEBHOOK] Crucial fields (UTR/Amount) missing from regex parser. Invoking Claude AI fallback...');
+        const claudeParsed = await parsePayloadWithClaude(payload);
+        console.log(`[WEBHOOK] Claude AI parsed → UTR: ${claudeParsed.utr || 'N/A'} | Amount: ${claudeParsed.amount}`);
+        
+        parsed = {
+          ...parsed,
+          utr: claudeParsed.utr || parsed.utr,
+          google_txn_id: claudeParsed.google_txn_id || parsed.google_txn_id,
+          amount: claudeParsed.amount !== null ? claudeParsed.amount : parsed.amount,
+          paid_at: claudeParsed.paid_at ? new Date(claudeParsed.paid_at) : parsed.paid_at,
+          payment_type: claudeParsed.payment_type !== 'unknown' ? claudeParsed.payment_type : parsed.payment_type,
+          sender_name: claudeParsed.sender_name || parsed.sender_name,
+          payment_method: claudeParsed.payment_method || parsed.payment_method,
+          payment_app: claudeParsed.payment_app || parsed.payment_app,
+          source: parsed.source || 'claude_fallback'
+        };
+      } catch (claudeErr) {
+        console.error('[WEBHOOK] Claude fallback parsing failed:', claudeErr);
+      }
+    }
+
     console.log(`[WEBHOOK] Parsed → UTR: ${parsed.utr || 'N/A'} | Amount: ${parsed.amount} | Sender: ${parsed.sender_name || 'N/A'} | Source: ${parsed.source}`);
 
     // Clean numeric values
