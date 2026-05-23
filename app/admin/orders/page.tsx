@@ -11,6 +11,7 @@ interface OrderRow {
   ztake_order_id: string;
   merchant_order_id: string;
   amount: number;
+  original_amount?: number | null;
   currency: string;
   customer_name: string;
   status: string;
@@ -187,7 +188,20 @@ export default function AdminOrdersPage() {
                   <td className="px-5 py-4 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">{o.ztake_order_id}</td>
                   <td className="px-5 py-4 text-sm text-zinc-500 dark:text-zinc-400">{o.merchant_order_id}</td>
                   <td className="px-5 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-100">{o.customer_name}</td>
-                  <td className="px-5 py-4 text-sm font-bold text-zinc-900 dark:text-zinc-100">{o.currency} {Number(o.amount).toFixed(2)}</td>
+                  <td className="px-5 py-4 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                    {o.original_amount && Number(o.original_amount) !== Number(o.amount) ? (
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        <span className="line-through text-zinc-400 dark:text-zinc-550 font-normal">
+                          {o.currency} {Number(o.original_amount).toFixed(2)}
+                        </span>
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {o.currency} {Number(o.amount).toFixed(2)}
+                        </span>
+                      </span>
+                    ) : (
+                      `${o.currency} ${Number(o.amount).toFixed(2)}`
+                    )}
+                  </td>
                   <td className="px-5 py-4 text-sm whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
                       o.status === 'SUCCESS' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/50 dark:border-emerald-800/30' :

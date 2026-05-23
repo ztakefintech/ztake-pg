@@ -11,6 +11,7 @@ interface Payment {
   id: number;
   utr: string;
   amount: number;
+  original_amount?: number | null;
   status: string;
   created_at: string;
 }
@@ -614,7 +615,18 @@ export default function Dashboard() {
                       {payment.utr}
                     </td>
                     <td className="text-zinc-900 dark:text-zinc-100" style={{ padding: '14px 16px', fontSize: '14px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                      {formatCurrency(payment.amount)}
+                      {payment.original_amount && Number(payment.original_amount) !== Number(payment.amount) ? (
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                          <span className="line-through text-zinc-400 dark:text-zinc-550 font-normal">
+                            {formatCurrency(Number(payment.original_amount))}
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(Number(payment.amount))}
+                          </span>
+                        </span>
+                      ) : (
+                        formatCurrency(payment.amount)
+                      )}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <div className="flex items-center space-x-2">

@@ -112,9 +112,9 @@ async function createOrder(req: NextRequest) {
     console.log(`[AUTH] Successfully authenticated with API key and vendor code for vendor ID: ${vendorId}`);
 
     await db.run(
-      `INSERT INTO orders (ztake_order_id, order_code, merchant_order_id, amount, currency, customer_name, return_url, callback_url, vendor_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'order_created')`,
-      [ztakeOrderId, ztakeOrderId, merchantOrderId, amount, currency, customerName, returnUrl, callbackUrl, vendorId]
+      `INSERT INTO orders (ztake_order_id, order_code, merchant_order_id, amount, original_amount, currency, customer_name, return_url, callback_url, vendor_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'order_created')`,
+      [ztakeOrderId, ztakeOrderId, merchantOrderId, amount, amount, currency, customerName, returnUrl, callbackUrl, vendorId]
     );
 
     console.log(`[ORDER] Successfully created order ${ztakeOrderId} for vendor ${vendorId} using API key + vendor code authentication`);
@@ -227,7 +227,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch orders only for the authenticated vendor
     const orders = await db.all(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, utr, created_at
+      `SELECT ztake_order_id, merchant_order_id, amount, original_amount, currency, customer_name, status, utr, created_at
        FROM orders WHERE vendor_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [vendor.id, limit, offset]
     );

@@ -18,6 +18,7 @@ interface Order {
   ztake_order_id: string;
   merchant_order_id: string;
   amount: number;
+  original_amount?: number | null;
   currency: string;
   customer_name: string;
   status: string;
@@ -529,7 +530,18 @@ export default function PublicPaymentPage({ params }: { params: { orderId: strin
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-400">Amount</span>
-                  <span className="font-bold text-zinc-800 dark:text-white">₹{Number(order.amount).toFixed(2)}</span>
+                  <span className="font-bold text-zinc-800 dark:text-white">
+                    {order.original_amount && Number(order.original_amount) !== Number(order.amount) ? (
+                      <>
+                        <span className="line-through text-zinc-400 dark:text-zinc-550 mr-1.5 font-normal">
+                          ₹{Number(order.original_amount).toFixed(2)}
+                        </span>
+                        ₹{Number(order.amount).toFixed(2)}
+                      </>
+                    ) : (
+                      `₹${Number(order.amount).toFixed(2)}`
+                    )}
+                  </span>
                 </div>
               </div>
               <p className="text-[10px] text-zinc-400 font-medium max-w-[240px] mx-auto">
@@ -568,7 +580,18 @@ export default function PublicPaymentPage({ params }: { params: { orderId: strin
                 )}
                 <div className="flex justify-between pt-0.5">
                   <span className="text-zinc-450">Amount Paid</span>
-                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">₹{Number(order.amount).toFixed(2)}</span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">
+                    {order.original_amount && Number(order.original_amount) !== Number(order.amount) ? (
+                      <>
+                        <span className="line-through text-zinc-400 dark:text-zinc-550 mr-1.5 font-normal">
+                          ₹{Number(order.original_amount).toFixed(2)}
+                        </span>
+                        ₹{Number(order.amount).toFixed(2)}
+                      </>
+                    ) : (
+                      `₹${Number(order.amount).toFixed(2)}`
+                    )}
+                  </span>
                 </div>
               </div>
 

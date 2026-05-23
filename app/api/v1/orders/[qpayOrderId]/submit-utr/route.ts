@@ -21,7 +21,7 @@ export async function POST(
     }
 
     const order = await db.get(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, status, callback_url, vendor_id 
+      `SELECT ztake_order_id, merchant_order_id, amount, original_amount, currency, customer_name, status, callback_url, vendor_id 
        FROM orders WHERE ztake_order_id = ?`,
       [params.qpayOrderId]
     );
@@ -191,7 +191,13 @@ export async function POST(
           }).catch(() => {});
         }
         console.log(`[SUBMIT-UTR] Payment verified successfully for order ${params.qpayOrderId} with UTR ${utr}`);
-        return NextResponse.json({ success: true, verified: true, status: 'Succeeded', amount: Number(paymentRow.amount ?? order.amount) });
+        return NextResponse.json({ 
+          success: true, 
+          verified: true, 
+          status: 'Succeeded', 
+          amount: Number(paymentRow.amount ?? order.amount),
+          original_amount: Number(order.original_amount ?? order.amount)
+        });
       }
     }
 

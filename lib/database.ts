@@ -166,6 +166,7 @@ class Database {
         ADD COLUMN IF NOT EXISTS order_code VARCHAR(64),
         ADD COLUMN IF NOT EXISTS merchant_order_id VARCHAR(255),
         ADD COLUMN IF NOT EXISTS amount DECIMAL(12,2),
+        ADD COLUMN IF NOT EXISTS original_amount DECIMAL(12,2),
         ADD COLUMN IF NOT EXISTS currency VARCHAR(10),
         ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255),
         ADD COLUMN IF NOT EXISTS return_url TEXT,
@@ -174,6 +175,12 @@ class Database {
         ADD COLUMN IF NOT EXISTS utr VARCHAR(64),
         ADD COLUMN IF NOT EXISTS payment_time TIMESTAMP
       `);
+      
+      // Backfill original_amount for existing records if null
+      await client.query(`
+        UPDATE orders SET original_amount = amount WHERE original_amount IS NULL
+      `);
+
       // Create unique index for ztake_order_id
       await client.query(`
         CREATE UNIQUE INDEX IF NOT EXISTS orders_ztake_order_id_key ON orders(ztake_order_id)

@@ -27,7 +27,7 @@ async function handler(req: AuthenticatedRequest) {
 
     // Get orders with pagination
     const orders = await db.all(
-      `SELECT id, ztake_order_id, merchant_order_id, amount, currency, customer_name, status, utr, created_at, updated_at
+      `SELECT id, ztake_order_id, merchant_order_id, amount, original_amount, currency, customer_name, status, utr, created_at, updated_at
        FROM orders 
        WHERE vendor_id = ? 
        ORDER BY created_at DESC 

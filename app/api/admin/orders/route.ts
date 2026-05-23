@@ -34,7 +34,7 @@ export const GET = requirePermission('view_payments')(async (req: NextRequest) =
     if (withUtr === '1' || withUtr === 'true') { where += ' AND utr IS NOT NULL AND LENGTH(utr) > 0'; }
 
     const orders = await db.all(
-      `SELECT o.ztake_order_id, o.merchant_order_id, o.amount, o.currency, o.customer_name, o.status, o.utr, o.vendor_id, v.vendor_code, o.created_at, o.verification_source
+      `SELECT o.ztake_order_id, o.merchant_order_id, o.amount, o.original_amount, o.currency, o.customer_name, o.status, o.utr, o.vendor_id, v.vendor_code, o.created_at, o.verification_source
        FROM orders o
        LEFT JOIN vendors v ON o.vendor_id = v.id
        ${where} ORDER BY o.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,

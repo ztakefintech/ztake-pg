@@ -13,7 +13,7 @@ export async function GET(
     console.log(`[GET-ORDER-PUBLIC] Fetching order: ${params.qpayOrderId}`);
 
     const order = await db.get(
-      `SELECT ztake_order_id, merchant_order_id, amount, currency, customer_name, return_url, callback_url, status, utr, payment_time, created_at, vendor_id
+      `SELECT ztake_order_id, merchant_order_id, amount, original_amount, currency, customer_name, return_url, callback_url, status, utr, payment_time, created_at, vendor_id
        FROM orders WHERE ztake_order_id = ?`,
       [params.qpayOrderId]
     );

@@ -47,13 +47,14 @@ async function handler(req: AuthenticatedRequest) {
 
     await db.run(
       `INSERT INTO orders (
-        ztake_order_id, order_code, merchant_order_id, amount, currency, customer_name, 
+        ztake_order_id, order_code, merchant_order_id, amount, original_amount, currency, customer_name, 
         return_url, callback_url, status, vendor_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'INR', ?, '/demo', '/demo', 'order_created', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      ) VALUES (?, ?, ?, ?, ?, 'INR', ?, '/demo', '/demo', 'order_created', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         ztakeOrderId,
         ztakeOrderId,
         merchantOrderId,
+        amount,
         amount,
         customerName,
         vendorId
