@@ -37,8 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedVendor = localStorage.getItem('vendor_data');
     
     if (storedToken && storedVendor) {
-      setToken(storedToken);
-      setVendor(JSON.parse(storedVendor));
+      try {
+        setToken(storedToken);
+        setVendor(JSON.parse(storedVendor));
+      } catch (err) {
+        console.error("Failed to parse stored vendor data:", err);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('vendor_data');
+        setToken(null);
+        setVendor(null);
+      }
     }
     setIsLoading(false);
   }, []);

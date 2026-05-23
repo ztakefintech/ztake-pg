@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiMail, FiPhone, FiClock, FiShield, FiArrowLeft } from 'react-icons/fi';
 
-export default function AccessDeniedPage() {
+function AccessDeniedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -167,5 +167,17 @@ export default function AccessDeniedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AccessDeniedPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-black text-zinc-500">
+        Loading...
+      </div>
+    }>
+      <AccessDeniedContent />
+    </React.Suspense>
   );
 }

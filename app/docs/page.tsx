@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FiCopy, FiCheck, FiSend, FiCode, FiShield, FiAlertTriangle, FiBookOpen, FiKey } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiCopy, FiCheck, FiSend, FiCode, FiShield, FiAlertTriangle, FiBookOpen, FiKey, FiSun, FiMoon } from 'react-icons/fi';
+import { useTheme } from 'next-themes';
+import Link from 'next/link';
+import Image from 'next/image';
 
 interface Endpoint {
   method: 'GET' | 'POST' | 'PUT';
@@ -144,6 +147,38 @@ export default function DocsPage() {
   ];
 
   const orderEndpoints: Endpoint[] = [
+    {
+      method: 'POST',
+      path: '/api/v1/orders',
+      authType: 'Bearer pk_key',
+      description: 'Generate a new payment/checkout order for a customer. Returns a unique paymentUrl redirecting the user to the secure checkout page.',
+      bodyParams: [
+        { name: 'merchantOrderId', type: 'string', required: true, description: 'Unique tracking ID from your merchant app' },
+        { name: 'amount', type: 'number', required: true, description: 'Order transaction amount in INR' },
+        { name: 'currency', type: 'string', required: true, description: 'Standard ISO currency code (INR)' },
+        { name: 'customerName', type: 'string', required: true, description: 'Name of the customer paying for the order' },
+        { name: 'returnUrl', type: 'string', required: true, description: 'Redirect URL after payment verification' },
+        { name: 'callbackUrl', type: 'string', required: true, description: 'Webhook destination URL to receive status notifications' },
+        { name: 'vendorCode', type: 'string', required: true, description: 'Your 6-character vendor code (e.g. ZV1001)' }
+      ],
+      requestExample: {
+        merchantOrderId: 'merchant_3289138',
+        amount: 500.00,
+        currency: 'INR',
+        customerName: 'Aravind Kumar',
+        returnUrl: 'https://myshop.com/payment-result',
+        callbackUrl: 'https://api.myshop.com/webhooks/payments',
+        vendorCode: 'ZV1001'
+      },
+      responseExample: {
+        status: 'success',
+        merchantOrderId: 'merchant_3289138',
+        ztakeOrderId: 'ZTK9182398129',
+        paymentUrl: 'https://pay.ztake.in/orders/ZTK9182398129',
+        vendorCode: 'ZV1001',
+        authMethod: 'api_key_vendor_code'
+      }
+    },
     {
       method: 'GET',
       path: '/api/v1/orders/:orderId',
@@ -300,21 +335,49 @@ export default function DocsPage() {
     }
   };
 
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-      {/* Sidebar - Dark theme sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col fixed h-screen overflow-y-auto">
-        <div className="p-6 border-b border-slate-800 flex items-center space-x-3">
-          <div className="bg-primary-600 p-2 rounded-lg text-white">
-            <FiBookOpen className="w-6 h-6" />
+    <div className="flex min-h-screen text-[var(--layout-text-primary)]" style={{ background: 'var(--page-bg)' }}>
+      {/* Sidebar - Theme responsive sidebar */}
+      <aside className="w-64 border-r flex flex-col fixed h-screen overflow-y-auto"
+        style={{
+          background: 'var(--layout-sidebar-bg)',
+          borderColor: 'var(--layout-sidebar-border)',
+          color: 'var(--layout-text-secondary)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)'
+        }}
+      >
+        <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+          <div className="flex items-center space-x-3">
+            <Link href="/" className="flex items-center space-x-2.5 group">
+              <Image src="/ztake-icon.png" alt="Ztake" width={26} height={26} className="rounded" />
+              <span className="ztake-wordmark text-lg">ztake</span>
+            </Link>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-wide">ZTake Docs</h1>
-            <p className="text-xs text-slate-500">v2.0.0 API Specification</p>
-          </div>
+          
+          {/* Theme Toggle Button */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 rounded-full hover:bg-[var(--layout-nav-hover-bg)] transition-colors text-[var(--layout-text-secondary)] hover:text-[var(--layout-text-primary)]"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-1.5">
+          <div className="px-3 mb-2 text-[10px] font-bold tracking-wider uppercase opacity-60">
+            API References
+          </div>
           {sections.map((section) => (
             <button
               key={section.id}
@@ -322,11 +385,24 @@ export default function DocsPage() {
                 setActiveSection(section.id);
                 document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeSection === section.id
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'hover:bg-slate-800 hover:text-slate-100'
-              }`}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+              style={{
+                background: activeSection === section.id ? 'var(--layout-nav-active-bg)' : 'transparent',
+                color: activeSection === section.id ? 'var(--layout-text-active)' : 'var(--layout-text-secondary)',
+                boxShadow: activeSection === section.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (activeSection !== section.id) {
+                  e.currentTarget.style.background = 'var(--layout-nav-hover-bg)';
+                  e.currentTarget.style.color = 'var(--layout-text-primary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeSection !== section.id) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--layout-text-secondary)';
+                }
+              }}
             >
               {section.name}
             </button>
@@ -337,26 +413,33 @@ export default function DocsPage() {
       {/* Main Content Area */}
       <main className="ml-64 flex-1 p-8 lg:p-12 max-w-5xl overflow-y-auto">
         {/* Header Banner */}
-        <div className="mb-10 pb-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center space-x-2 text-primary-600 dark:text-primary-400 font-semibold text-sm mb-2">
+        <div className="mb-10 pb-6 border-b" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+          <div className="flex items-center space-x-2 font-semibold text-xs mb-2 text-zinc-550 dark:text-zinc-400">
             <span>DEVELOPER REFERENCE</span>
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-950 dark:text-white tracking-tight">
+          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-950 to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
             ZTake Payment Gateway API Docs
           </h1>
-          <p className="mt-3 text-lg text-slate-600 dark:text-slate-400">
+          <p className="mt-3 text-lg text-[var(--layout-text-secondary)]">
             Integrate UPI payment confirmation flows, track order statuses, manage payout distributions, and customize your site-support chatbot.
           </p>
-          <div className="mt-4 flex items-center space-x-3 bg-white dark:bg-slate-850 p-3 rounded-lg border border-slate-250 dark:border-slate-800 w-fit">
-            <span className="text-xs font-semibold text-slate-400 uppercase">BASE URL:</span>
-            <code className="text-sm font-mono text-primary-600 dark:text-primary-400">https://ztake.in</code>
+          <div className="mt-4 flex items-center space-x-3 p-3 rounded-lg border w-fit" 
+            style={{ 
+              background: 'var(--glass-bg)', 
+              borderColor: 'var(--layout-sidebar-border)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)'
+            }}
+          >
+            <span className="text-xs font-semibold text-[var(--layout-text-secondary)] uppercase">BASE URL:</span>
+            <code className="text-sm font-mono text-[var(--layout-text-primary)]">https://ztake.in</code>
           </div>
         </div>
 
         {/* Section: Overview */}
         <section id="overview" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Overview</h2>
-          <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-450 space-y-4">
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-4">Overview</h2>
+          <div className="prose dark:prose-invert max-w-none text-[var(--layout-text-secondary)] space-y-4">
             <p>
               Welcome to the ZTake API portal. The endpoints described in this guide allow automated system interfaces to update records of bank transaction events, verify instant check-outs, process settlements, and control chatbot configurations.
             </p>
@@ -368,38 +451,45 @@ export default function DocsPage() {
 
         {/* Section: Authentication */}
         <section id="authentication" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <FiShield className="text-primary-500" /> Authentication
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-4 flex items-center gap-2">
+            <FiShield className="text-[var(--layout-text-primary)] opacity-80" /> Authentication
           </h2>
-          <div className="space-y-4 text-slate-600 dark:text-slate-455">
+          <div className="space-y-4 text-[var(--layout-text-secondary)]">
             <p>
               The ZTake API verifies requests using Bearer tokens supplied in standard HTTP Authorization headers.
             </p>
             
-            <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+            <div className="border rounded-xl p-6 space-y-4" 
+              style={{ 
+                background: 'var(--glass-bg)', 
+                borderColor: 'var(--layout-sidebar-border)', 
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)'
+              }}
+            >
               <div className="flex gap-4 items-start">
-                <div className="mt-1 bg-amber-50 dark:bg-amber-950 p-2 rounded-lg text-amber-600">
+                <div className="mt-1 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[var(--layout-text-primary)]">
                   <FiShield className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-white">Vendor JWT Token</h4>
-                  <p className="text-sm mt-1 text-slate-500">
+                  <h4 className="font-semibold text-[var(--layout-text-primary)]">Vendor JWT Token</h4>
+                  <p className="text-sm mt-1 text-[var(--layout-text-secondary)]">
                     Obtained by calling `POST /api/auth/login`. This temporary token authenticates frontend vendor operations and dashboard lookups. It must be provided in the header as:
                   </p>
-                  <pre className="mt-2 bg-slate-900 text-slate-200 p-2 rounded font-mono text-xs">Authorization: Bearer jwt_token_string</pre>
+                  <pre className="mt-2 bg-black/40 border border-white/5 text-zinc-300 p-2.5 rounded-lg font-mono text-xs">Authorization: Bearer jwt_token_string</pre>
                 </div>
               </div>
 
-              <div className="flex gap-4 items-start border-t border-slate-100 dark:border-slate-800 pt-4">
-                <div className="mt-1 bg-blue-50 dark:bg-blue-950 p-2 rounded-lg text-blue-600">
+              <div className="flex gap-4 items-start border-t pt-4" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+                <div className="mt-1 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[var(--layout-text-primary)]">
                   <FiKey className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-white">Secret API Key (Permanent)</h4>
-                  <p className="text-sm mt-1 text-slate-500">
+                  <h4 className="font-semibold text-[var(--layout-text-primary)]">Secret API Key (Permanent)</h4>
+                  <p className="text-sm mt-1 text-[var(--layout-text-secondary)]">
                     Found inside your dashboard Settings under the API Keys/Credential tab. Secret keys begin with the prefix `pk_`. Use this key for permanent backend services or server-to-server bot integrations.
                   </p>
-                  <pre className="mt-2 bg-slate-900 text-slate-200 p-2 rounded font-mono text-xs">Authorization: Bearer pk_live_xxxxx</pre>
+                  <pre className="mt-2 bg-black/40 border border-white/5 text-zinc-300 p-2.5 rounded-lg font-mono text-xs">Authorization: Bearer pk_live_xxxxx</pre>
                 </div>
               </div>
             </div>
@@ -408,7 +498,7 @@ export default function DocsPage() {
 
         {/* Section: Payments API */}
         <section id="payments" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Payments API</h2>
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-6">Payments API</h2>
           <div className="space-y-12">
             {payinEndpoints.map((ep, i) => (
               <EndpointCard key={i} endpoint={ep} copiedStates={copiedStates} copyToClipboard={copyToClipboard} />
@@ -418,7 +508,7 @@ export default function DocsPage() {
 
         {/* Section: Orders API */}
         <section id="orders" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Orders API</h2>
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-6">Orders API</h2>
           <div className="space-y-12">
             {orderEndpoints.map((ep, i) => (
               <EndpointCard key={i} endpoint={ep} copiedStates={copiedStates} copyToClipboard={copyToClipboard} />
@@ -428,7 +518,7 @@ export default function DocsPage() {
 
         {/* Section: Payouts API */}
         <section id="payouts" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Payouts API</h2>
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-6">Payouts API</h2>
           <div className="space-y-12">
             {payoutEndpoints.map((ep, i) => (
               <EndpointCard key={i} endpoint={ep} copiedStates={copiedStates} copyToClipboard={copyToClipboard} />
@@ -438,7 +528,7 @@ export default function DocsPage() {
 
         {/* Section: ZiBot API */}
         <section id="zibot" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">ZiBot Chatbot API</h2>
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-6">ZiBot Chatbot API</h2>
           <div className="space-y-12">
             {chatbotEndpoints.map((ep, i) => (
               <EndpointCard key={i} endpoint={ep} copiedStates={copiedStates} copyToClipboard={copyToClipboard} />
@@ -448,49 +538,51 @@ export default function DocsPage() {
 
         {/* Section: Errors */}
         <section id="errors" className="scroll-mt-6 mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Error Codes</h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">
+          <h2 className="text-2xl font-bold text-[var(--layout-text-primary)] mb-4">Error Codes</h2>
+          <p className="text-[var(--layout-text-secondary)] mb-6">
             Standard REST API HTTP response statuses returned on process outcomes:
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto border rounded-xl" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+            <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350 text-xs font-semibold uppercase">
+                <tr className="bg-zinc-50/20 dark:bg-zinc-900/20 text-[var(--layout-text-secondary)] text-xs font-semibold uppercase border-b"
+                  style={{ borderColor: 'var(--layout-sidebar-border)' }}
+                >
                   <th className="px-6 py-4">Status Code</th>
                   <th className="px-6 py-4">Error Name</th>
                   <th className="px-6 py-4">Typical Reason</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">400</td>
+              <tbody className="divide-y text-[var(--layout-text-primary)]" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">400</td>
                   <td className="px-6 py-4 font-semibold">Bad Request</td>
-                  <td className="px-6 py-4 text-slate-500">Missing parameters, invalid types, or request content limit errors.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">Missing parameters, invalid types, or request content limit errors.</td>
                 </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">401</td>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">401</td>
                   <td className="px-6 py-4 font-semibold">Unauthorized</td>
-                  <td className="px-6 py-4 text-slate-500">Bearer token is missing, invalid, or belongs to a disabled account.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">Bearer token is missing, invalid, or belongs to a disabled account.</td>
                 </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">403</td>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">403</td>
                   <td className="px-6 py-4 font-semibold">Forbidden</td>
-                  <td className="px-6 py-4 text-slate-500">Resource permissions prevent active user context from accessing.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">Resource permissions prevent active user context from accessing.</td>
                 </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">404</td>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">404</td>
                   <td className="px-6 py-4 font-semibold">Not Found</td>
-                  <td className="px-6 py-4 text-slate-500">Requested resource, payment UTR, or session context key does not exist.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">Requested resource, payment UTR, or session context key does not exist.</td>
                 </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">429</td>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">429</td>
                   <td className="px-6 py-4 font-semibold">Too Many Requests</td>
-                  <td className="px-6 py-4 text-slate-500">Rate limits exceeded. Reduce invocation frequencies.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">Rate limits exceeded. Reduce invocation frequencies.</td>
                 </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono font-bold text-red-650">500</td>
+                <tr className="hover:bg-zinc-500/5 transition">
+                  <td className="px-6 py-4 font-mono font-bold text-red-500 dark:text-red-400">500</td>
                   <td className="px-6 py-4 font-semibold">Internal Server Error</td>
-                  <td className="px-6 py-4 text-slate-500">An unexpected malfunction occurred within payment platform routines.</td>
+                  <td className="px-6 py-4 text-[var(--layout-text-secondary)]">An unexpected malfunction occurred within payment platform routines.</td>
                 </tr>
               </tbody>
             </table>
@@ -498,16 +590,25 @@ export default function DocsPage() {
         </section>
 
         {/* Section: Try It Console */}
-        <section id="try-it" className="scroll-mt-6 border-t border-slate-350 dark:border-slate-800 pt-12">
-          <div className="bg-slate-900 text-slate-100 rounded-2xl shadow-xl overflow-hidden">
-            <div className="p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <section id="try-it" className="scroll-mt-6 border-t pt-12" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
+          <div className="border rounded-2xl shadow-xl overflow-hidden"
+            style={{ 
+              background: 'var(--glass-bg)', 
+              borderColor: 'var(--layout-sidebar-border)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)'
+            }}
+          >
+            <div className="p-6 border-b flex items-center justify-between bg-zinc-50/20 dark:bg-zinc-900/20"
+              style={{ borderColor: 'var(--layout-sidebar-border)' }}
+            >
               <div className="flex items-center space-x-3">
-                <div className="bg-primary-600 p-2 rounded-lg text-white">
+                <div className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[var(--layout-text-primary)]">
                   <FiCode className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-lg">Interactive API Playground</h3>
-                  <p className="text-xs text-slate-500">Test gateway requests live inside your browser</p>
+                  <h3 className="font-bold text-[var(--layout-text-primary)] text-lg">Interactive API Playground</h3>
+                  <p className="text-xs text-[var(--layout-text-secondary)]">Test gateway requests live inside your browser</p>
                 </div>
               </div>
             </div>
@@ -515,12 +616,12 @@ export default function DocsPage() {
             <form onSubmit={handleTestConsole} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">HTTP Method & Path</label>
+                  <label className="block text-xs font-semibold uppercase text-[var(--layout-text-secondary)] mb-2">HTTP Method &amp; Path</label>
                   <div className="flex space-x-2">
                     <select
                       value={consoleMethod}
                       onChange={(e) => setConsoleMethod(e.target.value as any)}
-                      className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 focus:ring-primary-500 focus:border-primary-500 font-bold"
+                      className="input-field font-bold cursor-pointer"
                     >
                       <option value="GET">GET</option>
                       <option value="POST">POST</option>
@@ -531,31 +632,31 @@ export default function DocsPage() {
                       value={consolePath}
                       onChange={(e) => setConsolePath(e.target.value)}
                       placeholder="/api/payments/check"
-                      className="flex-1 bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 font-mono focus:ring-primary-500 focus:border-primary-500"
+                      className="flex-1 input-field font-mono"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">Bearer Token (Authorization)</label>
+                  <label className="block text-xs font-semibold uppercase text-[var(--layout-text-secondary)] mb-2">Bearer Token (Authorization)</label>
                   <input
                     type="password"
                     value={consoleApiKey}
                     onChange={(e) => setConsoleApiKey(e.target.value)}
                     placeholder="pk_live_..."
-                    className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 font-mono focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full input-field font-mono"
                   />
                 </div>
               </div>
 
               {consoleMethod !== 'GET' && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">JSON Request Body</label>
+                  <label className="block text-xs font-semibold uppercase text-[var(--layout-text-secondary)] mb-2">JSON Request Body</label>
                   <textarea
                     value={consoleBody}
                     onChange={(e) => setConsoleBody(e.target.value)}
                     rows={4}
-                    className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 font-mono focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full input-field font-mono text-sm"
                   />
                 </div>
               )}
@@ -563,7 +664,7 @@ export default function DocsPage() {
               <button
                 type="submit"
                 disabled={consoleLoading}
-                className="w-full bg-primary-650 hover:bg-primary-700 disabled:bg-slate-750 text-white font-semibold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center space-x-2 shadow-lg"
+                className="w-full glass-button-primary py-3 px-4 transition duration-150 flex items-center justify-center space-x-2 shadow-lg"
               >
                 {consoleLoading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -577,22 +678,22 @@ export default function DocsPage() {
             </form>
 
             {consoleResponse && (
-              <div className="p-6 bg-slate-950 border-t border-slate-800 space-y-3">
+              <div className="p-6 border-t space-y-3 bg-zinc-50/10 dark:bg-zinc-900/10" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase text-slate-450">Server Response</span>
+                  <span className="text-xs font-semibold uppercase text-[var(--layout-text-secondary)]">Server Response</span>
                   {consoleResponse.status && (
                     <span
                       className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                         consoleResponse.status < 300
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'bg-red-500/20 text-red-400'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-red-500/20 text-red-600 dark:text-red-400'
                       }`}
                     >
                       HTTP {consoleResponse.status} {consoleResponse.statusText}
                     </span>
                   )}
                 </div>
-                <pre className="bg-slate-900 border border-slate-850 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-300">
+                <pre className="bg-black/40 border border-white/5 p-4 rounded-xl font-mono text-xs overflow-x-auto text-zinc-300">
                   {JSON.stringify(consoleResponse.data || consoleResponse, null, 2)}
                 </pre>
               </div>
@@ -603,7 +704,6 @@ export default function DocsPage() {
     </div>
   );
 }
-
 function EndpointCard({
   endpoint,
   copiedStates,
@@ -614,27 +714,36 @@ function EndpointCard({
   copyToClipboard: (text: string, id: string) => void;
 }) {
   const methodColors = {
-    GET: 'bg-emerald-500/10 text-emerald-650 dark:text-emerald-400 border-emerald-500/20',
-    POST: 'bg-blue-500/10 text-blue-650 dark:text-blue-400 border-blue-500/20',
-    PUT: 'bg-amber-500/10 text-amber-650 dark:text-amber-400 border-amber-500/20'
+    GET: 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-105 border-zinc-200 dark:border-zinc-700/60',
+    POST: 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-105 border-zinc-200 dark:border-zinc-700/60',
+    PUT: 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-105 border-zinc-200 dark:border-zinc-700/60'
   };
 
   const id = `${endpoint.method}-${endpoint.path}`;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden">
+    <div className="border rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition overflow-hidden"
+      style={{ 
+        background: 'var(--glass-bg)', 
+        borderColor: 'var(--layout-sidebar-border)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)'
+      }}
+    >
       {/* Top Banner */}
-      <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 flex flex-wrap gap-4 items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="p-6 border-b flex flex-wrap gap-4 items-center justify-between bg-zinc-50/20 dark:bg-zinc-900/20"
+        style={{ borderColor: 'var(--layout-sidebar-border)' }}
+      >
         <div className="flex items-center space-x-3 flex-1 min-w-0">
           <span className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${methodColors[endpoint.method]}`}>
             {endpoint.method}
           </span>
-          <code className="text-sm font-mono font-semibold text-slate-900 dark:text-white truncate">
+          <code className="text-sm font-mono font-semibold text-[var(--layout-text-primary)] truncate">
             {endpoint.path}
           </code>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-xs bg-slate-200/60 dark:bg-slate-800 text-slate-650 dark:text-slate-400 px-2.5 py-1 rounded-full font-medium">
+          <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-[var(--layout-text-secondary)] px-2.5 py-1 rounded-full font-medium border border-zinc-250/20 dark:border-zinc-700/20">
             Auth: {endpoint.authType}
           </span>
         </div>
@@ -642,36 +751,38 @@ function EndpointCard({
 
       <div className="p-6 space-y-6">
         <div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{endpoint.description}</p>
+          <p className="text-sm text-[var(--layout-text-secondary)] leading-relaxed">{endpoint.description}</p>
         </div>
 
         {/* Request Query/Body Params */}
         {endpoint.bodyParams && endpoint.bodyParams.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-3">Request Body Properties</h4>
-            <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-xl">
+            <h4 className="text-xs font-bold uppercase text-[var(--layout-text-secondary)] tracking-wider mb-3">Request Body Properties</h4>
+            <div className="overflow-x-auto border rounded-xl" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 uppercase font-semibold border-b border-slate-150 dark:border-slate-800">
+                  <tr className="text-[var(--layout-text-secondary)] uppercase font-semibold border-b bg-zinc-50/20 dark:bg-zinc-900/20"
+                    style={{ borderColor: 'var(--layout-sidebar-border)' }}
+                  >
                     <th className="px-4 py-3">Property</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Requirement</th>
                     <th className="px-4 py-3">Description</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                <tbody className="divide-y text-[var(--layout-text-primary)]" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
                   {endpoint.bodyParams.map((param, index) => (
-                    <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">{param.name}</td>
-                      <td className="px-4 py-3 text-slate-550 dark:text-slate-400 font-mono">{param.type}</td>
+                    <tr key={index} className="hover:bg-zinc-500/5 transition">
+                      <td className="px-4 py-3 font-mono font-bold">{param.name}</td>
+                      <td className="px-4 py-3 text-[var(--layout-text-secondary)] font-mono">{param.type}</td>
                       <td className="px-4 py-3">
                         {param.required ? (
                           <span className="text-red-500 font-semibold bg-red-500/10 px-2 py-0.5 rounded">required</span>
                         ) : (
-                          <span className="text-slate-400 bg-slate-1050 px-2 py-0.5 rounded">optional</span>
+                          <span className="text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">optional</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{param.description}</td>
+                      <td className="px-4 py-3 text-[var(--layout-text-secondary)]">{param.description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -683,30 +794,32 @@ function EndpointCard({
         {/* Query Params */}
         {endpoint.queryParams && endpoint.queryParams.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-3">Query Parameters</h4>
-            <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-xl">
+            <h4 className="text-xs font-bold uppercase text-[var(--layout-text-secondary)] tracking-wider mb-3">Query Parameters</h4>
+            <div className="overflow-x-auto border rounded-xl" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 uppercase font-semibold border-b border-slate-150 dark:border-slate-800">
+                  <tr className="text-[var(--layout-text-secondary)] uppercase font-semibold border-b bg-zinc-50/20 dark:bg-zinc-900/20"
+                    style={{ borderColor: 'var(--layout-sidebar-border)' }}
+                  >
                     <th className="px-4 py-3">Param</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Requirement</th>
                     <th className="px-4 py-3">Description</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                <tbody className="divide-y text-[var(--layout-text-primary)]" style={{ borderColor: 'var(--layout-sidebar-border)' }}>
                   {endpoint.queryParams.map((param, index) => (
-                    <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">{param.name}</td>
-                      <td className="px-4 py-3 text-slate-550 dark:text-slate-400 font-mono">{param.type}</td>
+                    <tr key={index} className="hover:bg-zinc-500/5 transition">
+                      <td className="px-4 py-3 font-mono font-bold">{param.name}</td>
+                      <td className="px-4 py-3 text-[var(--layout-text-secondary)] font-mono">{param.type}</td>
                       <td className="px-4 py-3">
                         {param.required ? (
                           <span className="text-red-500 font-semibold bg-red-500/10 px-2 py-0.5 rounded">required</span>
                         ) : (
-                          <span className="text-slate-400 bg-slate-1050 px-2 py-0.5 rounded">optional</span>
+                          <span className="text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">optional</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{param.description}</td>
+                      <td className="px-4 py-3 text-[var(--layout-text-secondary)]">{param.description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -719,34 +832,34 @@ function EndpointCard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
           {endpoint.requestExample && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-450 uppercase">
+              <div className="flex items-center justify-between text-xs font-semibold text-[var(--layout-text-secondary)] uppercase">
                 <span>Example Payload</span>
                 <button
                   onClick={() => copyToClipboard(JSON.stringify(endpoint.requestExample, null, 2), `${id}-req`)}
-                  className="flex items-center space-x-1 hover:text-slate-900 dark:hover:text-white transition"
+                  className="flex items-center space-x-1 hover:text-[var(--layout-text-primary)] transition"
                 >
                   {copiedStates[`${id}-req`] ? <FiCheck className="text-emerald-500" /> : <FiCopy />}
                   <span>{copiedStates[`${id}-req`] ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-              <pre className="bg-slate-900 border border-slate-850 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-300 max-h-60">
+              <pre className="bg-black/40 border border-white/5 p-4 rounded-xl font-mono text-xs overflow-x-auto text-zinc-300 max-h-60">
                 {JSON.stringify(endpoint.requestExample, null, 2)}
               </pre>
             </div>
           )}
           
           <div className={endpoint.requestExample ? 'space-y-2' : 'col-span-2 space-y-2'}>
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-450 uppercase">
+            <div className="flex items-center justify-between text-xs font-semibold text-[var(--layout-text-secondary)] uppercase">
               <span>Example Response</span>
               <button
                 onClick={() => copyToClipboard(JSON.stringify(endpoint.responseExample, null, 2), `${id}-resp`)}
-                className="flex items-center space-x-1 hover:text-slate-900 dark:hover:text-white transition"
+                className="flex items-center space-x-1 hover:text-[var(--layout-text-primary)] transition"
               >
                 {copiedStates[`${id}-resp`] ? <FiCheck className="text-emerald-500" /> : <FiCopy />}
                 <span>{copiedStates[`${id}-resp`] ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
-            <pre className="bg-slate-900 border border-slate-850 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-300 max-h-60">
+            <pre className="bg-black/40 border border-white/5 p-4 rounded-xl font-mono text-xs overflow-x-auto text-zinc-300 max-h-60">
               {JSON.stringify(endpoint.responseExample, null, 2)}
             </pre>
           </div>

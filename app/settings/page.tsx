@@ -4,10 +4,28 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context';
 import Layout from '@/components/Layout';
-import ApiKeyManager from '@/components/ApiKeyManager';
-import PaymentChecker from '@/components/PaymentChecker';
+import dynamic from 'next/dynamic';
 import { FiKey, FiSearch } from 'react-icons/fi';
 
+// Dynamic imports — only load the active tab's component
+const ApiKeyManager = dynamic(() => import('@/components/ApiKeyManager'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-4 animate-pulse">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="h-16 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      ))}
+    </div>
+  ),
+});
+const PaymentChecker = dynamic(() => import('@/components/PaymentChecker'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-48 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }} />
+    </div>
+  ),
+});
 export default function SettingsPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();

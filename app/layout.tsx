@@ -29,6 +29,11 @@ export const metadata: Metadata = {
     description:
       "Your trusted partner for comprehensive payment gateway solutions, financial services, and cutting-edge technology solutions.",
   },
+  icons: {
+    icon: "/ztake-icon.png",
+    shortcut: "/ztake-icon.png",
+    apple: "/ztake-icon.png",
+  },
   robots: {
     index: true,
     follow: true,

@@ -4,8 +4,19 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context';
 import Layout from '@/components/Layout';
-import ProfileForm from '@/components/ProfileForm';
+import dynamic from 'next/dynamic';
 
+// Dynamic import — ProfileForm is 42KB, loads as a separate chunk
+const ProfileForm = dynamic(() => import('@/components/ProfileForm'), {
+  ssr: false,
+  loading: () => (
+    <div className="max-w-5xl mx-auto space-y-6 animate-pulse">
+      <div className="h-8 w-48 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="h-32 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="h-64 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />
+    </div>
+  ),
+});
 export default function ProfilePage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();

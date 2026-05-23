@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
@@ -61,7 +61,7 @@ export default function TransactionsPage() {
   }, [isAuthenticated, authLoading, router]);
 
   // Fetch transactions
-  const fetchTransactions = async (page = 1) => {
+  const fetchTransactions = async (page = 1, signal?: AbortSignal) => {
     if (!isAuthenticated || !token) return;
 
     setIsLoading(true);
@@ -71,7 +71,8 @@ export default function TransactionsPage() {
       const response = await fetch(`/api/vendor/payments?page=${page}&limit=${pagination.limit}`, {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        signal,
       });
 
       const rawText = await response.text();
@@ -114,8 +115,10 @@ export default function TransactionsPage() {
         setError(`${message} (HTTP ${response.status})`);
       }
     } catch (err: any) {
-      setError(`Network error. Please try again. ${err?.message ? `(${err.message})` : ''}`.trim());
-      console.error('Error fetching transactions:', err);
+      if (err?.name !== 'AbortError') {
+        setError(`Network error. Please try again. ${err?.message ? `(${err.message})` : ''}`.trim());
+        console.error('Error fetching transactions:', err);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -124,48 +127,60 @@ export default function TransactionsPage() {
   // Load transactions on component mount and when page changes
   useEffect(() => {
     if (isAuthenticated && token) {
-      fetchTransactions(pagination.page);
+      const controller = new AbortController();
+      fetchTransactions(pagination.page, controller.signal);
+      return () => controller.abort();
     }
   }, [isAuthenticated, token, pagination.page]);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination(prev => ({ ...prev, page: newPage }));
-    }
-  };
+  const handlePageChange = useCallback((newPage: number) => {
+    setPagination(prev => {
+      if (newPage >= 1 && newPage <= prev.totalPages) {
+        return { ...prev, page: newPage };
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchTransactions(pagination.page);
-  };
+  }, [pagination.page]);
 
-  // Filter transactions based on search term and status
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = searchTerm === '' || 
-      (transaction.utr && transaction.utr.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      transaction.amount.toString().includes(searchTerm) ||
-      (transaction.ztake_order_id && transaction.ztake_order_id.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'Success' && (transaction.status === 'Succeeded' || transaction.status === 'SUCCEEDED' || transaction.status === 'completed')) ||
-      (statusFilter === 'Pending' && (transaction.status === 'Pending' || transaction.status === 'PENDING' || transaction.status === 'created')) ||
-      (statusFilter === 'Failed' && (transaction.status === 'Failed' || transaction.status === 'FAILED' || transaction.status === 'rejected'));
-    
-    const result = matchesSearch && matchesStatus;
-    
-    if (!result) {
-      console.log('Filtered out transaction:', {
-        id: transaction.id,
-        ztake_order_id: transaction.ztake_order_id,
-        utr: transaction.utr,
-        status: transaction.status,
-        matchesSearch,
-        matchesStatus,
-        statusFilter
-      });
-    }
-    
-    return result;
-  });
+  // Debounced search — delays filtering by 300ms to reduce re-renders
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+    }, 300);
+  }, []);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
+  // Filter transactions based on search term and status — memoized
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
+      const matchesSearch = debouncedSearch === '' || 
+        (transaction.utr && transaction.utr.toLowerCase().includes(debouncedSearch.toLowerCase())) ||
+        transaction.amount.toString().includes(debouncedSearch) ||
+        (transaction.ztake_order_id && transaction.ztake_order_id.toLowerCase().includes(debouncedSearch.toLowerCase()));
+      
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'Success' && (transaction.status === 'Succeeded' || transaction.status === 'SUCCEEDED' || transaction.status === 'completed')) ||
+        (statusFilter === 'Pending' && (transaction.status === 'Pending' || transaction.status === 'PENDING' || transaction.status === 'created')) ||
+        (statusFilter === 'Failed' && (transaction.status === 'Failed' || transaction.status === 'FAILED' || transaction.status === 'rejected'));
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [transactions, debouncedSearch, statusFilter]);
 
   const getStatusIcon = (status: string) => {
     if (status === 'Succeeded' || status === 'SUCCEEDED' || status === 'completed') {
@@ -197,7 +212,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -205,14 +220,14 @@ export default function TransactionsPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
-  const formatAmount = (amount: number) => {
+  const formatAmount = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
     }).format(amount);
-  };
+  }, []);
 
   // Show loading spinner while checking authentication
   if (authLoading) {
@@ -259,7 +274,7 @@ export default function TransactionsPage() {
                 type="text"
                 id="search"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search by UTR or amount..."
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -349,8 +364,13 @@ export default function TransactionsPage() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="space-y-2 animate-pulse p-6">
+              {/* Table header skeleton */}
+              <div className="h-10 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }} />
+              {/* Table row skeletons */}
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-14 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }} />
+              ))}
             </div>
           ) : error ? (
             <div className="p-6 text-center">

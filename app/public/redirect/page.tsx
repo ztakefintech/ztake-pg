@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 type PaymentStatus = "Pending" | "Succeeded" | "Failed";
@@ -45,7 +45,7 @@ function buildAutoPostForm(actionUrl: string, payload: Record<string, any>) {
 	form.submit();
 }
 
-export default function RedirectPage() {
+function RedirectPageContent() {
 	const params = useSearchParams();
 	const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -393,6 +393,18 @@ export default function RedirectPage() {
 				)}
 			</div>
 		</div>
+	);
+}
+
+export default function RedirectPage() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen flex items-center justify-center p-6 text-gray-500">
+				Loading...
+			</div>
+		}>
+			<RedirectPageContent />
+		</Suspense>
 	);
 }
 

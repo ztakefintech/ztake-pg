@@ -2,8 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   APPLE LIQUID GLASS DESIGN SYSTEM — ZTAKE
+   ============================================ */
+
 @layer base {
   :root {
+    /* — Existing Tailwind tokens (preserved) — */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --border: 0 0% 89.8%;
@@ -12,8 +17,84 @@
     --accent: 0 0% 96.1%;
     --accent-foreground: 0 0% 9%;
     --radius: 0.5rem;
+
+    /* — Liquid Glass Core (Light mode defaults) — */
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-bg-medium: rgba(255, 255, 255, 0.75);
+    --glass-bg-heavy: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-border-strong: rgba(0, 0, 0, 0.14);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
+    --glass-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.05);
+    --glass-blur: blur(20px) saturate(180%);
+    --glass-blur-heavy: blur(40px) saturate(200%);
+
+    /* — Brand Colors — Monochrome Black (Light Theme) — */
+    --brand-primary: #000000;
+    --brand-secondary: #27272a;
+    --brand-glow: rgba(0, 0, 0, 0.05);
+    --brand-glow-strong: rgba(0, 0, 0, 0.08);
+    --brand-gradient: linear-gradient(135deg, #000000 0%, #18181b 50%, #27272a 100%);
+    --brand-gradient-glow: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(39, 39, 42, 0.9) 100%);
+
+    /* — Surface System (Light Theme) — */
+    --surface-1: #ffffff;
+    --surface-2: #fafafa;
+    --surface-3: #f4f4f5;
+    --surface-glass: rgba(0, 0, 0, 0.02);
+    --surface-glass-hover: rgba(0, 0, 0, 0.04);
+    --page-bg: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 0, 0, 0.015) 0%, transparent 60%), var(--surface-1);
+    --homepage-bg: radial-gradient(ellipse 100% 60% at 50% -5%, rgba(0, 0, 0, 0.02) 0%, transparent 55%), var(--surface-1);
+
+    /* — Layout Tokens (Light Theme) — */
+    --layout-header-bg: rgba(255, 255, 255, 0.8);
+    --layout-sidebar-bg: rgba(250, 250, 250, 0.9);
+    --layout-sidebar-border: rgba(0, 0, 0, 0.08);
+    --layout-text-primary: #000000;
+    --layout-text-secondary: #71717a;
+    --layout-text-active: #ffffff;
+    --layout-nav-active-bg: #000000;
+    --layout-nav-hover-bg: rgba(0, 0, 0, 0.05);
+
+    /* — Typography — */
+    --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    --font-body: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+    /* — Radius — */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-2xl: 32px;
+    --radius-pill: 999px;
+
+    /* — Motion — */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+
+    /* — Status Colors — Monochrome/Clean Grey/Neutral Tones — */
+    --success: #16a34a;
+    --success-glass: rgba(22, 163, 74, 0.1);
+    --warning: #ca8a04;
+    --warning-glass: rgba(202, 138, 4, 0.1);
+    --danger: #dc2626;
+    --danger-glass: rgba(220, 38, 38, 0.1);
+    --info: #71717a;
+    --info-glass: rgba(113, 113, 122, 0.1);
+
+    /* — Theme Primary (Monochrome variables replacing blue) — */
+    --primary-50: #f4f4f5;
+    --primary-100: #e4e4e7;
+    --primary-500: #27272a;
+    --primary-600: #18181b;
+    --primary-700: #09090b;
   }
 
+  /* — Dark Mode overrides — */
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -22,104 +103,848 @@
     --muted-foreground: 0 0% 63.9%;
     --accent: 0 0% 14.9%;
     --accent-foreground: 0 0% 98%;
+
+    /* — Liquid Glass Core (Dark Mode) — */
+    --glass-bg: rgba(10, 10, 10, 0.5);
+    --glass-bg-medium: rgba(20, 20, 20, 0.7);
+    --glass-bg-heavy: rgba(30, 30, 30, 0.9);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-strong: rgba(255, 255, 255, 0.16);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+    --glass-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
+
+    /* — Brand Colors — Monochrome White (Dark Theme) — */
+    --brand-primary: #ffffff;
+    --brand-secondary: #e4e4e7;
+    --brand-glow: rgba(255, 255, 255, 0.06);
+    --brand-glow-strong: rgba(255, 255, 255, 0.1);
+    --brand-gradient: linear-gradient(135deg, #ffffff 0%, #e4e4e7 50%, #a1a1aa 100%);
+    --brand-gradient-glow: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(228, 228, 231, 0.95) 100%);
+
+    /* — Surface System (Dark Theme) — */
+    --surface-1: #0a0a0a;
+    --surface-2: #121212;
+    --surface-3: #18181b;
+    --surface-glass: rgba(255, 255, 255, 0.03);
+    --surface-glass-hover: rgba(255, 255, 255, 0.06);
+    --page-bg: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 255, 255, 0.04) 0%, transparent 60%), var(--surface-1);
+    --homepage-bg: radial-gradient(ellipse 100% 60% at 50% -5%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), var(--surface-1);
+
+    /* — Layout Tokens (Dark Theme) — */
+    --layout-header-bg: rgba(10, 10, 10, 0.8);
+    --layout-sidebar-bg: rgba(10, 10, 10, 0.9);
+    --layout-sidebar-border: rgba(255, 255, 255, 0.08);
+    --layout-text-primary: #ffffff;
+    --layout-text-secondary: #a1a1aa;
+    --layout-text-active: #000000;
+    --layout-nav-active-bg: #ffffff;
+    --layout-nav-hover-bg: rgba(255, 255, 255, 0.05);
+
+    /* — Theme Primary (Monochrome variables replacing blue) — */
+    --primary-50: #18181b;
+    --primary-100: #27272a;
+    --primary-500: #e4e4e7;
+    --primary-600: #f4f4f5;
+    --primary-700: #ffffff;
   }
 
   * {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    /* Subtle gradient background for glassmorphism */
-    background-image:
-      radial-gradient(1200px 600px at -10% -10%, rgba(59,130,246,0.15), transparent 40%),
-      radial-gradient(1000px 500px at 110% 0%, rgba(168,85,247,0.12), transparent 45%),
-      radial-gradient(800px 400px at 50% 120%, rgba(16,185,129,0.10), transparent 40%);
-    background-color: hsl(var(--background));
+  html {
+    font-family: var(--font-body);
   }
 
-  html {
-    font-family: system-ui, sans-serif;
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
 @layer components {
+  /* ============================================
+     GLASS CARD
+     ============================================ */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
+    transition: box-shadow var(--duration-normal) var(--ease-smooth),
+                background var(--duration-normal) var(--ease-smooth),
+                border-color var(--duration-normal) var(--ease-smooth);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-card:hover {
+    background: var(--glass-bg-medium);
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--glass-shadow-hover);
+  }
+
+  /* ============================================
+     GLASS BUTTONS
+     ============================================ */
+  .glass-button-primary {
+    background: rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-top-color: rgba(255, 255, 255, 0.35) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+    border-radius: var(--radius-pill) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    transition: all var(--duration-normal) var(--ease-spring) !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .glass-button-primary:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    border-top-color: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+    transform: translateY(-1px) scale(1.01) !important;
+  }
+
+  .glass-button-primary:active {
+    transform: translateY(0) scale(0.98) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* Light mode override for primary button */
+  :root:not(.dark) .glass-button-primary {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-top-color: rgba(0, 0, 0, 0.18) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+    color: #000000 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  }
+
+  :root:not(.dark) .glass-button-primary:hover {
+    background: rgba(0, 0, 0, 0.12) !important;
+    border-color: rgba(0, 0, 0, 0.16) !important;
+    border-top-color: rgba(0, 0, 0, 0.24) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+  }
+
+  :root:not(.dark) .glass-button-primary:active {
+    background: rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .glass-button-secondary {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: var(--radius-pill) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 500 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    transition: all var(--duration-normal) var(--ease-spring) !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .glass-button-secondary:hover {
+    background: rgba(255, 255, 255, 0.09) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+  }
+
+  .glass-button-secondary:active {
+    transform: translateY(0) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  /* Light mode override for secondary button */
+  :root:not(.dark) .glass-button-secondary {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    color: rgba(0, 0, 0, 0.7) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+  }
+
+  :root:not(.dark) .glass-button-secondary:hover {
+    background: rgba(0, 0, 0, 0.06) !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+    color: #000000 !important;
+  }
+
+  :root:not(.dark) .glass-button-secondary:active {
+    background: rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .glass-button-destructive {
+    background: linear-gradient(135deg, #ff453a, #c0392b);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-pill);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 0 20px rgba(255, 69, 58, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3);
+    transition: all var(--duration-normal) var(--ease-spring);
+    cursor: pointer;
+  }
+
+  .glass-button-destructive:hover {
+    box-shadow: 0 0 32px rgba(255, 69, 58, 0.5), 0 8px 24px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  /* ============================================
+     GLASS INPUT
+     ============================================ */
+  .glass-input {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+  }
+
+  .glass-input:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+    outline: none;
+  }
+
+  /* ============================================
+     STATUS BADGES
+     ============================================ */
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .status-success { background: var(--success-glass); color: var(--success); }
+  .status-warning { background: var(--warning-glass); color: var(--warning); }
+  .status-danger  { background: var(--danger-glass);  color: var(--danger); }
+  .status-info    { background: var(--info-glass);    color: var(--info); }
+
+  /* ============================================
+     PAGE CONTENT ANIMATION
+     ============================================ */
+  .page-content {
+    animation: fadeInUp 0.4s var(--ease-smooth) both;
+  }
+
+  /* ============================================
+     LOADING SKELETON
+     ============================================ */
+  .skeleton {
+    background: linear-gradient(90deg, var(--glass-bg) 25%, var(--glass-bg-medium) 50%, var(--glass-bg) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ============================================
+     ZTAKE WORDMARK
+     ============================================ */
+  .ztake-wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.04em;
+    color: var(--brand-primary);
+    text-shadow: none;
+    text-transform: lowercase;
+  }
+
+  /* ============================================
+     GLOBAL FORM & DASHBOARD INPUTS
+     ============================================ */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--radius-md) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 8px 12px;
+    transition: all var(--duration-fast) var(--ease-smooth) !important;
+  }
+
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="number"]:focus,
+  input[type="tel"]:focus,
+  input[type="url"]:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 3px var(--brand-glow) !important;
+    outline: none !important;
+  }
+
+  ::placeholder {
+    color: rgba(255, 255, 255, 0.35) !important;
+  }
+
+  :root:not(.dark) input[type="text"],
+  :root:not(.dark) input[type="email"],
+  :root:not(.dark) input[type="password"],
+  :root:not(.dark) input[type="number"],
+  :root:not(.dark) input[type="tel"],
+  :root:not(.dark) input[type="url"],
+  :root:not(.dark) select,
+  :root:not(.dark) textarea {
+    color: rgba(0, 0, 0, 0.9) !important;
+  }
+
+  :root:not(.dark) ::placeholder {
+    color: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  /* ============================================
+     ADMIN & GENERAL MODAL OVERRIDES
+     ============================================ */
+  .fixed.inset-0[class*="bg-gray"],
+  .fixed.inset-0[class*="bg-black"],
+  .fixed.inset-0.bg-black\/40 {
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+  }
+
+  .fixed.inset-0 .bg-white.rounded-lg.shadow-xl,
+  .fixed.inset-0 .bg-white.dark\:bg-gray-900,
+  .fixed.inset-0 div[class*="bg-white"] {
+    background: rgba(18, 18, 28, 0.95) !important;
+    border: 1px solid var(--glass-border-strong) !important;
+    box-shadow: var(--glass-shadow-hover) !important;
+    backdrop-filter: var(--glass-blur-heavy) !important;
+    -webkit-backdrop-filter: var(--glass-blur-heavy) !important;
+    color: #ffffff !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  :root:not(.dark) .fixed.inset-0 .bg-white.rounded-lg.shadow-xl,
+  :root:not(.dark) .fixed.inset-0 .bg-white.dark\:bg-gray-900,
+  :root:not(.dark) .fixed.inset-0 div[class*="bg-white"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #000000 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  }
+
+  /* ============================================
+     ADMIN & VENDOR DASHBOARD CARD OVERRIDES
+     ============================================ */
+  .bg-white.shadow.rounded-lg,
+  .bg-white.shadow-sm.rounded-lg,
+  .bg-white.overflow-hidden.shadow.rounded-lg,
+  .bg-white.overflow-hidden.shadow-sm.rounded-lg,
+  .bg-white.border.rounded-lg,
+  .bg-white.border.rounded-2xl,
+  .border.rounded-md,
+  [class*="bg-white"][class*="rounded-lg"],
+  [class*="bg-white"][class*="rounded-2xl"],
+  [class*="dark:bg-gray-900"][class*="rounded-lg"],
+  [class*="dark:bg-gray-900"][class*="rounded-2xl"],
+  [class*="dark:bg-gray-800"][class*="rounded-lg"],
+  [class*="dark:bg-gray-800"][class*="rounded-2xl"] {
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    backdrop-filter: var(--glass-blur) !important;
+    -webkit-backdrop-filter: var(--glass-blur) !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  /* Keep border-b headings inside cards styled properly */
+  .border-b {
+    border-color: var(--glass-border) !important;
+  }
+
+  /* Muted backgrounds within cards (e.g. table header wrappers) */
+  .bg-gray-50 {
+    background: var(--surface-glass) !important;
+  }
+
+  /* Text colors within glass cards in Dark Mode */
+  .dark .bg-white.shadow.rounded-lg .text-gray-500,
+  .dark .bg-white.shadow.rounded-lg dt.text-gray-500,
+  .dark .bg-white.shadow.rounded-lg th.text-gray-500,
+  .dark .bg-white.shadow.rounded-lg span.text-gray-500,
+  .dark .bg-white.shadow.rounded-lg p.text-gray-500,
+  .dark [class*="bg-white"] .text-gray-500,
+  .dark [class*="bg-white"] .text-zinc-500,
+  .dark [class*="bg-white"] .text-gray-600,
+  .dark [class*="bg-white"] .text-zinc-600,
+  .dark [class*="dark:bg-gray-900"] .text-gray-500,
+  .dark [class*="dark:bg-gray-900"] .text-zinc-500,
+  .dark [class*="dark:bg-gray-900"] .text-gray-600,
+  .dark [class*="dark:bg-gray-900"] .text-zinc-600,
+  .dark [class*="dark:bg-gray-800"] .text-gray-500,
+  .dark [class*="dark:bg-gray-800"] .text-zinc-500,
+  .dark [class*="dark:bg-gray-800"] .text-gray-600,
+  .dark [class*="dark:bg-gray-800"] .text-zinc-600,
+  .dark .border.rounded-md .text-gray-500 {
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+
+  .dark .bg-white.shadow.rounded-lg .text-gray-900,
+  .dark .bg-white.shadow.rounded-lg dd.text-gray-900,
+  .dark .bg-white.shadow.rounded-lg span.text-gray-900,
+  .dark .bg-white.shadow.rounded-lg h3.text-gray-900,
+  .dark .bg-white.shadow.rounded-lg td.text-gray-900,
+  .dark .bg-white.shadow.rounded-lg h2.text-gray-900,
+  .dark [class*="bg-white"] .text-gray-900,
+  .dark [class*="bg-white"] .text-zinc-900,
+  .dark [class*="dark:bg-gray-900"] .text-gray-900,
+  .dark [class*="dark:bg-gray-900"] .text-zinc-900,
+  .dark [class*="dark:bg-gray-800"] .text-gray-900,
+  .dark [class*="dark:bg-gray-800"] .text-zinc-900,
+  .dark .border.rounded-md .text-gray-900 {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  .dark .bg-white.shadow.rounded-lg .text-gray-700,
+  .dark .bg-white.shadow.rounded-lg span.text-gray-700,
+  .dark .bg-white.shadow.rounded-lg p.text-gray-700,
+  .dark [class*="bg-white"] .text-gray-700,
+  .dark [class*="bg-white"] .text-zinc-700,
+  .dark [class*="dark:bg-gray-900"] .text-gray-700,
+  .dark [class*="dark:bg-gray-900"] .text-zinc-700,
+  .dark [class*="dark:bg-gray-800"] .text-gray-700,
+  .dark [class*="dark:bg-gray-800"] .text-zinc-700,
+  .dark .border.rounded-md .text-gray-700 {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+
+  .dark .bg-white.shadow.rounded-lg .text-gray-400,
+  .dark .bg-white.shadow.rounded-lg span.text-gray-400,
+  .dark [class*="bg-white"] .text-gray-400,
+  .dark [class*="bg-white"] .text-zinc-400,
+  .dark .border.rounded-md .text-gray-400 {
+    color: rgba(255, 255, 255, 0.35) !important;
+  }
+
+  /* Text colors within glass cards in Light Mode */
+  :root:not(.dark) .bg-white.shadow.rounded-lg .text-gray-500,
+  :root:not(.dark) .bg-white.shadow.rounded-lg dt.text-gray-500,
+  :root:not(.dark) .bg-white.shadow.rounded-lg th.text-gray-500,
+  :root:not(.dark) .bg-white.shadow.rounded-lg span.text-gray-500,
+  :root:not(.dark) .bg-white.shadow.rounded-lg p.text-gray-500,
+  :root:not(.dark) [class*="bg-white"] .text-gray-500,
+  :root:not(.dark) [class*="bg-white"] .text-zinc-500,
+  :root:not(.dark) [class*="bg-white"] .text-gray-600,
+  :root:not(.dark) [class*="bg-white"] .text-zinc-600,
+  :root:not(.dark) .border.rounded-md .text-gray-500 {
+    color: rgba(0, 0, 0, 0.55) !important;
+  }
+
+  :root:not(.dark) .bg-white.shadow.rounded-lg .text-gray-900,
+  :root:not(.dark) .bg-white.shadow.rounded-lg dd.text-gray-900,
+  :root:not(.dark) .bg-white.shadow.rounded-lg span.text-gray-900,
+  :root:not(.dark) .bg-white.shadow.rounded-lg h3.text-gray-900,
+  :root:not(.dark) .bg-white.shadow.rounded-lg td.text-gray-900,
+  :root:not(.dark) .bg-white.shadow.rounded-lg h2.text-gray-900,
+  :root:not(.dark) [class*="bg-white"] .text-gray-900,
+  :root:not(.dark) [class*="bg-white"] .text-zinc-900,
+  :root:not(.dark) .border.rounded-md .text-gray-900 {
+    color: rgba(0, 0, 0, 0.9) !important;
+  }
+
+  :root:not(.dark) .bg-white.shadow.rounded-lg .text-gray-700,
+  :root:not(.dark) .bg-white.shadow.rounded-lg span.text-gray-700,
+  :root:not(.dark) .bg-white.shadow.rounded-lg p.text-gray-700,
+  :root:not(.dark) [class*="bg-white"] .text-gray-700,
+  :root:not(.dark) [class*="bg-white"] .text-zinc-700,
+  :root:not(.dark) .border.rounded-md .text-gray-700 {
+    color: rgba(0, 0, 0, 0.7) !important;
+  }
+
+  :root:not(.dark) .bg-white.shadow.rounded-lg .text-gray-400,
+  :root:not(.dark) .bg-white.shadow.rounded-lg span.text-gray-400,
+  :root:not(.dark) .bg-white.overflow-hidden.shadow.rounded-lg .text-gray-400,
+  :root:not(.dark) .bg-white.overflow-hidden.shadow.rounded-lg span.text-gray-400,
+  :root:not(.dark) .border.rounded-md .text-gray-400,
+  :root:not(.dark) .border.rounded-md span.text-gray-400 {
+    color: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  /* ============================================
+     INDIGO & BLUE BRAND COLOR REPLACEMENTS
+     ============================================ */
+  .bg-indigo-600,
+  .bg-blue-600,
+  .btn-primary,
+  button[class*="bg-indigo-600"],
+  button[class*="bg-blue-600"],
+  button[class*="hover:bg-indigo-700"]:hover,
+  button[class*="hover:bg-blue-700"]:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-top-color: rgba(255, 255, 255, 0.35) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    transition: all var(--duration-normal) var(--ease-spring) !important;
+    cursor: pointer !important;
+  }
+
+  .bg-indigo-600:hover,
+  .bg-blue-600:hover,
+  .btn-primary:hover,
+  button[class*="bg-indigo-600"]:hover,
+  button[class*="bg-blue-600"]:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    border-top-color: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+    transform: translateY(-1px) scale(1.01) !important;
+  }
+
+  :root:not(.dark) .bg-indigo-600,
+  :root:not(.dark) .bg-blue-600,
+  :root:not(.dark) .btn-primary,
+  :root:not(.dark) button[class*="bg-indigo-600"],
+  :root:not(.dark) button[class*="bg-blue-600"],
+  :root:not(.dark) button[class*="hover:bg-indigo-700"]:hover,
+  :root:not(.dark) button[class*="hover:bg-blue-700"]:hover {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    border-top-color: rgba(0, 0, 0, 0.18) !important;
+    border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+    color: #000000 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  }
+
+  :root:not(.dark) .bg-indigo-600:hover,
+  :root:not(.dark) .bg-blue-600:hover,
+  :root:not(.dark) .btn-primary:hover,
+  :root:not(.dark) button[class*="bg-indigo-600"]:hover,
+  :root:not(.dark) button[class*="bg-blue-600"]:hover {
+    background: rgba(0, 0, 0, 0.12) !important;
+    border-color: rgba(0, 0, 0, 0.16) !important;
+    border-top-color: rgba(0, 0, 0, 0.24) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+  }
+
+  /* Secondary Badge / Panel overrides */
+  .bg-indigo-50,
+  .bg-indigo-100,
+  .bg-blue-50,
+  .bg-blue-100 {
+    background: var(--surface-glass) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--brand-primary) !important;
+  }
+
+  .text-indigo-600,
+  .text-indigo-700,
+  .text-indigo-800,
+  .text-blue-600,
+  .text-blue-700,
+  .text-blue-800 {
+    color: var(--brand-primary) !important;
+  }
+
+  .text-indigo-900,
+  .text-blue-900 {
+    color: #ffffff !important;
+  }
+
+  :root:not(.dark) .bg-indigo-50,
+  :root:not(.dark) .bg-indigo-100,
+  :root:not(.dark) .bg-blue-50,
+  :root:not(.dark) .bg-blue-100 {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  }
+  :root:not(.dark) .text-indigo-900,
+  :root:not(.dark) .text-blue-900 {
+    color: var(--brand-secondary) !important;
+  }
+
+  /* Dashboard Banner */
+  .bg-indigo-50.border.border-indigo-200.rounded-lg,
+  .bg-blue-50.border.border-blue-200.rounded-lg {
+    background: var(--surface-glass) !important;
+    border: 1px solid var(--glass-border-strong) !important;
+    border-radius: var(--radius-lg) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+
+  .bg-indigo-50.border.border-indigo-200.rounded-lg h3,
+  .bg-blue-50.border.border-blue-200.rounded-lg h3 {
+    color: #ffffff !important;
+  }
+
+  .bg-indigo-50.border.border-indigo-200.rounded-lg p,
+  .bg-blue-50.border.border-blue-200.rounded-lg p {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  :root:not(.dark) .bg-indigo-50.border.border-indigo-200.rounded-lg,
+  :root:not(.dark) .bg-blue-50.border.border-blue-200.rounded-lg {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: rgba(0, 0, 0, 0.8) !important;
+  }
+
+  :root:not(.dark) .bg-indigo-50.border.border-indigo-200.rounded-lg h3,
+  :root:not(.dark) .bg-blue-50.border.border-blue-200.rounded-lg h3 {
+    color: var(--brand-secondary) !important;
+  }
+
+  :root:not(.dark) .bg-indigo-50.border.border-indigo-200.rounded-lg p,
+  :root:not(.dark) .bg-blue-50.border.border-blue-200.rounded-lg p {
+    color: rgba(0, 0, 0, 0.6) !important;
+  }
+
+  /* Spinners override */
+  .animate-spin {
+    border-color: var(--brand-primary) !important;
+    border-top-color: transparent !important;
+  }
+
+  /* Focus ring override */
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 2px var(--brand-glow-strong) !important;
+  }
+
+  /* ============================================
+     TABS OVERRIDES
+     ============================================ */
+  .border-b.border-gray-200 nav {
+    border-bottom: 1px solid var(--glass-border) !important;
+  }
+
+  .border-b.border-gray-200 nav button {
+    border-bottom: 2px solid transparent !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-weight: 600 !important;
+    transition: all var(--duration-fast) var(--ease-smooth) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .border-b.border-gray-200 nav button:hover {
+    color: #ffffff !important;
+    border-bottom-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .border-b.border-gray-200 nav button.border-indigo-500,
+  .border-b.border-gray-200 nav button.text-indigo-600,
+  .border-b.border-gray-200 nav button.border-blue-500,
+  .border-b.border-gray-200 nav button.text-blue-600,
+  .border-b.border-gray-200 nav button.border-primary-500,
+  .border-b.border-gray-200 nav button.text-primary-600 {
+    color: var(--brand-primary) !important;
+    border-bottom-color: var(--brand-primary) !important;
+  }
+
+  :root:not(.dark) .border-b.border-gray-200 nav button {
+    color: rgba(0, 0, 0, 0.6) !important;
+  }
+
+  :root:not(.dark) .border-b.border-gray-200 nav button:hover {
+    color: #000000 !important;
+    border-bottom-color: rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* ============================================
+     TABLE OVERRIDES
+     ============================================ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead {
+    background: var(--surface-glass) !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+  }
+
+  th {
+    padding: 12px 16px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+    border: none !important;
+  }
+
+  :root:not(.dark) th {
+    color: rgba(0, 0, 0, 0.55) !important;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--glass-border) !important;
+    transition: background var(--duration-fast) var(--ease-smooth);
+    background: transparent !important;
+  }
+
+  tbody tr:last-child {
+    border-bottom: none !important;
+  }
+
+  tbody tr:hover {
+    background: var(--surface-glass-hover) !important;
+  }
+
+  td {
+    padding: 12px 16px !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    border: none !important;
+  }
+
+  :root:not(.dark) td {
+    color: rgba(0, 0, 0, 0.8) !important;
+  }
+
+  /* Override standard divide borders on tables */
+  .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--glass-border) !important;
+  }
+
+  /* ============================================
+     PRESERVED CLASSES (backward compatibility)
+     ============================================ */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    background: var(--brand-gradient);
+    color: #ffffff;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    background: var(--glass-bg);
+    color: inherit;
+    border: 1px solid var(--glass-border);
   }
-  
+
   .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-3 py-2 rounded-lg focus:outline-none;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: inherit;
+    transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
   }
-  
+
+  .input-field:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+  }
+
+  input.pl-10, .input-field.pl-10 {
+    padding-left: 2.5rem !important;
+  }
+  input.pr-10, .input-field.pr-10 {
+    padding-right: 2.5rem !important;
+  }
+  input.pl-12, .input-field.pl-12 {
+    padding-left: 3rem !important;
+  }
+
   .card {
-    @apply bg-white dark:bg-gray-900 rounded-lg shadow-md dark:shadow-lg p-6 border border-gray-200 dark:border-gray-800 relative overflow-hidden;
+    @apply rounded-lg p-6 relative overflow-hidden;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
+    transition: box-shadow var(--duration-normal) var(--ease-smooth),
+                background var(--duration-normal) var(--ease-smooth),
+                border-color var(--duration-normal) var(--ease-smooth);
+  }
+
+  .card:hover {
+    background: var(--glass-bg-medium);
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--glass-shadow-hover);
   }
 
   .white-card {
-    @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800;
-  }
-
-  /* Global dark mode text utilities */
-  [class*="text-gray-900"] {
-    @apply dark:text-white;
-  }
-
-  /* Specific overrides for better visibility */
-  .text-gray-800 {
-    @apply dark:text-gray-200;
-  }
-
-  .text-gray-700 {
-    @apply dark:text-gray-300;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
   }
 
   .form-group {
     @apply mb-4;
   }
-  
+
   .form-label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
+    @apply block text-sm font-medium mb-2;
+    color: rgba(255, 255, 255, 0.5);
   }
-  
+
+  :root:not(.dark) .form-label {
+    color: rgba(0, 0, 0, 0.55);
+  }
+
   .error-message {
-    @apply text-red-600 text-sm mt-1;
+    color: var(--danger);
+    @apply text-sm mt-1;
   }
-  
+
   .success-message {
-    @apply text-green-600 dark:text-green-400 text-sm mt-1;
+    color: var(--success);
+    @apply text-sm mt-1;
   }
 
-  /* Global dark mode utilities */
-  :root {
-    --text-primary: theme('colors.gray.900');
-    --text-secondary: theme('colors.gray.600');
-    --text-tertiary: theme('colors.gray.500');
-    --bg-card: theme('colors.white');
-    --border-default: theme('colors.gray.200');
+  /* ============================================
+     ANIMATIONS — KEYFRAMES
+     ============================================ */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  .dark {
-    --text-primary: theme('colors.white');
-    --text-secondary: theme('colors.gray.300');
-    --text-tertiary: theme('colors.gray.400');
-    --bg-card: theme('colors.gray.900');
-    --border-default: theme('colors.gray.800');
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px var(--brand-glow), 0 4px 16px rgba(0, 0, 0, 0.3); }
+    50%       { box-shadow: 0 0 40px var(--brand-glow-strong), 0 4px 16px rgba(0, 0, 0, 0.3); }
   }
 
-  /* Professional login page animations */
+  @keyframes shimmer {
+    from { background-position: -200% center; }
+    to   { background-position: 200% center; }
+  }
+
+  /* Professional login page animations (preserved) */
   .login-illustration {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .login-coin {
     animation: bounce 2s ease-in-out infinite;
   }
-  
+
   .login-shape {
     animation: pulse 4s ease-in-out infinite;
   }
@@ -127,22 +952,22 @@
   .animate-fade-in {
     animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  
+
   .animate-scale-up {
     animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  
+
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
   }
-  
+
   @keyframes bounce {
     0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
     40% { transform: translateY(-10px); }
     60% { transform: translateY(-5px); }
   }
-  
+
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 0.8; }
@@ -160,57 +985,87 @@
 }
 
 @layer utilities {
-  /* Reusable glassmorphism utilities */
+  /* ============================================
+     GLASS UTILITIES (TAILWIND)
+     ============================================ */
   .glass {
-    @apply backdrop-blur-md bg-white/30 dark:bg-gray-900/30 border border-white/40 dark:border-white/10 shadow-md shadow-black/5;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .glass-strong {
-    @apply backdrop-blur-lg bg-white/20 dark:bg-gray-900/20 border border-white/40 dark:border-white/10 shadow-lg shadow-black/10;
+    background: var(--glass-bg-medium);
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border: 1px solid var(--glass-border-strong);
+    box-shadow: var(--glass-shadow);
   }
 
-  /* Higher-contrast glass for large content areas */
   .glass-content {
-    @apply backdrop-blur-xl bg-white/55 dark:bg-gray-900/45 border border-white/50 dark:border-white/10 shadow-xl shadow-black/10;
-  }
-
-  .glass-card {
-    @apply glass rounded-xl;
+    background: var(--glass-bg-heavy);
+    backdrop-filter: var(--glass-blur-heavy);
+    -webkit-backdrop-filter: var(--glass-blur-heavy);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .glass-hover {
-    @apply transition-colors hover:bg-white/40 dark:hover:bg-gray-900/40;
+    transition: background var(--duration-fast) var(--ease-smooth),
+                border-color var(--duration-fast) var(--ease-smooth);
   }
 
-  /* Always-on subtle gloss for cards */
-  .card::after, .glass-card::after, .shine::after {
+  .glass-hover:hover {
+    background: var(--glass-bg-medium);
+    border-color: var(--glass-border-strong);
+  }
+
+  /* ============================================
+     PAGE BACKGROUNDS
+     ============================================ */
+  .bg-glass-page {
+    background: var(--page-bg);
+    min-height: 100vh;
+  }
+
+  .bg-glass-homepage {
+    background: var(--homepage-bg);
+    min-height: 100vh;
+  }
+
+  /* ============================================
+     CARD ACCENT GLOW (DECORATIVE)
+     ============================================ */
+  .card-glow::before {
     content: "";
     position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg,
-      rgba(255,255,255,0.06) 0%,
-      rgba(255,255,255,0.00) 40%,
-      rgba(255,255,255,0.00) 60%,
-      rgba(255,255,255,0.08) 100%
-    );
+    top: -40px;
+    right: -40px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--brand-glow);
+    filter: blur(40px);
     pointer-events: none;
     z-index: 0;
   }
-  .dark .card::after, .dark .glass-card::after, .dark .shine::after {
-    background: linear-gradient(135deg,
-      rgba(255,255,255,0.04) 0%,
-      rgba(255,255,255,0.00) 45%,
-      rgba(255,255,255,0.00) 60%,
-      rgba(255,255,255,0.06) 100%
-    );
+
+  .card-glow > *:not(.absolute) {
+    position: relative;
+    z-index: 1;
   }
 
-  /* Hover shine sweep effect */
+  /* ============================================
+     HOVER SHINE SWEEP (subtle gloss)
+     ============================================ */
   .shine {
     position: relative;
     overflow: hidden;
   }
-  .shine::before, .card::before, .glass-card::before {
+
+  .shine::before {
     content: "";
     position: absolute;
     top: -30%;
@@ -221,27 +1076,18 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.10) 45%,
-      rgba(255, 255, 255, 0.35) 50%,
-      rgba(255, 255, 255, 0.10) 55%,
+      rgba(255, 255, 255, 0.08) 45%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(255, 255, 255, 0.08) 55%,
       transparent 100%
     );
     pointer-events: none;
     opacity: 0;
     transition: opacity 200ms ease;
-    z-index: 1;
+    z-index: 2;
   }
-  .dark .shine::before, .dark .card::before, .dark .glass-card::before {
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.08) 45%,
-      rgba(255, 255, 255, 0.28) 50%,
-      rgba(255, 255, 255, 0.08) 55%,
-      transparent 100%
-    );
-  }
-  .shine:hover::before, .card:hover::before, .glass-card:hover::before {
+
+  .shine:hover::before {
     opacity: 1;
     animation: shine-sweep 900ms ease-out;
   }
@@ -251,9 +1097,156 @@
     100% { left: 130%; }
   }
 
-  /* Elevation bump on hover for visibility */
-  .card:hover, .glass-card:hover {
-    box-shadow: 0 10px 25px -10px rgba(0,0,0,0.25);
-    border-color: rgba(255,255,255,0.5);
+  /* ============================================
+     GLASS PRISM BORDER & CARDS
+     ============================================ */
+  .glass-prism-border {
+    position: relative;
+    border-radius: var(--radius-xl);
+    background: var(--glass-bg-heavy) !important;
+    backdrop-filter: var(--glass-blur-heavy) !important;
+    -webkit-backdrop-filter: var(--glass-blur-heavy) !important;
+    box-shadow: var(--glass-shadow-hover) !important;
+    z-index: 1;
+  }
+
+  .glass-prism-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-xl);
+    padding: 1.5px; /* The border width */
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.08) 25%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(255, 255, 255, 0.05) 75%,
+      rgba(255, 255, 255, 0.35) 100%
+    ) !important;
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  :root:not(.dark) .glass-prism-border::before {
+    background: linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.03) 25%,
+      rgba(0, 0, 0, 0.1) 50%,
+      rgba(0, 0, 0, 0.02) 75%,
+      rgba(0, 0, 0, 0.12) 100%
+    ) !important;
+  }
+
+  /* ============================================
+     STRICT MONOCHROME OVERRIDES (COMPREHENSIVE)
+     ============================================ */
+  /* Focus rings override to neutral brand primary glow */
+  .focus\:ring-blue-500:focus,
+  .focus\:ring-indigo-500:focus,
+  .focus\:ring-blue-600:focus,
+  .focus\:ring-indigo-600:focus,
+  [class*="focus:ring-blue"]:focus,
+  [class*="focus:ring-indigo"]:focus,
+  [class*="focus:ring-primary"]:focus {
+    --tw-ring-color: var(--brand-primary) !important;
+    box-shadow: 0 0 0 2px var(--brand-glow-strong) !important;
+    border-color: var(--brand-primary) !important;
+  }
+
+  /* Force dark mode blue/indigo backgrounds to frosted glass plates */
+  .dark .bg-blue-600,
+  .dark .bg-indigo-600,
+  .dark .bg-blue-500,
+  .dark .bg-indigo-500,
+  .dark .bg-blue-700,
+  .dark .bg-indigo-700,
+  .dark .bg-blue-800,
+  .dark .bg-indigo-800,
+  .dark [class*="bg-blue-600"],
+  .dark [class*="bg-indigo-600"] {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+  }
+
+  .dark .bg-blue-600:hover,
+  .dark .bg-indigo-600:hover,
+  .dark .bg-blue-500:hover,
+  .dark .bg-indigo-500:hover,
+  .dark .bg-blue-700:hover,
+  .dark .bg-indigo-700:hover,
+  .dark [class*="bg-blue-600"]:hover,
+  .dark [class*="bg-indigo-600"]:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+  }
+
+  /* Force light mode blue/indigo backgrounds to monochrome dark glass buttons */
+  :root:not(.dark) .bg-blue-600,
+  :root:not(.dark) .bg-indigo-600,
+  :root:not(.dark) .bg-blue-500,
+  :root:not(.dark) .bg-indigo-500,
+  :root:not(.dark) .bg-blue-700,
+  :root:not(.dark) .bg-indigo-700,
+  :root:not(.dark) [class*="bg-blue-600"],
+  :root:not(.dark) [class*="bg-indigo-600"] {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    color: #000000 !important;
+  }
+
+  :root:not(.dark) .bg-blue-600:hover,
+  :root:not(.dark) .bg-indigo-600:hover,
+  :root:not(.dark) .bg-blue-500:hover,
+  :root:not(.dark) .bg-indigo-500:hover,
+  :root:not(.dark) [class*="bg-blue-600"]:hover,
+  :root:not(.dark) [class*="bg-indigo-600"]:hover {
+    background: rgba(0, 0, 0, 0.12) !important;
+    border-color: rgba(0, 0, 0, 0.16) !important;
+  }
+
+  /* Map text colors */
+  .dark .text-blue-600,
+  .dark .text-indigo-600,
+  .dark .text-blue-500,
+  .dark .text-indigo-500,
+  .dark .text-blue-400,
+  .dark .text-indigo-400,
+  .dark .text-blue-300,
+  .dark .text-indigo-300,
+  .dark [class*="text-blue-600"],
+  .dark [class*="text-indigo-600"] {
+    color: var(--brand-primary) !important;
+  }
+
+  :root:not(.dark) .text-blue-600,
+  :root:not(.dark) .text-indigo-600,
+  :root:not(.dark) .text-blue-500,
+  :root:not(.dark) .text-indigo-500,
+  :root:not(.dark) [class*="text-blue-600"],
+  :root:not(.dark) [class*="text-indigo-600"] {
+    color: var(--brand-primary) !important;
+  }
+
+  /* Override borders */
+  .dark .border-blue-500,
+  .dark .border-indigo-500,
+  .dark .border-blue-600,
+  .dark .border-indigo-600 {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+  }
+
+  :root:not(.dark) .border-blue-500,
+  :root:not(.dark) .border-indigo-500,
+  :root:not(.dark) .border-blue-600,
+  :root:not(.dark) .border-indigo-600 {
+    border-color: rgba(0, 0, 0, 0.1) !important;
   }
 }

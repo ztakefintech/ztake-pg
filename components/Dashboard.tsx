@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/context';
 import { FiCreditCard, FiDollarSign, FiClock, FiCheckCircle, FiShield, FiInfo, FiCpu, FiAlertTriangle, FiArchive } from 'react-icons/fi';
 import { useVendorWebSocket } from '@/hooks/use-websocket';
@@ -171,12 +171,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     if (vendor && token) {
-      fetchDashboardData();
+      fetchDashboardData(controller.signal);
     }
+    return () => controller.abort();
   }, [vendor, token]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (signal?: AbortSignal) => {
     try {
       setIsLoading(true);
       setError('');
@@ -184,20 +186,20 @@ export default function Dashboard() {
       // Fetch recent payments and stats in parallel
       const [paymentsRes, statsRes, balanceRes, settlementsRes] = await Promise.all([
         fetch('/api/vendor/payments?limit=5', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal,
         }),
         fetch('/api/vendor/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal,
         }),
         fetch('/api/vendor/payouts/balance', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal,
         }),
         fetch('/api/vendor/settlements', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal,
         })
       ]);
       
@@ -236,8 +238,8 @@ export default function Dashboard() {
 
       // Fetch recharge requests
       await fetchRechargeRequests();
-    } catch (err) {
-      setError('Failed to load dashboard data');
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') setError('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -260,14 +262,14 @@ export default function Dashboard() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR'
     }).format(amount);
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -275,7 +277,7 @@ export default function Dashboard() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -420,49 +422,75 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+      <div className="space-y-6 animate-pulse">
+        {/* Welcome header skeleton */}
+        <div className="glass-card p-6">
+          <div className="h-8 w-64 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <div className="h-4 w-32 mt-2 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        </div>
+        {/* Balance cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="glass-card p-6">
+              <div className="h-4 w-24 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              <div className="h-8 w-40 mt-4 rounded" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              <div className="h-4 w-32 mt-3 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+            </div>
+          ))}
+        </div>
+        {/* Table skeleton */}
+        <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="p-6 pb-4">
+            <div className="h-5 w-36 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          </div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="px-4" style={{ paddingTop: '14px', paddingBottom: '14px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+              <div className="h-5 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-800">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back, {vendor?.business_name || 'User'}</h1>
+      <div className="glass-card p-6">
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white" style={{ fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Welcome Back, {vendor?.business_name || 'User'}</h1>
         {vendor?.vendor_code && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm mt-1 text-zinc-500 dark:text-zinc-400">
             Vendor ID: <MaskedText value={vendor.vendor_code} className="align-middle" />
           </p>
         )}
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
+        <div className="rounded-lg p-4" style={{ background: 'var(--danger-glass)', border: '1px solid rgba(255,69,58,0.3)', borderRadius: 'var(--radius-md)' }}>
+          <p style={{ color: 'var(--danger)' }}>{error}</p>
         </div>
       )}
 
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card">
+        <div className="glass-card card-glow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Payin Balance</h2>
-            <FiDollarSign className="text-primary-600" />
+            <h2 className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as any }}>Payin Balance</h2>
+            <FiDollarSign style={{ color: 'var(--brand-primary)' }} />
           </div>
-          <div className="text-2xl font-bold">{formatCurrency(totalReceived)}</div>
+          <div className="text-zinc-900 dark:text-white" style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>{formatCurrency(totalReceived)}</div>
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-gray-500">Sum of succeeded orders</span>
+            <span className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '12px' }}>Sum of succeeded orders</span>
             <div className="flex items-center gap-2">
-              <a href="/settlement" className="p-2 bg-indigo-600 text-white rounded hover:bg-indigo-700" title="View History">
+              <a href="/settlement" className="glass-button-secondary flex items-center justify-center" style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', padding: 0, animation: 'none' }} title="View History">
                 <FiArchive className="h-4 w-4" />
               </a>
               {totalReceived > 0 && (
                 <button 
                   onClick={processSettlement}
                   disabled={submittingSettlement}
-                  className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                  className="glass-button-primary px-3 py-1.5 text-sm disabled:opacity-50"
+                  style={{ borderRadius: 'var(--radius-md)' }}
                 >
                   {submittingSettlement ? 'Processing...' : 'Settle'}
                 </button>
@@ -470,24 +498,24 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div className="card">
+        <div className="glass-card card-glow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Payout Balance</h2>
-            <FiDollarSign className="text-primary-600" />
+            <h2 className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as any }}>Payout Balance</h2>
+            <FiDollarSign style={{ color: 'var(--brand-primary)' }} />
           </div>
-          <div className="text-2xl font-bold">{formatCurrency(payoutBalance)}</div>
+          <div className="text-zinc-900 dark:text-white" style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>{formatCurrency(payoutBalance)}</div>
           {/* {heldAmount > 0 && ( */}
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <div className="mt-2 text-zinc-500 dark:text-zinc-400" style={{ fontSize: '12px' }}>
               <span className="font-medium">Funds on Hold:</span> {formatCurrency(heldAmount) || 0}
             </div>
           {/* )} */}
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-gray-500">Use for vendor payouts</span>
+            <span className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '12px' }}>Use for vendor payouts</span>
             <div className="flex items-center gap-2">
               {/* <a href="/settlement" className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700" title="View History">
                 <FiArchive className="h-4 w-4" />
               </a> */}
-              <button onClick={() => setShowRecharge(true)} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded">Recharge</button>
+              <button onClick={() => setShowRecharge(true)} className="glass-button-primary px-3 py-1.5 text-sm" style={{ borderRadius: 'var(--radius-md)' }}>Recharge</button>
             </div>
           </div>
         </div>
@@ -548,53 +576,53 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Payments */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Payments</h2>
-          <FiDollarSign className="text-blue-600 dark:text-blue-400" size={20} />
+      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="flex items-center justify-between p-6 pb-4">
+          <h2 className="text-zinc-900 dark:text-white" style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>Recent Payments</h2>
+          <FiDollarSign style={{ color: 'var(--brand-primary)' }} size={20} />
         </div>
         
         {payments.length === 0 ? (
-          <div className="text-center py-8">
-            <FiCreditCard className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No payments yet</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Payments will appear here once they are processed.</p>
+          <div className="text-center py-8 px-6">
+            <FiCreditCard className="mx-auto h-12 w-12 text-zinc-400 dark:text-zinc-600" />
+            <h3 className="mt-2 text-sm font-medium text-zinc-900 dark:text-white">No payments yet</h3>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Payments will appear here once they are processed.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead className="bg-zinc-50/50 dark:bg-zinc-950/20 border-b border-zinc-200/50 dark:border-zinc-800/40">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="text-zinc-500 dark:text-zinc-400" style={{ padding: '14px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as any, textAlign: 'left' as any }}>
                     UTR
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="text-zinc-500 dark:text-zinc-400" style={{ padding: '14px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as any, textAlign: 'left' as any }}>
                     AMOUNT
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="text-zinc-500 dark:text-zinc-400" style={{ padding: '14px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as any, textAlign: 'left' as any }}>
                     STATUS
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="text-zinc-500 dark:text-zinc-400" style={{ padding: '14px 16px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as any, textAlign: 'left' as any }}>
                     DATE
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody>
                 {payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">
+                  <tr key={payment.id} className="transition-colors border-b border-zinc-200/50 dark:border-zinc-800/40 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/5">
+                    <td className="text-zinc-900 dark:text-zinc-100" style={{ padding: '14px 16px', fontSize: '14px', fontFamily: 'var(--font-mono)' }}>
                       {payment.utr}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="text-zinc-900 dark:text-zinc-100" style={{ padding: '14px 16px', fontSize: '14px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                       {formatCurrency(payment.amount)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td style={{ padding: '14px 16px' }}>
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(payment.status)}
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">{getStatusText(payment.status)}</span>
+                        <span className="text-zinc-900 dark:text-zinc-100" style={{ fontSize: '14px', fontWeight: 500 }}>{getStatusText(payment.status)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="text-zinc-500 dark:text-zinc-400" style={{ padding: '14px 16px', fontSize: '14px' }}>
                       {formatDate(payment.created_at)}
                     </td>
                   </tr>
@@ -608,20 +636,20 @@ export default function Dashboard() {
     
 
       {showRecharge && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-md p-5 border border-gray-200 dark:border-gray-800">
+        <div className="fixed inset-0 flex items-center justify-center z-50 px-4" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div className="glass-card w-full max-w-md" style={{ padding: '32px' }}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recharge Payout Balance</h3>
-              <button onClick={() => setShowRecharge(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">✕</button>
+              <h3 className="text-zinc-900 dark:text-white" style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>Recharge Payout Balance</h3>
+              <button onClick={() => setShowRecharge(false)} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">✕</button>
             </div>
             {rechargeAccount ? (
               <>
-              <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4 space-y-1 mb-4">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Transfer to:</div>
-                {rechargeAccount.bank_name && <div className="text-sm"><span className="text-gray-600 dark:text-gray-400">Bank:</span> <span className="font-medium text-gray-900 dark:text-white">{rechargeAccount.bank_name}</span></div>}
-                {rechargeAccount.account_holder && <div className="text-sm"><span className="text-gray-600 dark:text-gray-400">Account Holder:</span> <span className="font-medium text-gray-900 dark:text-white">{rechargeAccount.account_holder}</span></div>}
-                {rechargeAccount.account_number && <div className="text-sm font-mono"><span className="text-gray-600 dark:text-gray-400 not-italic font-sans">Account Number:</span> <span className="text-gray-900 dark:text-white">{rechargeAccount.account_number}</span></div>}
-                {rechargeAccount.ifsc && <div className="text-sm"><span className="text-gray-600 dark:text-gray-400">IFSC:</span> <span className="font-medium text-gray-900 dark:text-white">{rechargeAccount.ifsc}</span></div>}
+              <div className="bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-4 space-y-1 mb-4 text-zinc-900 dark:text-white">
+                <div className="text-sm text-zinc-500 dark:text-zinc-400">Transfer to:</div>
+                {rechargeAccount.bank_name && <div className="text-sm"><span className="text-zinc-500 dark:text-zinc-400">Bank:</span> <span className="font-medium">{rechargeAccount.bank_name}</span></div>}
+                {rechargeAccount.account_holder && <div className="text-sm"><span className="text-zinc-500 dark:text-zinc-400">Account Holder:</span> <span className="font-medium">{rechargeAccount.account_holder}</span></div>}
+                {rechargeAccount.account_number && <div className="text-sm font-mono"><span className="text-zinc-500 dark:text-zinc-400 not-italic font-sans">Account Number:</span> <span>{rechargeAccount.account_number}</span></div>}
+                {rechargeAccount.ifsc && <div className="text-sm"><span className="text-zinc-500 dark:text-zinc-400">IFSC:</span> <span className="font-medium">{rechargeAccount.ifsc}</span></div>}
               </div>
                 <div className="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-300 text-yellow-900 text-sm">
                 <strong>Note:</strong> To add funds to your Payouts A/c, transfer funds via RTGS/NEFT/IMPS to either of the account above.
@@ -630,23 +658,23 @@ export default function Dashboard() {
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-4 text-sm text-yellow-800 dark:text-yellow-200 mb-4">Recharge account details not configured. Please contact support.</div>
             )}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
-              <input value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" placeholder="e.g. 5000" />
+              <label className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em', display: 'block', marginBottom: '6px' }}>Amount</label>
+              <input value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} className="glass-input w-full px-4" style={{ height: '44px', fontSize: '15px' }} placeholder="e.g. 5000" />
               {rechargeAmount && !isNaN(Number(rechargeAmount)) && Number(rechargeAmount) > 0 && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                <div className="text-zinc-500 dark:text-zinc-455 bg-zinc-50/50 dark:bg-zinc-950/50 border border-zinc-200/30 dark:border-zinc-800/30" style={{ fontSize: '12px', padding: '8px 12px', borderRadius: 'var(--radius-sm)' }}>
                   <div>Fee: 1% + GST (₹{Number((Number(rechargeAmount) * 0.0118).toFixed(2))})</div>
                   <div>Net amount: ₹{Number((Number(rechargeAmount) - Number(rechargeAmount) * 0.0118).toFixed(2))}</div>
                 </div>
               )}
             </div>
             <div className="space-y-2 mt-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">UTR</label>
-              <input value={rechargeUtr} onChange={(e) => setRechargeUtr(e.target.value)} className="w-full border border-gray-300 dark:border-gray-700 rounded px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" placeholder="e.g. 214587963214" />
+              <label className="text-zinc-500 dark:text-zinc-400" style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em', display: 'block', marginBottom: '6px' }}>UTR</label>
+              <input value={rechargeUtr} onChange={(e) => setRechargeUtr(e.target.value)} className="glass-input w-full px-4" style={{ height: '44px', fontSize: '15px' }} placeholder="e.g. 214587963214" />
               {/* <p className="text-xs text-gray-500">Provide UTR after transferring to help admin validate quickly.</p> */}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setShowRecharge(false)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-              <button onClick={submitRecharge} disabled={submittingRecharge} className="px-3 py-1.5 text-sm bg-indigo-600 dark:bg-indigo-500 text-white rounded hover:bg-indigo-700 dark:hover:bg-indigo-600 disabled:opacity-50">Submit</button>
+              <button onClick={() => setShowRecharge(false)} className="glass-button-secondary px-4 py-2 text-sm" style={{ animation: 'none' }}>Cancel</button>
+              <button onClick={submitRecharge} disabled={submittingRecharge} className="glass-button-primary px-4 py-2 text-sm disabled:opacity-50">Submit</button>
             </div>
             {/* <p className="text-xs text-gray-500 mt-3">Your request will appear in admin dashboard. Admin will manually credit and approve; balance updates after approval.</p> */}
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context';
 import Layout from '@/components/Layout';
+import Image from 'next/image';
 import { 
   FiPlayCircle, 
   FiCopy, 
@@ -301,7 +302,7 @@ export default function DemoPayinDashboard() {
                   
                   {activeOrder.pageQrCodeUrl ? (
                     <div className="bg-white p-2 rounded-xl border shadow-sm shrink-0">
-                      <img src={activeOrder.pageQrCodeUrl} alt="Public Webpage QR" className="w-32 h-32" />
+                      <Image src={activeOrder.pageQrCodeUrl} alt="Public Webpage QR" width={128} height={128} unoptimized />
                     </div>
                   ) : (
                     <div className="w-32 h-32 bg-gray-100 rounded-xl flex items-center justify-center text-xs text-gray-400">QR Code Failed</div>

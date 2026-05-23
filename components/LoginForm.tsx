@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { 
   Mail, 
   Lock, 
@@ -287,30 +288,19 @@ export default function LoginForm() {
             <div className="mb-4 relative group">
               {/* Sleek App Icon Container */}
               <div className="w-16 h-16 rounded-2xl bg-zinc-900 dark:bg-white flex items-center justify-center shadow-lg transition-transform duration-300 group-hover:scale-105">
-                <svg 
-                  className="w-8 h-8 text-white dark:text-black" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path 
-                    d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                  />
-                  <path 
-                    d="M7 8H17L10 16H17" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                  />
-                </svg>
+                <Image 
+                  src="/ztake-icon.png"
+                  alt="Ztake"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                />
               </div>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Sign In to Ztake</h1>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white flex items-center gap-1.5 justify-center">
+              <span>Sign In to</span>
+              <span className="ztake-wordmark" style={{ fontSize: '20px' }}>ztake</span>
+            </h1>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">Enter your credentials to access your gateway dashboard</p>
           </div>
 

@@ -213,7 +213,7 @@ export default function ChatbotDashboard() {
                       value={botName}
                       onChange={(e) => setBotName(e.target.value)}
                       placeholder="ZiBot"
-                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-750 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-4 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-950 dark:focus:ring-zinc-100"
                     />
                   </div>
 
@@ -244,7 +244,7 @@ export default function ChatbotDashboard() {
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="You are a payment support bot..."
-                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-750 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm leading-relaxed"
+                    className="w-full px-4 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-950 dark:focus:ring-zinc-100 font-mono text-sm leading-relaxed"
                   />
                   <p className="text-xs text-gray-450 mt-1.5 leading-normal">
                     This prompt directs Claude's personality and goals. Use this space to specify guidelines for UTR verification, refund queries, or general business terms.
@@ -255,7 +255,7 @@ export default function ChatbotDashboard() {
                   <button
                     type="submit"
                     disabled={savingConfig}
-                    className="bg-primary-650 hover:bg-primary-700 disabled:bg-gray-400 text-white font-semibold py-2.5 px-6 rounded-xl transition duration-150 flex items-center space-x-2 shadow-sm"
+                    className="glass-button-primary py-2.5 px-6 rounded-xl flex items-center space-x-2 shadow-sm disabled:opacity-50"
                   >
                     {savingConfig ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -308,34 +308,34 @@ export default function ChatbotDashboard() {
 
           {/* Right Column: Live chat widget preview */}
           <div className="lg:col-span-5">
-            <div className="bg-white dark:bg-gray-900 border border-gray-250 dark:border-gray-800 rounded-2xl shadow-lg overflow-hidden flex flex-col h-[580px]">
+            <div className="glass-prism-border overflow-hidden flex flex-col h-[580px]">
               
               {/* Chat Widget Header */}
-              <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="p-4 bg-white/10 dark:bg-black/30 text-white flex items-center justify-between border-b border-zinc-200/10 dark:border-zinc-800/20 backdrop-blur-md">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center font-bold text-white shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-white dark:text-zinc-900 shadow-sm">
                     {botName.charAt(0)}
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-sm leading-tight">{botName}</h4>
-                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Support Online
+                    <h4 className="font-bold text-zinc-900 dark:text-white text-sm leading-tight">{botName}</h4>
+                    <span className="text-xs text-emerald-500 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Support Online
                     </span>
                   </div>
                 </div>
-                <div className="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-slate-400 font-mono">
+                <div className="bg-white/10 dark:bg-white/5 border border-zinc-250 dark:border-zinc-800 text-[10px] px-2 py-0.5 rounded-full text-zinc-600 dark:text-zinc-400 font-mono">
                   PREVIEW
                 </div>
               </div>
 
               {/* Chat Message List */}
-              <div className="flex-1 p-4 overflow-y-auto bg-slate-50 dark:bg-slate-950 space-y-4">
+              <div className="flex-1 p-4 overflow-y-auto bg-zinc-50/40 dark:bg-zinc-950/40 space-y-4">
                 <div className="flex gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-primary-650 flex items-center justify-center font-bold text-white text-xs flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center font-bold text-white dark:text-zinc-900 text-xs flex-shrink-0">
                     {botName.charAt(0)}
                   </div>
-                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800/80 rounded-2xl rounded-tl-none p-3 shadow-xs max-w-[80%]">
-                    <p className="text-xs text-gray-800 dark:text-gray-300 leading-normal">
+                  <div className="glass-card p-3 rounded-2xl rounded-tl-none max-w-[80%] text-zinc-900 dark:text-zinc-100">
+                    <p className="text-xs leading-normal">
                       Hello! I am your {botName} chatbot support agent. Ask me details regarding transaction statuses, refunds, or payment proofs.
                     </p>
                   </div>
@@ -347,15 +347,15 @@ export default function ChatbotDashboard() {
                     className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     {msg.role === 'assistant' && (
-                      <div className="w-7 h-7 rounded-full bg-primary-650 flex items-center justify-center font-bold text-white text-xs flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center font-bold text-white dark:text-zinc-900 text-xs flex-shrink-0">
                         {botName.charAt(0)}
                       </div>
                     )}
                     <div
                       className={`p-3 rounded-2xl max-w-[80%] text-xs leading-normal shadow-xs ${
                         msg.role === 'user'
-                          ? 'bg-primary-600 text-white rounded-tr-none'
-                          : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-850 rounded-tl-none text-gray-800 dark:text-gray-300'
+                          ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-tr-none'
+                          : 'glass-card rounded-tl-none text-zinc-900 dark:text-zinc-100'
                       }`}
                     >
                       <p>{msg.content}</p>
@@ -365,13 +365,13 @@ export default function ChatbotDashboard() {
                 
                 {chatLoading && (
                   <div className="flex gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-primary-650 flex items-center justify-center font-bold text-white text-xs flex-shrink-0 animate-pulse">
+                    <div className="w-7 h-7 rounded-full bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center font-bold text-white dark:text-zinc-900 text-xs flex-shrink-0 animate-pulse">
                       {botName.charAt(0)}
                     </div>
-                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-850 rounded-2xl rounded-tl-none p-3 shadow-xs flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-650 animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-650 animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-650 animate-bounce [animation-delay:0.4s]"></span>
+                    <div className="glass-card rounded-tl-none p-3 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 animate-bounce"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 animate-bounce [animation-delay:0.4s]"></span>
                     </div>
                   </div>
                 )}
@@ -380,19 +380,19 @@ export default function ChatbotDashboard() {
               </div>
 
               {/* Chat Input form */}
-              <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex gap-2">
+              <form onSubmit={handleSendMessage} className="p-3 border-t border-zinc-200/10 dark:border-zinc-800/10 bg-transparent flex gap-2">
                 <input
                   type="text"
                   disabled={chatLoading || !secretKey || !isActive}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder={isActive ? "Type support question..." : "Bot is currently disabled"}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-750 rounded-xl bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-500"
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || !inputMessage.trim() || !secretKey || !isActive}
-                  className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white p-2.5 rounded-xl transition duration-150"
+                  className="glass-button-primary p-2.5 rounded-xl disabled:opacity-50"
                 >
                   <FiSend className="w-4 h-4" />
                 </button>

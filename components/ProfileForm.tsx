@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/context';
+import Image from 'next/image';
 import { FiUser, FiPhone, FiCreditCard, FiSave, FiMessageCircle, FiCopy, FiRefreshCw, FiGlobe, FiMail, FiShield, FiEdit2, FiTrash2, FiPlus, FiX, FiLock } from 'react-icons/fi';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import MaskedText from '@/components/ui/masked-text';
@@ -970,7 +971,7 @@ export default function ProfileForm() {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">QR Code</h3>
                   <div className="flex justify-center">
                     <div className="relative">
-                      <img src={paymentInfo.qr_code_url} alt="Payment QR Code" className="w-40 h-40 border-2 border-gray-200 rounded-lg shadow-sm" onError={() => setQrError('Failed to load QR code image')} />
+                      <Image src={paymentInfo.qr_code_url} alt="Payment QR Code" width={160} height={160} className="border-2 border-gray-200 rounded-lg shadow-sm" unoptimized onError={() => setQrError('Failed to load QR code image')} />
                       {isRefreshing && (
                         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
                           <FiRefreshCw className="h-6 w-6 animate-spin text-primary-600" />

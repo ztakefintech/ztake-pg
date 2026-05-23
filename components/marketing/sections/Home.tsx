@@ -92,13 +92,13 @@ payment = ztake.Payment.create(
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-black dark:text-zinc-50 overflow-hidden font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-transparent text-zinc-950 dark:text-zinc-50 overflow-hidden font-sans transition-colors duration-300">
       
       {/* Sleek radial glowing backgrounds */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-[1400px] h-[700px] pointer-events-none z-0 opacity-40 dark:opacity-60">
-        <div className="absolute top-[-10%] left-[20%] w-[500px] h-[500px] rounded-full bg-blue-400/20 dark:bg-blue-600/10 blur-[120px]" />
-        <div className="absolute top-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-violet-400/20 dark:bg-violet-600/10 blur-[130px]" />
-        <div className="absolute top-[-5%] left-[45%] w-[400px] h-[400px] rounded-full bg-emerald-400/10 dark:bg-emerald-500/5 blur-[100px]" />
+        <div className="absolute top-[-10%] left-[20%] w-[500px] h-[500px] rounded-full bg-zinc-400/15 dark:bg-zinc-700/5 blur-[120px]" />
+        <div className="absolute top-[10%] right-[10%] w-[600px] h-[600px] rounded-full bg-zinc-300/15 dark:bg-zinc-800/5 blur-[130px]" />
+        <div className="absolute top-[-5%] left-[45%] w-[400px] h-[400px] rounded-full bg-zinc-200/10 dark:bg-zinc-800/5 blur-[100px]" />
       </div>
 
       {/* Hero Section */}
@@ -107,7 +107,7 @@ payment = ztake.Payment.create(
           
           {/* Tagline Badge */}
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/5 dark:bg-white/5 border border-zinc-950/10 dark:border-white/10 mb-8 animate-fade-in">
-            <Sparkles className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+            <Sparkles className="w-3.5 h-3.5 text-zinc-650 dark:text-zinc-400" />
             <span className="text-xs font-medium tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">
               Next-Gen Payments for scale
             </span>
@@ -124,13 +124,13 @@ payment = ztake.Payment.create(
           </p>
 
           {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-fade-in [animation-delay:0.2s]">
             <PillButton 
               variant="default" 
               size="lg" 
               href="/login" 
               testId="hero-button-start"
-              className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 px-8 py-6 rounded-full font-medium transition-all shadow-md hover:scale-[1.02] flex items-center justify-center gap-2"
+              className="w-full sm:w-auto glass-button-primary px-8 py-6 rounded-full font-medium transition-all flex items-center justify-center gap-2"
             >
               Get Started Now
               <ArrowRight className="w-4 h-4" />
@@ -140,7 +140,7 @@ payment = ztake.Payment.create(
               size="lg" 
               href="/docs" 
               testId="hero-button-docs"
-              className="w-full sm:w-auto border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-800 dark:text-zinc-200 px-8 py-6 rounded-full font-medium transition-all"
+              className="w-full sm:w-auto glass-button-secondary px-8 py-6 rounded-full font-medium transition-all"
             >
               View Documentation
             </PillButton>
@@ -169,7 +169,7 @@ payment = ztake.Payment.create(
       <section className="py-20 px-4 sm:px-6 lg:px-8 relative z-10 border-t border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-100/50 dark:bg-zinc-950/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <span className="text-xs font-semibold tracking-widest text-blue-500 dark:text-blue-400 uppercase">
+            <span className="text-xs font-semibold tracking-widest text-zinc-500 dark:text-zinc-400 uppercase">
               Developer Playground
             </span>
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mt-3">
@@ -186,7 +186,7 @@ payment = ztake.Payment.create(
               <GlassCard className="w-full p-6 flex flex-col justify-between border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl relative overflow-hidden" glow>
                 
                 {/* Visual Glass Accent */}
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 dark:bg-blue-600/10 rounded-full blur-2xl" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-zinc-500/5 dark:bg-zinc-500/5 rounded-full blur-2xl" />
 
                 <div>
                   {/* Checkout Header */}
@@ -233,7 +233,7 @@ payment = ztake.Payment.create(
                           type="number"
                           value={payAmount}
                           onChange={(e) => setPayAmount(e.target.value)}
-                          className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-zinc-900 dark:text-white font-medium"
+                          className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-zinc-100 text-zinc-900 dark:text-white font-medium"
                           placeholder="Amount in INR"
                           min="1"
                           required
@@ -247,8 +247,8 @@ payment = ztake.Payment.create(
                           </label>
                           <input
                             type="text"
-                            defaultValue="karthik@okaxis"
-                            className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-zinc-900 dark:text-white"
+                            defaultValue="zeppelin@okaxis"
+                            className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-zinc-100 text-zinc-900 dark:text-white"
                             placeholder="e.g. name@upi"
                             required
                           />
@@ -263,7 +263,7 @@ payment = ztake.Payment.create(
                               type="text"
                               maxLength={19}
                               defaultValue="4111 2222 3333 4444"
-                              className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-zinc-900 dark:text-white font-mono"
+                              className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-zinc-100 text-zinc-900 dark:text-white font-mono"
                               placeholder="4111 2222 3333 4444"
                               required
                             />
@@ -277,7 +277,7 @@ payment = ztake.Payment.create(
                                 type="text"
                                 maxLength={5}
                                 defaultValue="12/29"
-                                className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-zinc-900 dark:text-white"
+                                className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-zinc-100 text-zinc-900 dark:text-white"
                                 placeholder="MM/YY"
                                 required
                               />
@@ -290,7 +290,7 @@ payment = ztake.Payment.create(
                                 type="password"
                                 maxLength={3}
                                 defaultValue="123"
-                                className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 text-zinc-900 dark:text-white"
+                                className="w-full bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950 dark:focus:ring-zinc-100 text-zinc-900 dark:text-white"
                                 placeholder="•••"
                                 required
                               />
@@ -301,7 +301,7 @@ payment = ztake.Payment.create(
 
                       <button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-300 flex items-center justify-center gap-2 mt-4 hover:scale-[1.01]"
+                        className="w-full glass-button-primary py-3.5 px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 mt-4"
                       >
                         <Lock className="w-4 h-4" />
                         Pay ₹{parseFloat(payAmount || "0").toLocaleString("en-IN")}
@@ -314,12 +314,12 @@ payment = ztake.Payment.create(
                     <div className="py-12 flex flex-col items-center justify-center space-y-4">
                       <div className="relative">
                         {/* Apple-style circular spinner */}
-                        <svg className="animate-spin w-12 h-12 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin w-12 h-12 text-zinc-900 dark:text-zinc-100" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
                       </div>
-                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Authorizing payment with bank...</p>
+                      <p className="text-sm font-medium text-zinc-650 dark:text-zinc-350">Authorizing payment with bank...</p>
                     </div>
                   )}
 
@@ -350,7 +350,7 @@ payment = ztake.Payment.create(
                         </div>
                         <div className="flex justify-between border-t border-zinc-200 dark:border-zinc-800 pt-1.5 mt-1.5">
                           <span>Latency:</span>
-                          <span className="text-blue-500 font-semibold">{payLatency}ms</span>
+                          <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{payLatency}ms</span>
                         </div>
                       </div>
 
@@ -509,7 +509,7 @@ payment = ztake.Payment.create(
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-blue-500 dark:text-blue-400 uppercase">
+            <span className="text-xs font-semibold tracking-widest text-zinc-500 dark:text-zinc-400 uppercase">
               Engineered for Speed
             </span>
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mt-3">
@@ -525,9 +525,9 @@ payment = ztake.Payment.create(
             
             {/* Box 1 - Big Feature (Payments) */}
             <GlassCard className="md:col-span-2 p-8 border-zinc-200/60 dark:border-zinc-800/60 flex flex-col justify-between group overflow-hidden" glow>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-500/5 dark:bg-zinc-500/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
               <div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-xl bg-zinc-150 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 flex items-center justify-center mb-6">
                   <CreditCard className="w-6 h-6" />
                 </div>
                 <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
@@ -623,7 +623,7 @@ payment = ztake.Payment.create(
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-blue-500 dark:text-blue-400 uppercase">
+            <span className="text-xs font-semibold tracking-widest text-zinc-500 dark:text-zinc-400 uppercase">
               Unified Platform
             </span>
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mt-3">
@@ -641,7 +641,7 @@ payment = ztake.Payment.create(
                 onClick={() => setSolutionTab("checkout")}
                 className={`flex-1 py-3 px-4 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-300 ${
                   solutionTab === "checkout"
-                    ? "bg-white dark:bg-zinc-850 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
                     : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                 }`}
               >
@@ -651,7 +651,7 @@ payment = ztake.Payment.create(
                 onClick={() => setSolutionTab("billing")}
                 className={`flex-1 py-3 px-4 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-300 ${
                   solutionTab === "billing"
-                    ? "bg-white dark:bg-zinc-850 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
                     : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                 }`}
               >
@@ -661,7 +661,7 @@ payment = ztake.Payment.create(
                 onClick={() => setSolutionTab("banking")}
                 className={`flex-1 py-3 px-4 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-300 ${
                   solutionTab === "banking"
-                    ? "bg-white dark:bg-zinc-850 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-md scale-[1.01]"
                     : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                 }`}
               >
@@ -675,7 +675,7 @@ payment = ztake.Payment.create(
             {solutionTab === "checkout" && (
               <GlassCard className="p-8 border-zinc-200/60 dark:border-zinc-800/60 flex flex-col md:flex-row gap-8 items-center animate-scale-up" glow>
                 <div className="flex-1 space-y-4">
-                  <span className="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
                     Checkout SDK
                   </span>
                   <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
@@ -686,16 +686,16 @@ payment = ztake.Payment.create(
                   </p>
                   <div className="space-y-2 pt-2">
                     <div className="flex items-center text-xs text-zinc-600 dark:text-zinc-300">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 mr-2" />
                       Prebuilt modal or fully customized API styles
                     </div>
                     <div className="flex items-center text-xs text-zinc-600 dark:text-zinc-300">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 mr-2" />
                       Automatic support for UPI, Cards, netbanking & BNPL
                     </div>
                   </div>
                   <div className="pt-2">
-                    <PillButton variant="default" href="/login" className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 max-w-[150px]">
+                    <PillButton variant="default" href="/login" className="glass-button-primary text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 max-w-[150px]">
                       Learn More
                       <ChevronRight className="w-4 h-4" />
                     </PillButton>
@@ -711,14 +711,14 @@ payment = ztake.Payment.create(
                     <div className="space-y-2">
                       <div className="bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800 rounded-xl p-3 flex items-center justify-between cursor-pointer transition-colors">
                         <div className="flex items-center gap-2.5">
-                          <Smartphone className="w-4 h-4 text-violet-400" />
+                          <Smartphone className="w-4 h-4 text-zinc-400" />
                           <span className="text-xs font-semibold text-white">UPI Pay</span>
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
                       </div>
                       <div className="bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800 rounded-xl p-3 flex items-center justify-between cursor-pointer transition-colors">
                         <div className="flex items-center gap-2.5">
-                          <CreditCard className="w-4 h-4 text-blue-400" />
+                          <CreditCard className="w-4 h-4 text-zinc-400" />
                           <span className="text-xs font-semibold text-white">Card Payment</span>
                         </div>
                         <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
@@ -784,27 +784,27 @@ payment = ztake.Payment.create(
             {solutionTab === "banking" && (
               <GlassCard className="p-8 border-zinc-200/60 dark:border-zinc-800/60 flex flex-col md:flex-row gap-8 items-center animate-scale-up" glow>
                 <div className="flex-1 space-y-4">
-                  <span className="text-xs font-bold text-violet-500 dark:text-violet-400 uppercase tracking-widest">
-                    Corporate Banking
+                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
+                    Subscriptions
                   </span>
                   <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    ZtakeX Business Accounts
+                    Automate recurring customer billing
                   </h3>
                   <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                    Set up payouts, manage corporate credit accounts, track ledger cards, and clear bulk merchant settlements instantly. Integrate seamlessly with your existing accounting ledger systems.
+                    Set up daily, monthly, or customized recurring subscription payments. Auto-dunning engine retries failed cards instantly, notifying subscribers transparently to retain active memberships.
                   </p>
                   <div className="space-y-2 pt-2">
                     <div className="flex items-center text-xs text-zinc-600 dark:text-zinc-300">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-2" />
-                      24/7 instant IMPS, NEFT, and RTGS payouts
+                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 mr-2" />
+                      Custom trials, tiers, discounts, and cycles
                     </div>
                     <div className="flex items-center text-xs text-zinc-600 dark:text-zinc-300">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-2" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 mr-2" />
                       Corporate spend cards with custom budget limits
                     </div>
                   </div>
                   <div className="pt-2">
-                    <PillButton variant="default" href="/login" className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 max-w-[150px]">
+                    <PillButton variant="default" href="/login" className="glass-button-primary text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 max-w-[150px]">
                       Learn More
                       <ChevronRight className="w-4 h-4" />
                     </PillButton>
@@ -812,11 +812,11 @@ payment = ztake.Payment.create(
                 </div>
 
                 <div className="flex-1 w-full flex justify-center">
-                  <div className="w-full max-w-[340px] h-[190px] rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 p-6 shadow-2xl relative flex flex-col justify-between overflow-hidden">
+                  <div className="w-full max-w-[340px] h-[190px] rounded-2xl bg-zinc-950 border border-zinc-800 p-6 shadow-2xl relative flex flex-col justify-between overflow-hidden">
                     <div className="absolute top-0 right-0 w-44 h-44 bg-white/5 rounded-full blur-xl" />
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] text-violet-200 font-semibold tracking-widest uppercase">ZtakeX Platinum</span>
+                        <span className="text-[10px] text-zinc-400 font-semibold tracking-widest uppercase">ZtakeX Carbon</span>
                         <div className="text-lg font-bold text-white mt-1">Corporate Card</div>
                       </div>
                       <div className="text-white font-bold italic tracking-tighter">ztake</div>
@@ -826,10 +826,10 @@ payment = ztake.Payment.create(
                     </div>
                     <div className="flex justify-between items-end">
                       <div>
-                        <div className="text-[8px] text-violet-200 uppercase font-semibold">Card Holder</div>
-                        <div className="text-xs font-semibold text-white mt-0.5">Karthik R.</div>
+                        <div className="text-[8px] text-zinc-400 uppercase font-semibold">Card Holder</div>
+                        <div className="text-xs font-semibold text-white mt-0.5">Zeppelin R.</div>
                       </div>
-                      <div className="w-8 h-5 bg-white/20 rounded-md backdrop-blur-xs flex items-center justify-center">
+                      <div className="w-8 h-5 bg-white/10 border border-white/15 rounded-md backdrop-blur-xs flex items-center justify-center">
                         <span className="text-[7px] text-white font-bold">VISA</span>
                       </div>
                     </div>
@@ -847,7 +847,7 @@ payment = ztake.Payment.create(
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center mb-16">
-            <span className="text-xs font-semibold tracking-widest text-blue-500 dark:text-blue-400 uppercase">
+            <span className="text-xs font-semibold tracking-widest text-zinc-500 dark:text-zinc-400 uppercase">
               Proven Results
             </span>
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mt-3">
@@ -864,7 +864,7 @@ payment = ztake.Payment.create(
               <p className="text-zinc-600 dark:text-zinc-300 text-sm italic leading-relaxed">
                 "Ztake has revolutionized our payment processing. The sandbox testing is exceptional, and API response speed is consistently under 20 milliseconds."
               </p>
-              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-850">
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
                 <div className="w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-700 dark:text-zinc-300">RK</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Rajesh Kumar</h4>
@@ -877,7 +877,7 @@ payment = ztake.Payment.create(
               <p className="text-zinc-600 dark:text-zinc-300 text-sm italic leading-relaxed">
                 "Outstanding reliability. Our transaction success rates spiked 14% higher instantly after switching. Smart routing avoids routing failures seamlessly."
               </p>
-              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-850">
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
                 <div className="w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-700 dark:text-zinc-300">PS</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Priya Sharma</h4>
@@ -890,7 +890,7 @@ payment = ztake.Payment.create(
               <p className="text-zinc-600 dark:text-zinc-300 text-sm italic leading-relaxed">
                 "The webhooks and detailed transaction logs dashboard provide incredible insights. Ztake is by far the cleanest payment product built for engineers."
               </p>
-              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-850">
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
                 <div className="w-9 h-9 rounded-full bg-zinc-300 dark:bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-700 dark:text-zinc-300">AP</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-900 dark:text-white">Amit Patel</h4>
@@ -908,8 +908,8 @@ payment = ztake.Payment.create(
         <div className="max-w-4xl mx-auto">
           <GlassCard className="p-12 text-center border-zinc-200/60 dark:border-zinc-800/60 relative overflow-hidden" glow>
             {/* Background Glow */}
-            <div className="absolute top-[-20%] left-[-20%] w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px]" />
-            <div className="absolute bottom-[-20%] right-[-20%] w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px]" />
+            <div className="absolute top-[-20%] left-[-20%] w-[400px] h-[400px] bg-zinc-500/5 rounded-full blur-[100px]" />
+            <div className="absolute bottom-[-20%] right-[-20%] w-[400px] h-[400px] bg-zinc-600/5 rounded-full blur-[100px]" />
 
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-4 relative z-10">
               Ready to Upgrade Your Payments?
@@ -924,7 +924,7 @@ payment = ztake.Payment.create(
                 size="lg" 
                 href="/login" 
                 testId="cta-button-trial"
-                className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-950 px-8 py-5 rounded-full font-semibold transition-all hover:scale-[1.01]"
+                className="w-full sm:w-auto glass-button-primary px-8 py-5 rounded-full font-semibold transition-all hover:scale-[1.01]"
               >
                 Start Free Trial
               </PillButton>
@@ -933,7 +933,7 @@ payment = ztake.Payment.create(
                 size="lg" 
                 href="/contact" 
                 testId="cta-button-sales"
-                className="w-full sm:w-auto border-zinc-300 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-800 dark:text-zinc-200 px-8 py-5 rounded-full font-semibold transition-all"
+                className="w-full sm:w-auto glass-button-secondary px-8 py-5 rounded-full font-semibold transition-all"
               >
                 Contact Sales
               </PillButton>
@@ -943,7 +943,7 @@ payment = ztake.Payment.create(
       </section>
 
       {/* Trust Compliance Section */}
-      <section className="py-12 border-t border-zinc-200/50 dark:border-zinc-850 px-4 sm:px-6 lg:px-8">
+      <section className="py-12 border-t border-zinc-200/50 dark:border-zinc-800/50 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="space-y-1.5">

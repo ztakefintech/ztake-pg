@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
+import Image from 'next/image';
 
 export default function DemoPage() {
   const { vendor, token, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -346,7 +347,7 @@ export default function DemoPage() {
             <p className="text-gray-600 dark:text-gray-400 mb-4">Create order, submit UTR, and observe callback events.</p>
             <div className="mb-4 text-center">
               {qrCode ? (
-                <img src={qrCode} alt="Payment QR" className="w-48 h-48 inline-block border rounded" />
+                <Image src={qrCode} alt="Payment QR" width={192} height={192} className="inline-block border rounded" unoptimized />
               ) : (
                 <div className="w-48 h-48 inline-flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded">No QR</div>
               )}

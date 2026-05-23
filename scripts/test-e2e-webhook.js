@@ -68,7 +68,7 @@ async function createTestOrder(vendorId, ztakeOrderId, amount = 15.00) {
       `mch_${ztakeOrderId}`,
       amount,
       'INR',
-      'Karthik User',
+      'Zeppelin User',
       'order_created',
       vendorId
     ]);

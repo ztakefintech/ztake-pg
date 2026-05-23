@@ -4,7 +4,7 @@ async function test() {
   const body = `{
   "amount": "₹150",
   "time": "12.30",
-  "raw_screen": "Google Pay Business\nReceived from Karthik\n₹150\nUTR: 123456789012",
+  "raw_screen": "Google Pay Business\nReceived from Zeppelin\n₹150\nUTR: 123456789012",
   "source": "gpay_business",
   "timestamp": "12345678"
 }`;
