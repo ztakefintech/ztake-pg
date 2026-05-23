@@ -5,6 +5,12 @@ import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
   try {
     const { searchParams } = new URL(req.url);
@@ -53,7 +59,7 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
       }
 
       if (!signatureValid) {
-        return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 401 });
+        return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 401, headers: CORS_HEADERS });
       }
     }
     
@@ -69,7 +75,7 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
     }
 
     if (!secretKey) {
-      return NextResponse.json({ error: 'Authorization required. Pass secret key in Authorization header or key query param.' }, { status: 401 });
+      return NextResponse.json({ error: 'Authorization required. Pass secret key in Authorization header or key query param.' }, { status: 401, headers: CORS_HEADERS });
     }
 
     // 2. Fetch vendor details
@@ -78,7 +84,7 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
       [secretKey]
     );
     if (!vendor) {
-      return NextResponse.json({ error: 'Invalid API key or vendor not approved' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid API key or vendor not approved' }, { status: 401, headers: CORS_HEADERS });
     }
 
     // 3. Resolve request inputs (message & session_id)
@@ -106,12 +112,12 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
     }
 
     if (!message || message.trim().length === 0) {
-      return NextResponse.json({ error: 'message parameter is required' }, { status: 400 });
+      return NextResponse.json({ error: 'message parameter is required' }, { status: 400, headers: CORS_HEADERS });
     }
 
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
-      return NextResponse.json({ error: 'Chatbot not configured on server. Contact support.' }, { status: 503 });
+      return NextResponse.json({ error: 'Chatbot not configured on server. Contact support.' }, { status: 503, headers: CORS_HEADERS });
     }
 
     // 4. Send query to Claude
@@ -127,7 +133,8 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
       return new NextResponse(result.reply, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'x-session-id': result.sessionId
+          'x-session-id': result.sessionId,
+          ...CORS_HEADERS
         }
       });
     }
@@ -137,11 +144,11 @@ async function handleRequest(req: NextRequest, method: 'GET' | 'POST') {
       reply: result.reply,
       session_id: result.sessionId,
       bot_name: 'ZiBot'
-    });
+    }, { headers: CORS_HEADERS });
 
   } catch (error) {
     console.error('ZiBot webhook handler error:', error);
-    return NextResponse.json({ error: 'Failed to process chat webhook' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process chat webhook' }, { status: 500, headers: CORS_HEADERS });
   }
 }
 

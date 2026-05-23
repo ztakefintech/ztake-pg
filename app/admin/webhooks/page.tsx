@@ -55,18 +55,31 @@ function enhanceEventWithParsedData(e: WebhookEvent): WebhookEvent {
 
   const parsed = parseBankWebhookPayload(payloadObj || {});
 
+  const safeParseNum = (val: any): number | null => {
+    if (val == null) return null;
+    if (typeof val === 'number') return isNaN(val) ? null : val;
+    const clean = String(val).replace(/[+\-\s₹,]/g, '').trim();
+    const parsedVal = parseFloat(clean);
+    return isNaN(parsedVal) ? null : parsedVal;
+  };
+
+  const finalAmount = safeParseNum(e.amount) ?? safeParseNum(parsed.amount);
+  const finalCustomerPaid = safeParseNum(e.customer_paid) ?? safeParseNum(parsed.customer_paid);
+  const finalMdrGst = safeParseNum(e.mdr_gst) ?? safeParseNum(parsed.mdr_gst);
+  const finalAmountReceived = safeParseNum(e.amount_received) ?? safeParseNum(parsed.amount_received);
+
   return {
     ...e,
     utr: e.utr || parsed.utr,
     google_txn_id: e.google_txn_id || parsed.google_txn_id,
-    amount: e.amount != null ? Number(e.amount) : (parsed.amount != null ? Number(parsed.amount) : null),
+    amount: finalAmount,
     payment_type: e.payment_type && e.payment_type !== 'unknown' ? e.payment_type : parsed.payment_type,
     sender_name: e.sender_name || parsed.sender_name,
     payment_method: e.payment_method || parsed.payment_method,
     payment_app: e.payment_app || parsed.payment_app,
-    customer_paid: e.customer_paid != null ? Number(e.customer_paid) : (parsed.customer_paid != null ? Number(parsed.customer_paid) : null),
-    mdr_gst: e.mdr_gst != null ? Number(e.mdr_gst) : (parsed.mdr_gst != null ? Number(parsed.mdr_gst) : null),
-    amount_received: e.amount_received != null ? Number(e.amount_received) : (parsed.amount_received != null ? Number(parsed.amount_received) : null),
+    customer_paid: finalCustomerPaid,
+    mdr_gst: finalMdrGst,
+    amount_received: finalAmountReceived,
   };
 }
 
